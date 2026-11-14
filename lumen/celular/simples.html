@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>MiguelAngelus — Controle (simples)</title>
+<!--
+  Versão simples do controle pelo celular, para navegadores antigos (iPad/iPhone com iOS 9 e 10, Android antigo):
+  JavaScript da época (sem funções de seta, let/const, fetch, async), sem grid e sem "gap".
+  A página completa (index.html) manda para cá sozinha quando o navegador não a entende.
+  Controle: no telão, próximo, Anterior/Próximo, Mudo, Limpar, Altar, slides do item e o roteiro.
+  Músico: as cifras dos cantos do roteiro, com o canto do telão marcado, tom (−/+), meu instrumento e tamanho da letra.
+-->
+<style>
+  html, body { margin: 0; background: #12151b; color: #e8eaee; font: 16px/1.35 -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  button, select { font: inherit; color: #e8eaee; background: #262b34; border: 1px solid #3a404b; border-radius: 10px; padding: 12px 10px; }
+  button:active { background: #353b46; }
+  button.ligado { background: #b8312f; border-color: #d24a47; color: #fff; }
+  .topo { padding: 10px 12px; background: #1b1f27; border-bottom: 1px solid #2c323c; }
+  .topo b { font-size: 17px; }
+  .pt { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #777; margin-right: 6px; vertical-align: middle; }
+  .pt.on { background: #3fb37f; }
+  .selo { float: right; font-size: 13px; padding: 2px 8px; border-radius: 10px; background: #2c323c; color: #aab; }
+  .selo.vivo { background: #b8312f; color: #fff; }
+  main { padding: 10px 12px 120px; }
+  .musico main { padding-bottom: 20px; }
+  .rot { font-size: 12px; color: #9aa3b2; text-transform: uppercase; letter-spacing: .06em; margin: 12px 2px 6px; }
+  .tela { min-height: 90px; padding: 12px; border-radius: 12px; background: #0b0d11; border: 2px solid #2c323c; text-align: center; font-size: 17px; }
+  .tela.vivo { border-color: #e0483e; }
+  .vazia { color: #8a92a0; }
+  .quem { color: #ff5a4f; font-weight: 700; }
+  .resp { font-weight: 700; }
+  .botoes button { display: inline-block; width: 31%; margin: 0 1% 8px 0; }
+  .largo { display: block; width: 100%; margin-top: 4px; }
+  .sl { display: block; width: 100%; text-align: left; margin-bottom: 6px; font-size: 14px; }
+  .sl.vivo { border-color: #e0483e; }
+  .sl .n { float: right; color: #8a92a0; font-size: 12px; }
+  .it { display: block; width: 100%; text-align: left; margin-bottom: 6px; }
+  .it.sel { border-color: #c99a2e; }
+  .it .tag { font-size: 11px; color: #9aa3b2; text-transform: uppercase; margin-right: 6px; }
+  .it .noar { float: right; width: 10px; height: 10px; border-radius: 50%; background: #e0483e; margin-top: 5px; }
+  .baixo { position: fixed; left: 0; right: 0; bottom: 0; padding: 8px 12px 14px; background: #1b1f27; border-top: 1px solid #2c323c; }
+  .musico .baixo, .musico .so-controle { display: none !important; }
+  .baixo .nav button { display: inline-block; width: 48.5%; padding: 16px 6px; font-size: 18px; font-weight: 700; }
+  .baixo .nav button + button { margin-left: 3%; background: #c99a2e; border-color: #c99a2e; color: #1b1503; }
+  .abas { margin-top: 8px; }
+  .abas button { display: inline-block; width: 31.5%; padding: 8px 4px; font-size: 14px; background: transparent; }
+  .abas button + button { margin-left: 2.5%; }
+  .abas button.sel { background: #2c323c; color: #f2d16b; }
+  /* cifras */
+  .m-barra { padding: 4px 0 8px; }
+  .m-barra select { width: 62%; padding: 8px; font-size: 14px; }
+  .m-barra button { width: 17%; padding: 8px 0; margin-left: 1%; }
+  .mc { border: 1px solid #2c323c; border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+  .mc.vivo { border: 2px solid #e0483e; }
+  .mc-cab { padding: 10px 12px; background: #1b1f27; }
+  .mc-cab .mom { font-size: 11px; color: #9aa3b2; text-transform: uppercase; }
+  .mc-cab .tt { font-weight: 700; }
+  .mc-cab .sutil { font-size: 13px; color: #9aa3b2; font-weight: 400; }
+  .mc-tom { float: right; margin-left: 8px; white-space: nowrap; }
+  .mc-tom button { padding: 4px 10px; }
+  .mc-tom b { display: inline-block; min-width: 34px; text-align: center; color: #f2d16b; }
+  .noarm { float: right; color: #fff; background: #e0483e; font-size: 11px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
+  .mc-ver { margin-top: 6px; } .mc-ver button { padding: 4px 9px; font-size: 13px; } .mc-ver button.sel { background: #f2d16b; color: #1b1503; font-weight: 700; }
+.part { background: #fff; overflow-x: auto; padding: 4px 0; } .part img { display: block; max-width: none; width: 100%; margin: 0; }
+.part .pg { display: block; position: relative; margin: 0 auto 6px; }
+.part .faixa { position: absolute; left: 0; right: 0; background: rgba(224, 70, 60, .10); border-left: 6px solid rgba(224, 70, 60, .9); }
+.part .faixa-l { position: absolute; left: 0; right: 0; background: rgba(255, 196, 0, .30); }
+pre.cifra, .letra { margin: 0; padding: 10px 12px; font: 15px/1.35 Menlo, Consolas, "Courier New", monospace; white-space: pre-wrap; word-wrap: break-word; }
+  .letra { font-family: inherit; }
+  pre.cifra .ac { color: #f2d16b; font-weight: 700; }
+  pre.cifra .sec { color: #9aa3b2; }
+  .papeis button { display: inline-block; width: 32%; padding: 12px 2px; }
+  .papeis button + button { margin-left: 2%; }
+  /* (1.8.4) 📺 Telão: o slide em tela cheia, só para ver (tablet ou TV); tabela para centralizar em navegadores antigos */
+  #telao { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 8; background: #000; color: #fff; overflow: hidden; cursor: none; }
+  #telaoCx { display: table; width: 100%; height: 100%; }
+  #telaoCel { display: table-cell; vertical-align: middle; text-align: center; padding: 4% 5%; }
+  #telaoTxt { line-height: 1.22; word-wrap: break-word; }
+  #telaoTxt sup { font-size: .55em; opacity: .75; }
+  #telao.sombra #telaoTxt { text-shadow: 0 .04em .12em rgba(0,0,0,.85); }
+  #telao.maius #telaoTxt { text-transform: uppercase; }
+  #telao.negrito #telaoTxt { font-weight: 700; }
+  #telaoAviso { position: absolute; left: 0; right: 0; bottom: 0; background: #b3261e; color: #fff; font-weight: 700; padding: 10px 3%; font-size: 26px; }
+  #telaoPt { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: #e0463c; }
+  .telao .topo, .telao main, .telao .baixo { display: none !important; }
+  .papeis button.sel { border-color: #c99a2e; color: #f2d16b; }
+  .cobre { position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: #12151b; padding: 24px; text-align: center; z-index: 10; overflow-y: auto; }
+  .cobre input { font: inherit; font-size: 22px; width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #3a404b; background: #0b0d11; color: #fff; text-align: center; margin: 6px 0 12px; }
+  .cobre .erro { color: #ff8a80; min-height: 20px; }
+  .toast { position: fixed; left: 10%; right: 10%; bottom: 130px; background: #2d323b; padding: 10px; border-radius: 10px; text-align: center; opacity: 0; -webkit-transition: opacity .3s; transition: opacity .3s; pointer-events: none; }
+  [hidden] { display: none !important; }
+  font.m-vermelho { color: #c8102e; } font.m-dourado { color: #f2c14e; } font.m-azul { color: #5aa9ff; } font.m-verde { color: #5cc46a; }
+  font.m-roxo { color: #b57cf0; } font.m-branco { color: #fff; } font.m-preto { color: #111; }
+  big.m-g { font-size: 1.25em; } big.m-gg { font-size: 1.5em; } small.m-pq { font-size: .8em; }
+</style>
+</head>
+<body>
+<div class="topo"><span class="selo" id="selo">—</span><span class="pt" id="pt"></span><b id="nomeRoteiro">MiguelAngelus</b></div>
+
+<main>
+  <div id="pgControle" class="so-controle">
+    <div class="rot">No telão <span id="noArTit"></span></div>
+    <div class="tela" id="noAr"><span class="vazia">Conectando…</span></div>
+    <div class="rot">Próximo <span id="proxTit"></span></div>
+    <div class="tela" id="prox" style="min-height:50px;font-size:14px"><span class="vazia">—</span></div>
+    <div class="rot" style="margin-top:14px"></div>
+    <div class="botoes">
+      <button data-cmd="mudo" id="btMudo">Mudo</button><button data-cmd="limpar">Limpar</button><button data-cmd="altar" id="btAltar">Altar</button>
+    </div>
+    <button data-cmd="projecao" id="btProjecao" class="largo">Abrir o telão</button>
+    <div class="rot">Slides do item aberto <span id="abertoTit"></span></div>
+    <div id="tira"></div>
+  </div>
+  <div id="pgRoteiro" class="so-controle" hidden>
+    <div class="rot">Roteiro — toque num item para abrir</div>
+    <div id="lista"></div>
+  </div>
+  <div id="pgCifras" hidden>
+    <div id="links" style="margin:0 0 8px"></div>
+    <div class="m-barra">
+      <select id="mInstr" title="Meu instrumento: as cifras aparecem no tom dele (só neste aparelho)">
+        <option value="c">🎹 Dó (violão, teclado…)</option>
+        <option value="bb">🎺 Si♭ (sax tenor, trompete)</option>
+        <option value="eb">🎷 Mi♭ (sax alto)</option>
+        <option value="f">📯 Fá (trompa)</option>
+      </select><button id="mMenor">A−</button><button id="mMaior">A+</button>
+    </div>
+    <div id="mCantos"><span class="vazia">Carregando as cifras…</span></div>
+  </div>
+</main>
+
+<div class="baixo">
+  <div class="nav"><button data-cmd="anterior">◀ Anterior</button><button data-cmd="proximo">Próximo ▶</button></div>
+  <div class="abas"><button data-aba="controle" class="sel">Controle</button><button data-aba="roteiro">Roteiro</button><button data-aba="cifras">🎸 Cifras</button></div>
+</div>
+
+<div class="cobre" id="par" hidden>
+  <h2>MiguelAngelus</h2>
+  <p>Controle pelo celular (versão simples)</p>
+  <div>Código que aparece no computador</div>
+  <input id="parCod" type="tel" maxlength="4" autocomplete="off">
+  <div>Nome deste aparelho</div>
+  <input id="parNome" maxlength="40" style="font-size:17px">
+  <div style="margin-bottom:6px">Este aparelho é para</div>
+  <div class="papeis"><button data-papel="controle" class="sel">📱 Controle</button><button data-papel="musico">🎸 Músico</button><button data-papel="telao">📺 Telão</button></div>
+  <p style="font-size:13px;color:#9aa3b2">Músico: só vê as cifras dos cantos, acompanhando o telão (não mexe nele).<br>
+    Telão: tablet ou TV que mostra o slide do telão em tela cheia (não mexe em nada).</p>
+  <div class="erro" id="parErro"></div>
+  <button id="parOk" class="largo" style="background:#c99a2e;border-color:#c99a2e;color:#1b1503;font-weight:700">Conectar</button>
+</div>
+<div class="cobre" id="fora" hidden>
+  <h2>Sem conexão com o computador</h2>
+  <p>Confira se o aparelho está no <b>mesmo Wi-Fi</b> do computador e se o MiguelAngelus está aberto, com o controle pelo celular ligado.</p>
+  <button class="largo" onclick="location.reload()">Tentar de novo</button>
+</div>
+<div id="telao" hidden>
+  <div id="telaoCx"><div id="telaoCel"><div id="telaoTxt"></div></div></div>
+  <div id="telaoAviso" hidden></div>
+  <span id="telaoPt" hidden></span>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// marcas de formatação do MiguelAngelus (negrito… cor, tamanho) já escapadas → HTML; ES5 (aparelhos antigos)
+var RX_MARCA = /&lt;(\/?)(b|i|u|gg|g|pq|vermelho|dourado|azul|verde|roxo|branco|preto)&gt;/gi;
+var RX_MARCA_CRUA = /<\/?(b|i|u|gg|g|pq|vermelho|dourado|azul|verde|roxo|branco|preto)>/gi;
+function trocaMarca(_, f, t) {
+  t = t.toLowerCase();
+  if (t === "b" || t === "i" || t === "u") return "<" + f + t + ">";
+  var el = "vermelho dourado azul verde roxo branco preto".indexOf(t) >= 0 ? "font" : t === "pq" ? "small" : "big";
+  return f ? "</" + el + ">" : "<" + el + " class=\"m-" + t + "\">";
+}
+</script>
+<script>
+'use strict';
+var CHAVE = 'mgl.celular.token';
+function ler(k, padrao) { try { var v = localStorage.getItem(k); return v === null ? padrao : v; } catch (e) { return padrao; } }
+function gravar(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+var token = ler(CHAVE, ''), papel = ler('mgl.celular.papel', 'controle'), papelEscolhido = 'controle';
+var est = null, fonte = null, vivoEm = 0, tToast = 0, aba = 'controle', musica = [], ultimoVivo = null;
+var transp = {}; try { transp = JSON.parse(ler('mgl.celular.transp', '{}')) || {}; } catch (e) {}
+var tamCifra = +ler('mgl.celular.tamCifra', 15) || 15;
+// (1.8.6) cifra ou partitura: a última escolha vale para os outros cantos; cada canto lembra a sua
+var verPref = ler('mgl.celular.ver', 'cifra'), verCanto = {}; try { verCanto = JSON.parse(ler('mgl.celular.verCanto', '{}')) || {}; } catch (e) {}
+function verDe(m) { if (!(m.partitura && m.partitura.length)) return 'cifra'; if (!m.cifra) return 'partitura'; return verCanto[m.titulo] || verPref; }
+var INSTR = { c: 0, bb: 2, eb: -3, f: 7 }, instr = ler('mgl.celular.instr', 'c');
+if (!(instr in INSTR)) instr = 'c';
+
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function toast(t) { var el = $('toast'); el.textContent = t; el.style.opacity = 1; clearTimeout(tToast); tToast = setTimeout(function () { el.style.opacity = 0; }, 2200); }
+function alternar(el, cls, sim) { if (!el) return; if (sim) el.classList.add(cls); else el.classList.remove(cls); }
+function noBotao(el) { while (el && el.tagName !== 'BUTTON') el = el.parentNode; return el; }
+
+function pedido(metodo, url, corpo, pronto) {
+  var x = new XMLHttpRequest();
+  x.open(metodo, url, true);
+  if (corpo) x.setRequestHeader('Content-Type', 'application/json');
+  x.onreadystatechange = function () {
+    if (x.readyState !== 4) return;
+    var j = null; try { j = JSON.parse(x.responseText); } catch (e) {}
+    pronto(x.status, j);
+  };
+  x.send(corpo ? JSON.stringify(corpo) : null);
+}
+
+// ---------- texto do slide: P./T. coloridos, resposta do povo em negrito ----------
+function htmlSlide(s) {
+  if (!s) return '';
+  if (s.versos) return s.versos.map(function (v) { return '<sup>' + esc(v.n) + '</sup>' + esc(v.t); }).join(' ');
+  if (s.avisos) return '<b>' + esc(s.avisos.titulo) + '</b>' + s.avisos.itens.map(function (t) { return '<br>• ' + esc(t); }).join('');
+  if (s.img && !s.texto) return '<span class="vazia">🖼 Imagem</span>';
+  var povo = false;
+  var html = esc(s.texto).split('\n').map(function (l) {
+    var m = /^\s*([PTLCD])\.\s+/.exec(l), quem = '';
+    if (m) { povo = m[1] === 'T'; quem = '<span class="quem">' + m[1] + '.</span> '; l = l.slice(m[0].length); }
+    else if (/^\s*(—|R\.)/.test(l)) povo = true;
+    return quem + (povo ? '<span class="resp">' + l + '</span>' : l);
+  }).join('<br>').replace(RX_MARCA, trocaMarca);
+  return s.refrao ? '<span class="resp">' + html + '</span>' : html;
+}
+
+// ---------- cifras (as mesmas regras da página completa) ----------
+var RX_AC = /^[A-G][#b]?(?:m|M|maj|min|sus|dim|aug|add|°|º|\+)?\d*(?:M|\+|°|º|maj\d*)?(?:\([^)]*\))?(?:[+\-]\d+)?(?:\/[A-G][#b]?\d*)?$/;
+function ehAcordes(l) {
+  var s = l.replace(/^\s+|\s+$/g, '');
+  if (/^\(.*\)$/.test(s)) s = s.slice(1, -1);
+  var p = s.replace(/\|/g, ' ').split(/\s+/).filter(function (x) { return x; });
+  return p.length > 0 && p.every(function (x) { return RX_AC.test(x) || /^[-–.x:|]+$/i.test(x) || RX_AC.test(x.replace(/^\(|\)$/g, '')); });
+}
+var NS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'], NB = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+function nota(n, p, b) { var i = NS.indexOf(n); if (i < 0) i = NB.indexOf(n); return i < 0 ? n : (b ? NB : NS)[((i + p) % 12 + 12) % 12]; }
+function transpAcorde(a, p) {
+  if (!p) return a;
+  var b = /^[A-G]b/.test(a);
+  return a.replace(/^([A-G][#b]?)/, function (n) { return nota(n, p, b); }).replace(/\/([A-G][#b]?)/, function (_, n) { return '/' + nota(n, p, b); });
+}
+function transpLinha(l, p) {
+  if (!p) return l;
+  var out = '', falta = 0, rx = /(\S+)|(\s+)/g, m;
+  while ((m = rx.exec(l))) {
+    if (m[2]) { out += new Array(Math.max(1, m[2].length - falta) + 1).join(' '); falta = Math.max(0, falta - m[2].length + 1); continue; }
+    var t = m[1].replace(/[()]/g, ''), novo = RX_AC.test(t) ? m[1].replace(t, transpAcorde(t, p)) : m[1];
+    falta += novo.length - m[1].length; out += novo;
+  }
+  return out;
+}
+function htmlCifra(cifra, p) {
+  return cifra.split('\n').filter(function (l) { return !/^\s*[EBGDAe]\|/.test(l); }).map(function (l) {   // sem tablaturas
+    if (/^\s*\[[^\]]*\]/.test(l)) return '<span class="sec">' + esc(l) + '</span>';
+    if (ehAcordes(l)) return '<span class="ac">' + esc(transpLinha(l, p)) + '</span>';
+    return esc(l);
+  }).join('\n');
+}
+// 🎼 etapa 3: a pauta onde começa o slide do telão (mapa da letra que veio do PDF)
+var ultimaPart = {};
+function soLetrasCel(s) { s = (s || '').toLowerCase(); if (s.normalize) s = s.normalize('NFD'); return s.replace(/[\u0300-\u036f]/g, '').replace(RX_MARCA_CRUA, '').replace(/^\s*([a-z]\.|r\/|—|-)\s*/, '').replace(/[^a-z]/g, ''); }
+function notaTrecho(slide, trecho) {
+  var g = {}, i, ok = 0, tot = 0;
+  for (i = 0; i + 5 <= trecho.length; i++) g[trecho.slice(i, i + 5)] = 1;
+  for (i = 0; i + 5 <= slide.length; i++) { tot++; if (g[slide.slice(i, i + 5)]) ok++; }
+  return tot ? ok / tot : 0;
+}
+function acharNaPartitura(mapa, texto, antes) {
+  var ls = (texto || '').split('\n'), sl = '', i, j, n, k;
+  for (i = 0; i < ls.length; i++) { var x = soLetrasCel(ls[i]); if (x.length >= 3) sl += x; }
+  if (sl.length < 6) return null;
+  var todas = [];
+  for (n = 0; n < mapa.length; n++) for (k = 0; mapa[n] && k < mapa[n].length; k++) todas.push({ n: n, k: k, l: mapa[n][k] });
+  var tams = [16, 10];
+  for (i = 0; i < tams.length; i++) {
+    var alvo = sl.slice(0, tams[i]), cands = [];
+    for (j = 0; j < todas.length; j++) {
+      var s = todas[j].l.t + (todas[j + 1] ? todas[j + 1].l.t : '') + (todas[j + 2] ? todas[j + 2].l.t : '');
+      var p = s.indexOf(alvo);
+      if (p >= 0 && p < todas[j].l.t.length) cands.push({ n: todas[j].n, k: todas[j].k, j: j, nota: notaTrecho(sl.slice(0, 80), s.slice(p)) });
+    }
+    if (!cands.length) continue;
+    // estrofes que começam igual: vale a que mais combina com o resto do slide; empate (refrão repetido) segue em frente
+    var melhor = 0, bons = [];
+    for (j = 0; j < cands.length; j++) if (cands[j].nota > melhor) melhor = cands[j].nota;
+    for (j = 0; j < cands.length; j++) if (cands[j].nota >= melhor - 0.04) bons.push(cands[j]);
+    if (antes) for (j = 0; j < bons.length; j++) if (bons[j].j > antes.j) return bons[j];
+    return bons[0];
+  }
+  return null;
+}
+var chavePart = '', tFaixa = 0;
+function centralizarFaixa() { var fp = $('faixaPart'); if (!fp) return; var r = fp.getBoundingClientRect(); window.scrollBy(0, r.top - (window.innerHeight || 600) / 2 + r.height / 2); }
+function renderCifras(rolar) {
+  var vivo = est && est.vivoIdx != null ? est.vivoIdx : -1;
+  var slide = est && est.noAr ? est.noAr.slide : null, achado = null, mv = null;
+  for (var q = 0; q < musica.length; q++) if (musica[q].i === vivo) mv = musica[q];
+  if (mv && mv.partMapa && verDe(mv) === 'partitura') {
+    var ch = vivo + '|' + (est.noAr.idx != null ? est.noAr.idx : '') + '|' + ((slide && slide.texto) || '');
+    if (ch !== chavePart) { chavePart = ch; var a = acharNaPartitura(mv.partMapa, slide && slide.texto, ultimaPart[vivo]); if (a) ultimaPart[vivo] = a; else delete ultimaPart[vivo]; var novoPart = true; }
+    achado = ultimaPart[vivo] || null;
+  }
+  document.documentElement.style.fontSize = '';
+  $('mCantos').innerHTML = musica.length ? musica.map(function (m) {
+    var pM = transp[m.titulo] || 0, p = pM + INSTR[instr];
+    var tom = m.tom ? transpAcorde(m.tom, p) : (p ? (p > 0 ? '+' : '') + p : '—');
+    var ver = verDe(m), temP = !!(m.partitura && m.partitura.length), largP = Math.round(100 * Math.max(1, tamCifra / 15)) + '%';
+    var soa = INSTR[instr] && m.cifra && m.tom && ver === 'cifra' ?'<div class="sutil">o grupo toca em ' + esc(transpAcorde(m.tom, pM)) + '</div>' : '';
+    return '<div class="mc' + (m.i === vivo ? ' vivo' : '') + '" id="mc' + m.i + '"><div class="mc-cab">' +
+      (m.cifra && ver === 'cifra' ? '<span class="mc-tom"><button data-tr="' + esc(m.titulo) + '" data-p="-1">−</button><b>' + esc(tom) + '</b><button data-tr="' + esc(m.titulo) + '" data-p="1">+</button></span>' : '') +
+      (m.i === vivo ? '<span class="noarm">no telão</span>' : '') +
+      '<div class="mom">' + esc(m.momento) + '</div><div class="tt">' + esc(m.titulo) + '</div>' +
+      (m.autor ? '<div class="sutil">' + esc(m.autor) + '</div>' : '') + (m.deOutro && ver === 'cifra' ? '<div class="sutil">cifra de: ' + esc(m.deOutro) + '</div>' : '') + soa +
+      (temP && m.cifra ? '<div class="mc-ver"><button data-ver="cifra" data-vt="' + esc(m.titulo) + '"' + (ver === 'cifra' ? ' class="sel"' : '') + '>🎸 Cifra</button> <button data-ver="partitura" data-vt="' + esc(m.titulo) + '"' + (ver === 'partitura' ? ' class="sel"' : '') + '>🎼 Partitura</button></div>' : '') + '</div>' +
+      (ver === 'partitura' ? '<div class="part">' + m.partitura.map(function (id, n) {
+        var fx = '', l = m.i === vivo && achado && achado.n === n && m.partMapa && m.partMapa[n] && m.partMapa[n][achado.k];
+        if (l) fx = '<div class="faixa" id="faixaPart" style="top:' + (l.a * 100) + '%;height:' + ((l.b - l.a) * 100) + '%"></div><div class="faixa-l" style="top:' + (l.la * 100) + '%;height:' + ((l.lb - l.la) * 100) + '%"></div>';
+        return '<span class="pg" style="width:' + largP + '"><img src="/api/partitura?t=' + encodeURIComponent(token) + '&id=' + encodeURIComponent(id) + '" alt="Partitura">' + fx + '</span>'; }).join('') + '</div>' :
+      m.cifra ? '<pre class="cifra" style="font-size:' + tamCifra + 'px">' + htmlCifra(m.cifra, p) + '</pre>'
+        : '<div class="letra" style="font-size:' + tamCifra + 'px">' + esc(m.letra || 'Sem letra.').replace(RX_MARCA, trocaMarca).replace(/\n/g, '<br>') + '</div>') + '</div>';
+  }).join('') : '<span class="vazia">Nenhum canto no roteiro aberto.</span>';
+  // o canto que entrou no telão: a tela rola até ele
+  if (rolar && vivo !== ultimoVivo) { ultimoVivo = vivo; var c = $('mc' + vivo); if (c) c.scrollIntoView(true); }
+  // partitura: a pauta nova entra no meio da tela
+  if (rolar && novoPart) { tFaixa = new Date().getTime(); centralizarFaixa(); }
+  // as páginas chegam depois e empurram a tela: quando uma carrega, a faixa volta para o meio (até 20 s depois)
+  var ims = document.querySelectorAll('.part img');
+  for (var u = 0; u < ims.length; u++) ims[u].onload = function () { if (new Date().getTime() - tFaixa < 20000) centralizarFaixa(); };
+}
+
+// ---------- controle ----------
+function render() {
+  if (!est) return;
+  $('nomeRoteiro').textContent = est.roteiro || 'MiguelAngelus';
+  var n = est.noAr || {};
+  var selo = $('selo');
+  selo.textContent = (est.preto ? 'Tela preta' : est.mudo ? 'Mudo' : est.altar ? 'Altar' : est.camera ? 'Câmera' : n.slide ? 'Ao vivo' : 'Livre') + (est.projecao ? '' : ' · telão fechado');
+  alternar(selo, 'vivo', !!(est.preto || est.altar || n.slide || est.camera));
+  // 🔗 links (mesa de som…), em cima das cifras
+  var lk = '', ls = est.links || [];
+  for (var k = 0; k < ls.length; k++) if (/^https?:\/\//i.test(ls[k].url) && (ls[k].para === 'todos' || ls[k].para === papel))
+    lk += '<a href="' + esc(ls[k].url) + '" target="_blank" style="display:inline-block;margin:0 8px 8px 0;padding:9px 14px;border:1px solid #444;border-radius:10px;color:#eee;text-decoration:none;font-weight:bold">' +
+      (/^data:image\//.test(ls[k].img || '') ? '<img src="' + ls[k].img + '" alt="" style="width:22px;height:22px;vertical-align:middle;border-radius:5px"> ' : esc(ls[k].icone || '🔗') + ' ') + esc(ls[k].nome) + '</a>';
+  if ($('links').innerHTML !== lk) $('links').innerHTML = lk;
+  if (papel === 'telao') return renderTelao();
+  if (papel === 'musico' || aba === 'cifras') return renderCifras(true);
+  $('noArTit').textContent = n.tit ? '· ' + n.tit + (n.idx >= 0 ? ' ' + (n.idx + 1) + '/' + n.total : '') : '';
+  $('noAr').innerHTML = est.preto ? '<span class="vazia">■ Tela preta</span>' : est.camera ? '<span class="vazia">📷 Câmera no telão</span>' :
+    n.slide ? htmlSlide(n.slide) : '<span class="vazia">Nada no ar</span>';
+  alternar($('noAr'), 'vivo', !!n.slide);
+  var p = est.prox;
+  $('proxTit').textContent = p && p.tit ? '· ' + p.tit + (p.abre ? ' (abre)' : '') : '';
+  $('prox').innerHTML = p ? (p.slide ? htmlSlide(p.slide) : '<span class="vazia">' + esc(p.tit || '—') + '</span>') : '<span class="vazia">Fim do roteiro</span>';
+  var a = est.aberto;
+  $('abertoTit').textContent = a ? '· ' + a.tit : '';
+  var vivoAqui = a && n.tit && a.rIdx === est.vivoIdx;
+  $('tira').innerHTML = !a ? '<span class="vazia">Abra um item no Roteiro.</span>' : a.midia ? '<span class="vazia">Vídeo/áudio: ' + esc(a.midia.nome) + '</span>' :
+    !a.slides.length ? '<span class="vazia">Item sem slides.</span>' :
+    a.slides.map(function (s, i) { return '<button class="sl' + (vivoAqui && n.idx === i ? ' vivo' : '') + '" data-slide="' + i + '"><span class="n">' + (i + 1) + '</span>' + htmlSlide(s) + '</button>'; }).join('');
+  $('btProjecao').textContent = est.projecao ? '✕ Fechar o telão' : '▣ Abrir o telão';
+  alternar($('btMudo'), 'ligado', !!est.mudo);
+  alternar($('btAltar'), 'ligado', !!est.altar);
+  $('lista').innerHTML = (est.itens || []).length ? est.itens.map(function (it, i) {
+    return '<button class="it' + (a && a.rIdx === i ? ' sel' : '') + '" data-item="' + i + '">' + (est.vivoIdx === i ? '<span class="noar"></span>' : '') +
+      '<span class="tag">' + esc(it.rot) + '</span>' + esc(it.tit || '—') + '</button>';
+  }).join('') : '<span class="vazia">Roteiro vazio.</span>';
+}
+
+function aplicarPapel() {
+  alternar(document.documentElement, 'musico', papel === 'musico');
+  alternar(document.documentElement, 'telao', papel === 'telao');
+  $('telao').hidden = papel !== 'telao';
+  telaoChave = '';
+  if (papel === 'musico') irAba('cifras');
+}
+
+// ---------- 📺 Telão (1.8.4, ideia do Luciano — Paróquia Santa Marina, SP): o slide em tela cheia ----------
+var telaoChave = '';
+function renderTelao() {
+  var t = $('telao'), cfg = est.cfg || {}, s = est.noAr && est.noAr.slide;
+  t.style.background = cfg.corFundo || '#000';
+  t.style.color = cfg.corTexto || '#fff';
+  alternar(t, 'maius', !!cfg.maiusculas);
+  alternar(t, 'negrito', !!cfg.negrito);
+  alternar(t, 'sombra', cfg.sombra !== false);
+  var vazio = est.preto || est.mudo || est.camera || est.altar || !s || (s.img && !s.texto && !s.versos && !s.avisos);
+  var html = vazio ? '' : htmlSlide(s);
+  var av = $('telaoAviso');
+  av.hidden = !est.aviso;
+  if (est.aviso) av.textContent = '📢 ' + est.aviso.texto;
+  var chave = [html, window.innerWidth, window.innerHeight, JSON.stringify(cfg), est.aviso ? est.aviso.texto : ''].join('|');
+  if (chave === telaoChave) return;
+  telaoChave = chave;
+  var tx = $('telaoTxt');
+  tx.innerHTML = html;
+  var qs = tx.querySelectorAll('.quem');
+  for (var i = 0; i < qs.length; i++) qs[i].style.color = cfg.corRotulo || '#ff5a4f';
+  if (!html) return;
+  // o maior tamanho de letra em que o slide inteiro cabe (busca binária)
+  var cel = $('telaoCel'), W = cel.clientWidth * 0.9, H = t.clientHeight * 0.86 -(av.hidden ? 0 : av.offsetHeight);
+  var lo = 10, hi = Math.max(12, H / 2);
+  for (var k = 0; k < 16; k++) {
+    var m = (lo + hi) / 2;
+    tx.style.fontSize = m + 'px';
+    if (tx.offsetHeight <= H && tx.scrollWidth <= W) lo = m; else hi = m;
+  }
+  tx.style.fontSize = Math.floor(lo) + 'px';
+}
+window.addEventListener('resize', function () { if (papel === 'telao' && est) { telaoChave = ''; renderTelao(); } });
+$('telao').addEventListener('click', function () {
+  var d = document.documentElement, f = d.requestFullscreen || d.webkitRequestFullscreen;
+  try { if (f) f.call(d); } catch (e) {}
+});
+function irAba(nova) {
+  aba = nova;
+  $('pgControle').hidden = aba !== 'controle';
+  $('pgRoteiro').hidden = aba !== 'roteiro';
+  $('pgCifras').hidden = aba !== 'cifras';
+  var bs = document.querySelectorAll('[data-aba]');
+  for (var i = 0; i < bs.length; i++) alternar(bs[i], 'sel', bs[i].getAttribute('data-aba') === aba);
+  window.scrollTo(0, 0);
+  ultimoVivo = null;
+  render();
+}
+
+// ---------- conexão ----------
+function conectado(sim) { alternar($('pt'), 'on', sim); $('telaoPt').hidden = sim; if (sim) { vivoEm = Date.now(); $('fora').hidden = true; } }
+function conectar() {
+  if (fonte) fonte.close();
+  if (!token) return mostrarPareamento();
+  fonte = new EventSource('/api/eventos?t=' + encodeURIComponent(token));
+  fonte.onmessage = function (e) { conectado(true); try { est = JSON.parse(e.data); } catch (x) { return; } if (est && est.itens) render(); };
+  fonte.addEventListener('musica', function (e) { try { musica = JSON.parse(e.data) || []; } catch (x) { return; } if (papel === 'musico' || aba === 'cifras') renderCifras(true); });
+  fonte.onopen = function () { conectado(true); };
+  fonte.onerror = function () { conectado(false); if (fonte.readyState === 2) setTimeout(verificar, 1500); };
+}
+function verificar() {
+  pedido('GET', '/api/ping?t=' + encodeURIComponent(token) + '&_=' + Date.now(), null, function (st, j) {
+    if (st === 200 && j && !j.ok && j.motivo === 'pareamento') { esquecer(); return mostrarPareamento('Este aparelho foi desconectado no computador. Conecte de novo.'); }
+    if (st === 200 && j) { if (j.papel && j.papel !== papel) { papel = j.papel; gravar('mgl.celular.papel', papel); aplicarPapel(); } return conectar(); }
+    if (Date.now() - vivoEm > 20000) $('fora').hidden = false;
+    setTimeout(verificar, 3000);
+  });
+}
+function esquecer() { token = ''; try { localStorage.removeItem(CHAVE); } catch (e) {} if (fonte) fonte.close(); }
+function mostrarPareamento(msg) {
+  $('par').hidden = false;
+  $('parErro').textContent = msg || '';
+  if (!$('parNome').value) $('parNome').value = /iPad/i.test(navigator.userAgent) ? 'iPad' : /iPhone/i.test(navigator.userAgent) ? 'iPhone' : 'Celular';
+  var m = /[?&]c=(\d{4})/.exec(location.search);
+  if (m && !$('parCod').value) $('parCod').value = m[1];
+}
+function parear() {
+  var codigo = $('parCod').value.replace(/\D/g, ''), nome = $('parNome').value.replace(/^\s+|\s+$/g, '') || 'Celular';
+  if (codigo.length !== 4) { $('parErro').textContent = 'Digite os 4 números do código.'; return; }
+  $('parOk').disabled = true;
+  pedido('POST', '/api/parear', { codigo: codigo, nome: nome, papel: papelEscolhido }, function (st, j) {
+    $('parOk').disabled = false;
+    if (st === 429) { $('parErro').textContent = 'Muitas tentativas erradas. Espere 1 minuto e use o código novo do computador.'; return; }
+    if (!j || !j.ok) { $('parErro').textContent = st ? 'Código errado ou vencido. Confira o código que aparece agora no computador.' : 'Não consegui falar com o computador. Confira o Wi-Fi.'; return; }
+    token = j.token; papel = j.papel || papelEscolhido;
+    gravar(CHAVE, token); gravar('mgl.celular.papel', papel);
+    try { history.replaceState(null, '', '/simples.html'); } catch (e) {}
+    $('par').hidden = true;
+    aplicarPapel();
+    conectar();
+  });
+}
+function cmd(acao, dados) {
+  var corpo = { acao: acao };
+  if (dados) for (var k in dados) corpo[k] = dados[k];
+  pedido('POST', '/api/comando?t=' + encodeURIComponent(token), corpo, function (st) {
+    if (st === 401) { esquecer(); mostrarPareamento('Este aparelho foi desconectado no computador. Conecte de novo.'); }
+    else if (st === 403) toast('Este aparelho está como "músico": só acompanha.');
+    else if (st !== 200) toast('Sem conexão — o comando não chegou');
+  });
+}
+
+// ---------- toques ----------
+document.addEventListener('click', function (e) {
+  var b = noBotao(e.target);
+  if (!b) return;
+  if (b.id === 'parOk') return parear();
+  if (b.getAttribute('data-papel')) {
+    papelEscolhido = b.getAttribute('data-papel');
+    var ps = document.querySelectorAll('[data-papel]');
+    for (var i = 0; i < ps.length; i++) alternar(ps[i], 'sel', ps[i] === b);
+    return;
+  }
+  if (b.id === 'mMenor' || b.id === 'mMaior') { tamCifra = Math.max(10, Math.min(28, tamCifra + (b.id === 'mMaior' ? 1 : -1))); gravar('mgl.celular.tamCifra', tamCifra); return renderCifras(false); }
+  if (b.getAttribute('data-ver')) { verPref = verCanto[b.getAttribute('data-vt')] = b.getAttribute('data-ver'); gravar('mgl.celular.ver', verPref); gravar('mgl.celular.verCanto', JSON.stringify(verCanto)); return renderCifras(false); }
+  if (b.getAttribute('data-tr')) { var t = b.getAttribute('data-tr'); transp[t] = (transp[t] || 0) + +b.getAttribute('data-p'); gravar('mgl.celular.transp', JSON.stringify(transp)); return renderCifras(false); }
+  if (b.getAttribute('data-cmd')) return cmd(b.getAttribute('data-cmd'));
+  if (b.getAttribute('data-slide') !== null) return cmd('slide', { i: +b.getAttribute('data-slide') });
+  if (b.getAttribute('data-item') !== null) { cmd('item', { i: +b.getAttribute('data-item') }); return irAba('controle'); }
+  if (b.getAttribute('data-aba')) return irAba(b.getAttribute('data-aba'));
+});
+$('mInstr').value = instr;
+$('mInstr').addEventListener('change', function () { instr = $('mInstr').value; gravar('mgl.celular.instr', instr); renderCifras(false); });
+document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && token) verificar(); });
+aplicarPapel();
+if (token) verificar(); else mostrarPareamento();
+</script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+'use strict';
+/*
+ * Ordinário da Missa — partes fixas e respostas da assembleia.
+ * Cada string é um slide. Quem fala vem no começo da linha (P., T., L.); T. = povo (em negrito).
+ * IMPORTANTE: confira os textos com o Missal Romano adotado na sua paróquia (3ª edição, CNBB)
+ * e ajuste aqui o que for necessário.
+ */
+
+const Ordinario = (() => {
+  // Quem fala vem no começo da linha, como no folheto: P. (padre), T. (todos — o povo, em negrito), L. (leitor).
+  // A letra só aparece onde a fala muda: o slide que continua a fala anterior começa sem letra (o do povo segue em negrito).
+  const grupos = [
+    {
+      grupo: 'Ritos Iniciais', partes: [
+        { id: 'saudacao', titulo: 'Saudação', slides: [      // como a paróquia usa (1.6.7): só o sinal da cruz
+          'P. Em nome do Pai e do Filho e do Espírito Santo.\nT. Amém.',
+        ] },
+        { id: 'ato-penitencial', titulo: 'Ato Penitencial (Confesso)', slides: [
+          'T. Confesso a Deus todo-poderoso\ne a vós, irmãos e irmãs,\nque pequei muitas vezes\npor pensamentos e palavras,\natos e omissões,',
+          'por minha culpa, minha culpa,\nminha máxima culpa.',
+          'E peço à Virgem Maria,\naos anjos e santos\ne a vós, irmãos e irmãs,\nque rogueis por mim a Deus, nosso Senhor.',
+          'P. Deus todo-poderoso tenha compaixão de nós,\nperdoe os nossos pecados\ne nos conduza à vida eterna.\nT. Amém.',
+        ] },
+        { id: 'kyrie', titulo: 'Senhor, tende piedade', slides: [
+          'P. Senhor, tende piedade de nós.\nT. Senhor, tende piedade de nós.',
+          'P. Cristo, tende piedade de nós.\nT. Cristo, tende piedade de nós.',
+          'P. Senhor, tende piedade de nós.\nT. Senhor, tende piedade de nós.',
+        ] },
+        { id: 'gloria', titulo: 'Glória', slides: [
+          'T. Glória a Deus nas alturas,\ne paz na terra aos homens por ele amados.',
+          'Senhor Deus, rei dos céus, Deus Pai todo-poderoso:\nnós vos louvamos, nós vos bendizemos,\nnós vos adoramos, nós vos glorificamos,\nnós vos damos graças por vossa imensa glória.',
+          'Senhor Jesus Cristo, Filho Unigênito,\nSenhor Deus, Cordeiro de Deus, Filho de Deus Pai.',
+          'Vós que tirais o pecado do mundo, tende piedade de nós.\nVós que tirais o pecado do mundo, acolhei a nossa súplica.\nVós que estais à direita do Pai, tende piedade de nós.',
+          'Só vós sois o Santo, só vós, o Senhor,\nsó vós, o Altíssimo, Jesus Cristo,\ncom o Espírito Santo, na glória de Deus Pai.\nAmém.',
+        ] },
+        // pedida pela paróquia (1.6.14) para as Missas da semana, cujo folheto (Paulus) não traz a Coleta
+        { id: 'coleta', titulo: 'Oração da Coleta', slides: [
+          'P. Deus eterno e todo-poderoso,\nque, no vosso imenso amor de Pai,\nnos concedeis mais do que merecemos e pedimos,\ninfundi em nós a vossa misericórdia,',
+          'para perdoar o que nos pesa na consciência\ne para nos dar mais do que a oração ousa pedir.',
+          'Por nosso Senhor Jesus Cristo, vosso Filho,\nque é Deus e convosco vive e reina,\nna unidade do Espírito Santo,\npor todos os séculos dos séculos.\nT. Amém.',
+        ] },
+      ],
+    },
+    {
+      grupo: 'Liturgia da Palavra', partes: [
+        { id: 'resp-leitura', titulo: 'Resposta às leituras', slides: ['L. Palavra do Senhor.\nT. Graças a Deus.'] },
+        { id: 'resp-evangelho', titulo: 'Diálogo do Evangelho', slides: [
+          'P. O Senhor esteja convosco.\nT. Ele está no meio de nós.',
+          'P. Proclamação do Evangelho de Jesus Cristo segundo…\nT. Glória a vós, Senhor.',
+          'P. Palavra da Salvação.\nT. Glória a vós, Senhor.',
+        ] },
+        { id: 'creio-niceno', titulo: 'Creio (Niceno-Constantinopolitano)', slides: [
+          'T. Creio em um só Deus, Pai todo-poderoso,\ncriador do céu e da terra,\nde todas as coisas visíveis e invisíveis.',
+          'Creio em um só Senhor, Jesus Cristo,\nFilho Unigênito de Deus,\nnascido do Pai antes de todos os séculos:',
+          'Deus de Deus, luz da luz,\nDeus verdadeiro de Deus verdadeiro;\ngerado, não criado, consubstancial ao Pai.\nPor ele todas as coisas foram feitas.',
+          'E por nós, homens, e para a nossa salvação,\ndesceu dos céus:\ne se encarnou pelo Espírito Santo,\nno seio da Virgem Maria, e se fez homem.',
+          'Também por nós foi crucificado sob Pôncio Pilatos;\npadeceu e foi sepultado.\nRessuscitou ao terceiro dia, conforme as Escrituras,\ne subiu aos céus, onde está sentado à direita do Pai.',
+          'E de novo há de vir, em sua glória,\npara julgar os vivos e os mortos;\ne o seu reino não terá fim.',
+          'Creio no Espírito Santo, Senhor que dá a vida,\ne procede do Pai e do Filho;\ne com o Pai e o Filho é adorado e glorificado:\nele que falou pelos profetas.',
+          'Creio na Igreja, una, santa, católica e apostólica.\nProfesso um só batismo para remissão dos pecados.\nE espero a ressurreição dos mortos\ne a vida do mundo que há de vir. Amém.',
+        ] },
+        { id: 'creio-apostolico', titulo: 'Creio (Símbolo dos Apóstolos)', slides: [
+          'T. Creio em Deus Pai todo-poderoso,\ncriador do céu e da terra;\ne em Jesus Cristo, seu único Filho, nosso Senhor;',
+          'que foi concebido pelo poder do Espírito Santo;\nnasceu da Virgem Maria,\npadeceu sob Pôncio Pilatos,\nfoi crucificado, morto e sepultado;',
+          'desceu à mansão dos mortos;\nressuscitou ao terceiro dia;\nsubiu aos céus,\nestá sentado à direita de Deus Pai todo-poderoso,\ndonde há de vir a julgar os vivos e os mortos.',
+          'Creio no Espírito Santo,\nna santa Igreja católica,\nna comunhão dos santos,\nna remissão dos pecados,\nna ressurreição da carne,\nna vida eterna. Amém.',
+        ] },
+      ],
+    },
+    {
+      grupo: 'Liturgia Eucarística', partes: [
+        { id: 'orai-irmaos', titulo: 'Orai, irmãos e irmãs', slides: [
+          'P. Orai, irmãos e irmãs,\npara que o meu e o vosso sacrifício\nseja aceito por Deus Pai todo-poderoso.',
+          'T. Receba o Senhor por tuas mãos este sacrifício,\npara glória do seu nome,\npara nosso bem e de toda a santa Igreja.',
+        ] },
+        { id: 'prefacio', titulo: 'Diálogo do Prefácio', slides: [
+          'P. O Senhor esteja convosco.\nT. Ele está no meio de nós.',
+          'P. Corações ao alto.\nT. O nosso coração está em Deus.',
+          'P. Demos graças ao Senhor, nosso Deus.\nT. É nosso dever e nossa salvação.',
+        ] },
+        { id: 'santo', titulo: 'Santo', slides: [
+          'T. Santo, Santo, Santo,\nSenhor, Deus do universo!\nO céu e a terra proclamam a vossa glória.\nHosana nas alturas!',
+          'Bendito o que vem em nome do Senhor!\nHosana nas alturas!',
+        ] },
+        { id: 'misterio-fe', titulo: 'Mistério da Fé', slides: [
+          'P. Eis o mistério da fé!\nT. Anunciamos, Senhor, a vossa morte\ne proclamamos a vossa ressurreição.\nVinde, Senhor Jesus!',
+          'P. Mistério da fé e do amor!\nT. Todas as vezes que comemos deste pão\ne bebemos deste cálice,\nanunciamos, Senhor, a vossa morte,\nenquanto esperamos a vossa vinda!',
+          'P. Mistério da fé para a salvação do mundo!\nT. Salvador do mundo, salvai-nos,\nvós que nos libertastes\npela cruz e ressurreição.',
+        ] },
+        { id: 'doxologia', titulo: 'Doxologia final', slides: [
+          'P. Por Cristo, com Cristo, e em Cristo,\na vós, Deus Pai todo-poderoso,\nna unidade do Espírito Santo,\ntoda honra e toda glória,\npor todos os séculos dos séculos.\nT. Amém.',
+        ] },
+      ],
+    },
+    {
+      grupo: 'Rito da Comunhão', partes: [
+        // (1.6.14) o convite do padre ao Pai-Nosso, como no folheto do domingo; o Pai-Nosso logo depois emenda sem título
+        { id: 'rito-comunhao', titulo: 'Rito da Comunhão', slides: [
+          'P. Obedientes à palavra do Salvador\ne formados por seu divino ensinamento,\nousamos dizer:',
+        ] },
+        // (1.6.14, pedido da paróquia) o Pai-Nosso continua até o abraço da paz: o folheto não traz o que vem entre ele e o
+        // Cordeiro, e o "Amém" só vem depois da oração pela paz
+        { id: 'pai-nosso', titulo: 'Pai-Nosso e Rito da Paz', slides: [
+          'T. Pai nosso que estais nos céus,\nsantificado seja o vosso nome;\nvenha a nós o vosso Reino;\nseja feita a vossa vontade,\nassim na terra como no céu.',
+          'O pão nosso de cada dia nos dai hoje;\nperdoai-nos as nossas ofensas,\nassim como nós perdoamos\na quem nos tem ofendido;',
+          'e não nos deixeis cair em tentação,\nmas livrai-nos do mal.',
+          'P. Livrai-nos de todos os males, ó Pai,\ne dai-nos hoje a vossa paz.\nAjudados pela vossa misericórdia,\nsejamos sempre livres do pecado\ne protegidos de todos os perigos,',
+          'enquanto aguardamos a feliz esperança\ne a vinda do nosso Salvador, Jesus Cristo.\nT. Vosso é o reino, o poder e a glória para sempre.',
+          'P. Senhor Jesus Cristo,\ndissestes aos vossos Apóstolos:\nEu vos deixo a paz,\neu vos dou a minha paz.',
+          'Não olheis os nossos pecados,\nmas a fé que anima vossa Igreja;\ndai-lhe, segundo o vosso desejo,\na paz e a unidade.',
+          'Vós que sois Deus\ncom o Pai e o Espírito Santo.\nT. Amém.',
+          'P. A paz do Senhor esteja sempre convosco.\nT. O amor de Cristo nos uniu.',
+          'P. Em Jesus, que nos tornou todos irmãos e irmãs,\nsaudai-vos com um sinal de reconciliação e de paz.',
+        ] },
+        { id: 'paz', titulo: 'Saudação da Paz', slides: [
+          'P. A paz do Senhor esteja sempre convosco.\nT. O amor de Cristo nos uniu.',
+        ] },
+        { id: 'cordeiro', titulo: 'Cordeiro de Deus', slides: [
+          'T. Cordeiro de Deus, que tirais o pecado do mundo,\ntende piedade de nós.',
+          'Cordeiro de Deus, que tirais o pecado do mundo,\ntende piedade de nós.',
+          'Cordeiro de Deus, que tirais o pecado do mundo,\ndai-nos a paz.',
+        ] },
+        // (1.6.14) texto da 3ª edição do Missal; entra sozinho depois do Cordeiro na importação do folheto
+        { id: 'eis-cordeiro', titulo: 'Eis o Cordeiro de Deus', slides: [
+          'P. Provai e vede como o Senhor é bom;\nfeliz quem nele encontra o seu refúgio.\nEis o Cordeiro de Deus,\nque tira o pecado do mundo.',
+          'T. Senhor, eu não sou digno(a)\nde que entreis em minha morada,\nmas dizei uma palavra\ne serei salvo(a).',
+          'P. Que o Corpo e o Sangue de Cristo\nnos guarde para a vida eterna.\nT. Amém.',
+        ] },
+      ],
+    },
+    {
+      grupo: 'Ritos Finais', partes: [
+        { id: 'bencao-final', titulo: 'Bênção e despedida', slides: [
+          'P. O Senhor esteja convosco.\nT. Ele está no meio de nós.',
+          'P. Abençoe-vos Deus todo-poderoso,\nPai e Filho e Espírito Santo.\nT. Amém.',
+          'P. Ide em paz, e o Senhor vos acompanhe.\nT. Graças a Deus.',
+        ] },
+      ],
+    },
+  ];
+
+  const indice = new Map(grupos.flatMap(g => g.partes.map(p => [p.id, p])));
+
+  // Modelos de roteiro. Cada item vira uma linha do roteiro para ser preenchida.
+  const modelos = {
+    dominical: [
+      { tipo: 'canto', momento: 'Entrada' },
+      { tipo: 'ordinario', parte: 'saudacao' },
+      { tipo: 'ordinario', parte: 'ato-penitencial' },
+      { tipo: 'ordinario', parte: 'kyrie' },
+      { tipo: 'canto', momento: 'Glória' },
+      { tipo: 'leitura', titulo: '1ª Leitura', ref: '' },
+      { tipo: 'salmo', titulo: 'Salmo Responsorial', ref: '', refrao: '', texto: '' },
+      { tipo: 'leitura', titulo: '2ª Leitura', ref: '' },
+      { tipo: 'canto', momento: 'Aclamação ao Evangelho' },
+      { tipo: 'leitura', titulo: 'Evangelho', ref: '', evangelho: true },
+      { tipo: 'homilia', titulo: 'Homilia', texto: '', usarCapa: true, mostrarRef: true },
+      { tipo: 'ordinario', parte: 'creio-niceno' },
+      { tipo: 'preces', titulo: 'Oração dos Fiéis', resposta: 'Senhor, escutai a nossa prece.', convite: '', texto: '', conclusao: '' },
+      { tipo: 'canto', momento: 'Ofertório' },
+      { tipo: 'ordinario', parte: 'orai-irmaos' },
+      { tipo: 'ordinario', parte: 'prefacio' },
+      { tipo: 'canto', momento: 'Santo' },
+      { tipo: 'ordinario', parte: 'misterio-fe' },
+      { tipo: 'ordinario', parte: 'pai-nosso' },
+      { tipo: 'canto', momento: 'Cordeiro' },
+      { tipo: 'ordinario', parte: 'eis-cordeiro' },
+      { tipo: 'canto', momento: 'Comunhão' },
+      { tipo: 'canto', momento: 'Ação de Graças' },
+      { tipo: 'ordinario', parte: 'bencao-final' },
+      { tipo: 'canto', momento: 'Final' },
+    ],
+    semanal: [
+      { tipo: 'canto', momento: 'Entrada' },
+      { tipo: 'ordinario', parte: 'saudacao' },
+      { tipo: 'ordinario', parte: 'ato-penitencial' },
+      { tipo: 'ordinario', parte: 'kyrie' },
+      { tipo: 'ordinario', parte: 'coleta' },                // 1.6.14: o folheto da semana (Paulus) não traz a Coleta
+      { tipo: 'leitura', titulo: '1ª Leitura', ref: '' },
+      { tipo: 'salmo', titulo: 'Salmo Responsorial', ref: '', refrao: '', texto: '' },
+      { tipo: 'canto', momento: 'Aclamação ao Evangelho' },
+      { tipo: 'leitura', titulo: 'Evangelho', ref: '', evangelho: true },
+      { tipo: 'homilia', titulo: 'Homilia', texto: '', usarCapa: true, mostrarRef: true },
+      { tipo: 'preces', titulo: 'Oração dos Fiéis', resposta: 'Senhor, escutai a nossa prece.', convite: '', texto: '', conclusao: '' },
+      { tipo: 'canto', momento: 'Ofertório' },
+      { tipo: 'ordinario', parte: 'orai-irmaos' },
+      { tipo: 'ordinario', parte: 'prefacio' },
+      { tipo: 'ordinario', parte: 'santo' },
+      { tipo: 'ordinario', parte: 'misterio-fe' },
+      { tipo: 'ordinario', parte: 'rito-comunhao' },         // 1.6.14: convite ao Pai-Nosso (o folheto da semana não traz)
+      { tipo: 'ordinario', parte: 'pai-nosso' },
+      { tipo: 'ordinario', parte: 'cordeiro' },
+      { tipo: 'ordinario', parte: 'eis-cordeiro' },
+      { tipo: 'canto', momento: 'Comunhão' },
+      { tipo: 'ordinario', parte: 'bencao-final' },
+      { tipo: 'canto', momento: 'Final' },
+    ],
+  };
+
+  // Texto editado pela paróquia (1.6.5): Orações → Missa → duplo clique (ou ✎ Editar texto no item). Fica em config
+  // 'ordinario' e vai pela nuvem para os outros computadores; o texto original continua aqui para "Restaurar".
+  let editados = {};
+  const parte = id => {
+    const p = indice.get(id);
+    if (!p) return null;
+    return editados[id]?.length ? { ...p, slides: editados[id], editado: true } : p;
+  };
+  return {
+    grupos, modelos, parte,
+    original: id => indice.get(id) || null,
+    usarEditados: t => { editados = t && typeof t === 'object' ? { ...t } : {}; },
+    editar: (id, slides) => { if (slides && slides.length) editados[id] = slides; else delete editados[id]; return { ...editados }; },
+  };
+})();
+
+async function carregarOrdinarioEditado() {
+  const r = await DB.obter('config', 'ordinario');
+  // texto editado que ficou igual ao original (ex.: o original passou a ser o da paróquia) deixa de contar como editado
+  const textos = { ...(r?.valor?.textos || {}) };
+  for (const [id, sl] of Object.entries(textos))
+    if (Ordinario.original(id) && sl.join('\n\n') === Ordinario.original(id).slides.join('\n\n')) delete textos[id];
+  Ordinario.usarEditados(textos);
+}
+
+// Editor das partes fixas da Missa (mesma janela das orações não serve: aqui não há categoria nem apagar)
+function abrirEditorOrdinario(id) {
+  const p = Ordinario.parte(id), orig = Ordinario.original(id);
+  if (!p) return;
+  const dlg = $('#dlgOrdinario');
+  dlg.dataset.id = id;
+  $('#ordTitulo').textContent = p.titulo;
+  $('#ordTexto').value = p.slides.join('\n\n');
+  $('#ordRestaurar').hidden = !p.editado;
+  $('#ordAviso').hidden = !p.editado;
+  dlg.returnValue = '';
+  dlg.showModal();
+  $('#ordTexto').focus();
+  $('#ordOriginal').textContent = orig.slides.join('\n\n');
+}
+
+async function salvarOrdinario(id, slides) {
+  const textos = Ordinario.editar(id, slides);
+  await DB.salvar('config', { id: 'ordinario', valor: { textos } });
+  renderOrdinario();
+  renderRoteiroLista();
+  if (S.atual) { atualizarSlides(); renderCabecalho(); }
+}
+
+function ligarEditorOrdinario() {
+  $('#listaOrdinario').addEventListener('dblclick', e => {
+    const it = e.target.closest('[data-parte]');
+    if (it) abrirEditorOrdinario(it.dataset.parte);
+  });
+  $('#formOrdinario').addEventListener('submit', e => {
+    const id = $('#dlgOrdinario').dataset.id;
+    if (e.submitter?.value === 'salvar') {
+      const slides = dividir($('#ordTexto').value);
+      if (!slides.length) { e.preventDefault(); return toast('O texto não pode ficar vazio (para voltar ao original, use Restaurar).'); }
+      const igualOriginal = slides.join('\n\n') === Ordinario.original(id).slides.join('\n\n');
+      salvarOrdinario(id, igualOriginal ? null : slides);
+      toast('Texto salvo. Vale para todos os roteiros (e vai para os outros computadores pela nuvem).');
+    } else if (e.submitter?.value === 'restaurar') {
+      salvarOrdinario(id, null);
+      toast('Texto original restaurado.');
+    }
+  });
+}

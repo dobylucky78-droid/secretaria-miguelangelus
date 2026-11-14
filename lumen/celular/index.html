@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0f1420">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MiguelAngelus">
+<title>MiguelAngelus</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icone-180.png">
+<style>
+  :root { --bg: #0f1420; --painel: #18202f; --painel2: #222c3f; --borda: #2f3a50; --texto: #eef1f6; --sutil: #9aa6ba;
+    --acento: #d4a93a; --acento-esc: #2a2210; --vivo: #e0463c; --ok: #3fb950; --cor-quem: #ff5a4f;
+    --seg-baixo: env(safe-area-inset-bottom, 0px); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--texto); font: 16px/1.4 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  body { display: flex; flex-direction: column; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
+  button { font: inherit; color: inherit; background: var(--painel2); border: 1px solid var(--borda); border-radius: 12px; padding: 12px 10px; touch-action: manipulation; }
+  button:active { transform: scale(.97); filter: brightness(1.2); }
+  button.ligado { background: var(--vivo); border-color: var(--vivo); color: #fff; }
+  input, textarea { font: inherit; color: var(--texto); background: var(--painel2); border: 1px solid var(--borda); border-radius: 10px; padding: 12px; width: 100%; -webkit-user-select: text; user-select: text; }
+  [hidden] { display: none !important; }
+  .topo { display: flex; align-items: center; gap: 8px; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 8px; background: var(--painel); border-bottom: 1px solid var(--borda); }
+  .topo .pt { width: 10px; height: 10px; border-radius: 50%; background: var(--sutil); flex: none; }
+  .topo .pt.on { background: var(--ok); }
+  .topo .nome { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .selo { font-size: 12px; padding: 3px 8px; border-radius: 20px; background: var(--painel2); color: var(--sutil); white-space: nowrap; }
+  .selo.vivo { background: var(--vivo); color: #fff; }
+  .faixa { background: #7a5b00; color: #fff; text-align: center; font-size: 14px; padding: 6px; }
+  main { flex: 1; overflow-y: auto; padding: 12px 12px 8px; -webkit-overflow-scrolling: touch; }
+  .rot { font-size: 12px; color: var(--sutil); text-transform: uppercase; letter-spacing: .06em; margin: 10px 2px 6px; display: flex; justify-content: space-between; gap: 8px; }
+  .rot b { color: var(--texto); text-transform: none; letter-spacing: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tela { background: #000; color: #fff; border-radius: 12px; padding: 14px 12px; min-height: 120px; display: flex; align-items: center; justify-content: center;
+    text-align: center; font-size: 17px; line-height: 1.35; border: 2px solid var(--vivo); }
+  .tela.prox { border: 1px solid var(--borda); background: #0a0d14; color: #c9d1de; min-height: 70px; font-size: 14px; }
+  .tela .vazia { color: #777; font-size: 14px; }
+  .tela .quem { color: var(--cor-quem); font-weight: 700; }
+  .tela .resp { font-weight: 700; }
+  .tela .entre { display: block; height: .4em; }
+  .tela sup { font-size: .6em; opacity: .7; }
+  .tela .aviso-img { color: var(--sutil); font-size: 13px; }
+  .tira { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scroll-snap-type: x proximity; }
+  .tira .sl { flex: none; width: 150px; height: 92px; overflow: hidden; background: #000; color: #ddd; border: 1px solid var(--borda); border-radius: 10px;
+    padding: 8px; font-size: 11px; line-height: 1.3; text-align: left; position: relative; scroll-snap-align: start; }
+  .tira .sl.vivo { border: 2px solid var(--vivo); }
+  .tira .sl.foco { box-shadow: 0 0 0 2px var(--acento) inset; }
+  .tira .sl .n { position: absolute; right: 6px; bottom: 4px; font-size: 10px; color: var(--sutil); }
+  .tira .sl .quem { color: var(--cor-quem); font-weight: 700; }
+  .grade { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  .grade button { padding: 12px 4px; font-size: 14px; }
+  .nav { position: sticky; bottom: 0; padding: 8px 12px; background: var(--bg); }
+  .setas { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; }
+  .setas button { padding: 22px 8px; font-size: 19px; font-weight: 600; border-radius: 16px; }
+  .setas .prox-bt { background: var(--acento); border-color: var(--acento); color: #1b1503; }
+  .abas { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--painel); border-top: 1px solid var(--borda); padding-bottom: var(--seg-baixo); }
+  .abas button { background: none; border: 0; border-radius: 0; padding: 10px 0 9px; font-size: 13px; color: var(--sutil); }
+  .abas button.sel { color: var(--acento); }
+  .abas i { display: block; font-style: normal; font-size: 20px; line-height: 1.1; }
+  .lista { display: flex; flex-direction: column; gap: 6px; }
+  .it { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: var(--painel); border: 1px solid var(--borda); text-align: left; width: 100%; }
+  .it.sel { border-color: var(--acento); background: var(--acento-esc); }
+  .it .tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--painel2); color: var(--sutil); flex: none; text-transform: uppercase; }
+  .it .tit { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .it .noar { width: 10px; height: 10px; border-radius: 50%; background: var(--vivo); flex: none; }
+  .cartao { background: var(--painel); border: 1px solid var(--borda); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .cartao h3 { margin: 0 0 8px; font-size: 15px; }
+  .linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .linha > button { flex: 1; }
+  .toc { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .toc .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toc .t { font-size: 12px; color: var(--sutil); font-variant-numeric: tabular-nums; }
+  .toc button { padding: 10px 14px; }
+  .temas { display: flex; gap: 8px; flex-wrap: wrap; }
+  .temas button { width: 72px; height: 62px; padding: 4px 2px; font-weight: 700; font-size: 18px; line-height: 1.1; }
+  .temas small { display: block; font-size: 10px; font-weight: 400; opacity: .85; margin-top: 3px; }
+  .temas button.sel { outline: 3px solid var(--acento); outline-offset: 2px; }
+  input[type=range] { padding: 0; height: 36px; background: none; border: 0; accent-color: var(--acento); }
+  .check { display: flex; gap: 10px; align-items: center; padding: 6px 0; }
+  .check input { width: 24px; height: 24px; accent-color: var(--acento); }
+  .sutil { color: var(--sutil); font-size: 13px; }
+  .tela-cheia { position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; gap: 14px; z-index: 10; }
+  .tela-cheia img { width: 84px; height: 84px; }
+  .tela-cheia h1 { margin: 0; font-size: 24px; } .tela-cheia h1 b { color: var(--acento); }
+  .tela-cheia .codigo { font: 700 34px/1 Consolas, monospace; letter-spacing: 10px; text-align: center; max-width: 220px; }
+  .tela-cheia .acao { background: var(--acento); color: #1b1503; border: 0; font-weight: 700; padding: 15px; width: 100%; max-width: 320px; font-size: 17px; }
+  .tela-cheia .campo { width: 100%; max-width: 320px; text-align: left; }
+  .tela-cheia label { font-size: 13px; color: var(--sutil); display: block; margin-bottom: 4px; }
+  .erro { color: #ff8a80; min-height: 1.3em; font-size: 14px; }
+  .folha { position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,.6); display: flex; align-items: flex-end; z-index: 9; }
+  .folha > div { background: var(--painel); width: 100%; border-radius: 18px 18px 0 0; padding: 16px 14px calc(16px + var(--seg-baixo)); max-height: 85%; overflow-y: auto; }
+  .folha h3 { margin: 0 0 10px; }
+  .folha .rec { display: block; width: 100%; text-align: left; margin-bottom: 6px; font-size: 14px; }
+  .aviso-ativo { background: #5c1414; border: 1px solid #a33; border-radius: 12px; padding: 10px; margin-bottom: 10px; font-size: 14px; }
+  .toast { position: fixed; left: 50%; bottom: calc(150px + var(--seg-baixo)); transform: translateX(-50%); background: #333c; color: #fff; padding: 9px 16px; border-radius: 20px; font-size: 14px; z-index: 20; pointer-events: none; transition: opacity .3s; }
+  .rot-atual { display: flex; align-items: center; gap: 10px; }
+  .rot-atual .ra-txt { flex: 1; min-width: 0; }
+  .rot-atual b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rot-atual button { flex: none; padding: 12px 16px; font-weight: 600; }
+  .rot-atual button.sel { background: var(--acento); border-color: var(--acento); color: #1b1503; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; }
+  .chips button { flex: none; padding: 7px 12px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .chips button.sel { background: var(--acento-esc); border-color: var(--acento); color: var(--acento); }
+  .chips i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .dia { font-size: 13px; font-weight: 600; color: var(--sutil); margin: 14px 2px 6px; }
+  .grupo { font-size: 12px; color: var(--acento); text-transform: uppercase; letter-spacing: .06em; margin: 16px 2px 2px; }
+  .rc { display: block; width: 100%; text-align: left; padding: 0; overflow: hidden; margin-bottom: 8px; border-radius: 12px; }
+  .rc .faixa-lit { background: var(--cor-lit, #5a606b); color: var(--cor-txt, #fff); font-size: 11px; padding: 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rc .corpo { padding: 9px 10px 10px; }
+  .rc .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rc .ln { font-size: 13px; color: var(--sutil); margin-top: 3px; display: flex; gap: 8px; align-items: center; }
+  .rc .ln i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .rc.aberto { border-color: var(--acento); }
+  .rc .ab { color: var(--acento); font-weight: 600; margin-left: auto; }
+  .papeis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .papeis button { padding: 10px 6px; font-size: 14px; }
+  .papeis button small { display: block; font-size: 11px; color: var(--sutil); margin-top: 2px; }
+  .papeis button.sel { border-color: var(--acento); background: var(--acento-esc); color: var(--acento); }
+  .papeis.tres { grid-template-columns: 1fr 1fr 1fr; }
+  /* (1.8.4) 📺 modo Telão: o slide do telão em tela cheia, só para ver (tablet ou TV no presbitério) */
+  #telao { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 8; background: #000; color: #fff; display: flex;
+    align-items: center; justify-content: center; text-align: center; padding: 4vh 5vw; overflow: hidden; cursor: none; }
+  #telaoTxt { line-height: 1.22; max-width: 100%; max-height: 100%; overflow-wrap: break-word; }
+  #telaoTxt .quem { color: var(--cor-quem); font-weight: 700; }
+  #telaoTxt .resp { font-weight: 700; }
+  #telaoTxt .entre { display: block; height: .45em; }
+  #telaoTxt sup { font-size: .55em; opacity: .75; }
+  #telao.sombra #telaoTxt { text-shadow: 0 .04em .12em rgba(0,0,0,.85); }
+  #telao.maius #telaoTxt { text-transform: uppercase; }
+  #telao.negrito #telaoTxt { font-weight: 700; }
+  #telaoAviso { position: absolute; left: 0; right: 0; bottom: 0; background: #b3261e; color: #fff; font-weight: 700; padding: 1.2vh 3vw; font-size: 3.4vh; }
+  #telaoDica { position: absolute; left: 50%; bottom: 3vh; transform: translateX(-50%); background: #0009; color: #ddd; font-size: 14px;
+    padding: 6px 14px; border-radius: 20px; transition: opacity 1s; pointer-events: none; }
+  #telaoPt { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: #e0463c; }
+  body.telao .topo, body.telao main, body.telao .abas, body.telao #nav, body.telao #faixa { display: none !important; }
+  /* modo músico */
+  body.musico .abas, body.musico #nav { display: none !important; }
+  .m-barra { position: sticky; top: -12px; z-index: 2; background: var(--bg); display: flex; gap: 8px; align-items: center; padding: 6px 0 8px; }
+  .m-barra button { padding: 8px 14px; font-weight: 700; }
+  .m-barra select { min-width: 0; flex: 1 1 140px; max-width: 260px; padding: 7px 6px; font-size: 14px; }
+  .m-barra { flex-wrap: wrap; }
+  .m-seguir { margin-left: auto; font-size: 14px; }
+  /* 🔗 links (mesa de som…): Ajustes → Controle pelo celular → Links */
+  .links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+  .links:empty { display: none; }
+  .links a { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 12px; background: var(--painel);
+    border: 1px solid var(--borda); color: var(--texto, #eee); text-decoration: none; font-weight: 600; font-size: 15px; }
+  .links a i { font-style: normal; font-size: 20px; line-height: 1; }
+  .links a img { width: 26px; height: 26px; border-radius: 6px; object-fit: contain; }
+  .links a:active { background: var(--acento-esc); border-color: var(--acento); }
+  .mc { background: var(--painel); border: 1px solid var(--borda); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+  .mc.vivo { border: 2px solid var(--vivo); }
+  /* (1.8.7) quebra a linha no celular: com 🎸 Cifra | 🎼 Partitura e o tom, o título ficava espremido, uma palavra por linha */
+  .mc-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; background: var(--painel2); }
+  .mc-cab .mom { font-size: 11px; text-transform: uppercase; color: var(--acento); letter-spacing: .05em; }
+  .mc-cab .tt { font-weight: 600; flex: 1 1 170px; min-width: 0; }
+  .mc-cab .noar { font-size: 11px; background: var(--vivo); color: #fff; border-radius: 10px; padding: 2px 8px; flex: none; }
+  .mc-tom { display: flex; align-items: center; gap: 4px; flex: none; }
+  .mc-tom button { padding: 4px 10px; font-weight: 700; }
+  .mc-tom b { min-width: 34px; text-align: center; color: var(--acento); }
+  .cifra { margin: 0; padding: 10px 12px 14px; font: var(--tam-cifra, 15px)/1.35 Consolas, "Roboto Mono", Menlo, monospace; white-space: pre; overflow-x: auto; }
+  .cifra .ac { color: var(--acento); font-weight: 700; }
+  .cifra .tb { color: var(--sutil); font-size: .8em; }
+  .cifra .sec { color: #8fb8ff; }
+  .cifra .agora { background: rgba(224, 70, 60, .22); border-radius: 4px; }
+  .mc .sem { padding: 10px 12px 14px; font-size: var(--tam-cifra, 15px); white-space: pre-wrap; color: #c9d1de; }
+  .mc .sem .agora { background: rgba(224, 70, 60, .22); }
+  /* 🎼 partitura (1.8.6): páginas em fundo branco; A−/A+ ampliam (rola para o lado) */
+  .mc-ver { display: flex; flex: none; border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; }
+  .mc-ver button { border: 0; border-radius: 0; padding: 5px 9px; font-size: 13px; background: transparent; }
+  .mc-ver button.sel { background: var(--acento); color: #1b1503; font-weight: 700; }
+  .part { background: #fff; overflow-x: auto; padding: 4px 0; }
+  .part .pg { display: block; position: relative; width: calc(var(--zoom-part, 1) * 100%); margin: 0 auto 6px; }
+  .part img { display: block; width: 100%; max-width: none; height: auto; margin: 0; }
+  /* 🎼 etapa 3: a pauta do que está no telão (faixa) e a linha da letra (marca-texto) */
+  .part .faixa { position: absolute; left: 0; right: 0; background: rgba(224, 70, 60, .10); border-left: 6px solid rgba(224, 70, 60, .9); border-radius: 3px; pointer-events: none; }
+  .part .faixa-l { position: absolute; left: 0; right: 0; background: rgba(255, 196, 0, .30); pointer-events: none; }
+  .part .falta { color: #555; padding: 14px; font-size: 14px; }
+  .mc .cc { margin: 0 12px 12px; display: inline-block; text-decoration: none; color: #1b1503; background: var(--acento); padding: 9px 12px; border-radius: 10px; font-weight: 600; font-size: 14px; }
+  .ptz-pos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .ptz-pos button { padding: 10px 12px; font-size: 14px; }
+  .ptz-ctl { display: flex; gap: 14px; align-items: center; }
+  .ptz-pad { display: grid; grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(3, 58px); gap: 6px; touch-action: none; -webkit-user-select: none; user-select: none; }
+  .ptz-pad button { padding: 0; font-size: 22px; }
+  .ptz-zm { display: flex; flex-direction: column; gap: 8px; touch-action: none; }
+  .ptz-zm button { padding: 16px 12px; }
+  .ptz-pad button.ativo, .ptz-zm button.ativo { background: var(--acento); color: #1b1503; }
+  #acordado { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  /* Tablet: conteúdo centralizado numa coluna confortável, letra e miniaturas maiores */
+  @media (min-width: 700px) {
+    main > section, .nav .setas, .folha > div { max-width: 760px; margin-left: auto; margin-right: auto; }
+    .tela { font-size: 22px; min-height: 170px; }
+    .tela.prox { font-size: 17px; min-height: 90px; }
+    .tira .sl { width: 190px; height: 112px; font-size: 13px; }
+    .abas { justify-content: center; grid-template-columns: repeat(4, minmax(0, 180px)); }
+  }
+
+  /* Safari antigo (iOS < 14.5) não tem "gap" em flexbox: margens no lugar (o script liga html.sem-gap) */
+  .sem-gap .topo > * + *, .sem-gap .rot > * + *, .sem-gap .tira > * + *, .sem-gap .it > * + *, .sem-gap .toc > * + *,
+  .sem-gap .check > * + *, .sem-gap .rot-atual > * + *, .sem-gap .chips > * + *, .sem-gap .chips button > * + *,
+  .sem-gap .rc .ln > * + *, .sem-gap .m-barra > * + *, .sem-gap .mc-cab > * + *, .sem-gap .mc-tom > * + *, .sem-gap .ptz-ctl > * + * { margin-left: 8px; }
+  .sem-gap .lista > * + *, .sem-gap .tela-cheia > * + *, .sem-gap .ptz-zm > * + * { margin-top: 8px; }
+  .sem-gap .linha > *, .sem-gap .temas > *, .sem-gap .ptz-pos > * { margin: 3px; }
+  font.m-vermelho { color: #c8102e; } font.m-dourado { color: #f2c14e; } font.m-azul { color: #5aa9ff; } font.m-verde { color: #5cc46a; }
+  font.m-roxo { color: #b57cf0; } font.m-branco { color: #fff; } font.m-preto { color: #111; }
+  big.m-g { font-size: 1.25em; } big.m-gg { font-size: 1.5em; } small.m-pq { font-size: .8em; }
+</style>
+</head>
+<body>
+
+<!-- Pareamento -->
+<div id="par" class="tela-cheia" hidden>
+  <img src="icone.svg" alt="">
+  <h1><b>Miguel</b>Angelus</h1>
+  <div class="sutil">Controle pelo celular</div>
+  <div class="campo"><label for="parCod">Código que aparece no computador</label>
+    <input id="parCod" class="codigo" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000"></div>
+  <div class="campo"><label for="parNome">Nome deste celular</label>
+    <input id="parNome" maxlength="40" placeholder="Celular da PASCOM"></div>
+  <div class="campo"><label>Este aparelho é para</label>
+    <div class="papeis tres"><button id="papelControle" class="sel" type="button">📱 Controle<small>PASCOM</small></button>
+      <button id="papelMusico" type="button">🎸 Músico<small>cifras e partituras</small></button>
+      <button id="papelTelao" type="button">📺 Telão<small>só ver o slide</small></button></div></div>
+  <button id="parOk" class="acao">Conectar</button>
+  <div id="parErro" class="erro"></div>
+  <div class="sutil">No computador: Ferramentas → Ajustes → 📱 Controle pelo celular</div>
+</div>
+
+<!-- Desligado / sem conexão por muito tempo -->
+<div id="fora" class="tela-cheia" hidden>
+  <img src="icone.svg" alt="">
+  <h1 id="foraTit">Sem conexão</h1>
+  <div id="foraTxt" class="sutil"></div>
+  <button id="foraTentar" class="acao">Tentar de novo</button>
+</div>
+
+<div class="topo">
+  <span id="pt" class="pt" title="Conexão"></span>
+  <span id="nomeRoteiro" class="nome">MiguelAngelus</span>
+  <span id="selo" class="selo">—</span>
+</div>
+<div id="faixa" class="faixa" hidden>Reconectando…</div>
+
+<main>
+  <!-- CONTROLE -->
+  <section data-aba="controle">
+    <div id="avisoAtivo" class="aviso-ativo" hidden></div>
+    <div class="rot"><span>No telão</span><b id="noArTit"></b></div>
+    <div id="noAr" class="tela"><span class="vazia">Nada no ar</span></div>
+    <div class="rot"><span id="proxRot">Próximo</span><b id="proxTit"></b></div>
+    <div id="prox" class="tela prox"><span class="vazia">—</span></div>
+    <div class="rot"><span>Slides do item aberto</span><b id="abertoTit"></b></div>
+    <div id="tira" class="tira"></div>
+    <div class="grade">
+      <button data-cmd="mudo" id="btMudo" title="O telão fica só com o fundo enquanto você navega">Mudo</button>
+      <button data-cmd="limpar">Limpar</button>
+      <button data-cmd="altar" id="btAltar">Altar</button>
+      <button id="btAviso">Aviso</button>
+      <button data-cmd="pix" id="btPix" hidden style="grid-column: 1 / -1">💠 Pix da paróquia (QR code)</button>
+      <button data-cmd="qrAoVivo" id="btQrAoVivo" hidden style="grid-column: 1 / -1" title="QR code no canto do telão para acompanhar pela internet">📱 QR “Acompanhe no celular” no telão</button>
+    </div>
+    <button data-cmd="projecao" id="btProjecao" style="width:100%;margin-top:8px">Abrir o telão</button>
+  </section>
+
+  <!-- ROTEIRO -->
+  <section data-aba="roteiro" hidden>
+    <div class="cartao rot-atual">
+      <div class="ra-txt"><div class="sutil">Roteiro aberto</div><b id="rotNome"></b><div id="rotInfo" class="sutil"></div></div>
+      <button id="btTrocar">Trocar</button>
+    </div>
+    <div id="vistaItens">
+      <div id="listaRoteiro" class="lista"></div>
+      <p class="sutil">Toque num item para abri-lo. Para projetar, use <b>Próximo</b> ou toque num slide.</p>
+    </div>
+    <div id="vistaRoteiros" hidden>
+      <div id="chipsCapela" class="chips"></div>
+      <div id="listaRoteiros"></div>
+    </div>
+  </section>
+
+  <!-- MÚSICOS: cantos do roteiro com as cifras, acompanhando o telão -->
+  <section data-aba="musico" hidden>
+    <div id="linksMusico" class="links"></div>
+    <div class="m-barra">
+      <button id="mMenor" title="Letra menor">A−</button><button id="mMaior" title="Letra maior">A+</button>
+      <select id="mInstr" title="Meu instrumento: as cifras aparecem no tom dele (só neste aparelho)">
+        <option value="c">🎹 Dó (violão, teclado…)</option>
+        <option value="bb">🎺 Si♭ (sax tenor, trompete, clarinete)</option>
+        <option value="eb">🎷 Mi♭ (sax alto, sax barítono)</option>
+        <option value="f">📯 Fá (trompa)</option>
+      </select>
+      <label class="check m-seguir"><input type="checkbox" id="mSeguir" checked> Seguir o telão</label>
+    </div>
+    <div id="mCantos"></div>
+  </section>
+
+  <!-- MÍDIA -->
+  <section data-aba="midia" hidden>
+    <div class="cartao" id="cxLinks" hidden><h3>🔗 Links</h3><div id="linksControle" class="links"></div></div>
+    <div class="cartao" id="cxAberta" hidden></div>
+    <div class="cartao"><h3>Tocando agora</h3><div id="tocando"><p class="sutil">Nada tocando.</p></div>
+      <div class="linha"><span class="sutil">Volume</span><input type="range" id="vol" min="0" max="1" step="0.05" style="flex:1"></div></div>
+    <div class="cartao" id="cxCameras" hidden><h3>Câmeras</h3><div id="cameras" class="lista"></div>
+      <label class="check"><input type="checkbox" id="letra"> Letra por cima da câmera</label>
+      <div id="ptzCel"></div></div>
+    <div class="cartao"><h3>Tema do telão</h3><div id="temas" class="temas"></div></div>
+  </section>
+</main>
+
+<div class="nav" id="nav">
+  <div class="setas">
+    <button data-cmd="anterior">◀ Anterior</button>
+    <button data-cmd="proximo" class="prox-bt">Próximo ▶</button>
+  </div>
+</div>
+<nav class="abas">
+  <button data-ir="controle" class="sel"><i>▶</i>Controle</button>
+  <button data-ir="roteiro"><i>☰</i>Roteiro</button>
+  <button data-ir="midia"><i>🎬</i>Mídia</button>
+  <button data-ir="musico"><i>🎸</i>Cifras</button>
+</nav>
+
+<!-- Aviso -->
+<div id="folhaAviso" class="folha" hidden>
+  <div>
+    <h3>📢 Aviso na tela</h3>
+    <textarea id="avTexto" rows="3" maxlength="300" placeholder="Ex.: Atenção, proprietário do veículo placa ABC1D23: favor comparecer à porta da igreja."></textarea>
+    <div class="linha" style="margin:10px 0"><button id="avMostrar" style="background:var(--acento);color:#1b1503;border:0;font-weight:700">Mostrar no telão</button><button id="avFechar">Fechar</button></div>
+    <div id="avRecentes"></div>
+  </div>
+</div>
+
+<!-- 📺 Telão (1.8.4): o slide em tela cheia -->
+<div id="telao" hidden>
+  <div id="telaoTxt"></div>
+  <div id="telaoAviso" hidden></div>
+  <span id="telaoPt" hidden title="Sem conexão com o computador"></span>
+  <div id="telaoDica">Toque na tela para ocupar a tela inteira</div>
+</div>
+
+<div id="toast" class="toast" style="opacity:0"></div>
+<video id="acordado" src="acordado.mp4" muted loop playsinline webkit-playsinline preload="auto"></video>
+
+<script>
+// marcas de formatação do MiguelAngelus (negrito… cor, tamanho) já escapadas → HTML; ES5 (aparelhos antigos)
+var RX_MARCA = /&lt;(\/?)(b|i|u|gg|g|pq|vermelho|dourado|azul|verde|roxo|branco|preto)&gt;/gi;
+var RX_MARCA_CRUA = /<\/?(b|i|u|gg|g|pq|vermelho|dourado|azul|verde|roxo|branco|preto)>/gi;
+function trocaMarca(_, f, t) {
+  t = t.toLowerCase();
+  if (t === "b" || t === "i" || t === "u") return "<" + f + t + ">";
+  var el = "vermelho dourado azul verde roxo branco preto".indexOf(t) >= 0 ? "font" : t === "pq" ? "small" : "big";
+  return f ? "</" + el + ">" : "<" + el + " class=\"m-" + t + "\">";
+}
+</script>
+<script>
+// Navegador antigo demais para esta página (iOS 9/10, Android antigo: sem fetch, funções de seta, async…): vai para a
+// versão simples, feita em JavaScript da época. Escrito em JavaScript antigo, para rodar até lá.
+(function () {
+  var antigo = !window.fetch || !window.Promise || !window.EventSource;
+  if (!antigo) try { new Function('async function f(){ var o = { ...{ a: 1 } }; await 0; } var g = (x) => x; return `${1}`;'); } catch (e) { antigo = true; }
+  if (antigo) location.replace('/simples.html' + location.search);
+})();
+// Safari antigo: sem "gap" em flexbox → margens (CSS .sem-gap)
+(function () { try { var d = document.createElement('div'); d.style.display = 'flex'; d.style.flexDirection = 'column'; d.style.rowGap = '1px';
+  d.appendChild(document.createElement('div')); d.appendChild(document.createElement('div')); document.documentElement.appendChild(d);
+  if (d.scrollHeight !== 1) document.documentElement.className += ' sem-gap'; d.parentNode.removeChild(d); } catch (e) {} })();
+</script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const CHAVE = 'mgl.celular.token';
+let token = ''; try { token = localStorage.getItem(CHAVE) || ''; } catch (_) {}
+let est = null, fonte = null, vivoEm = 0, aba = 'controle';
+
+// ---------- utilidades ----------
+let tt = 0;
+function toast(t) { const el = $('#toast'); el.textContent = t; el.style.opacity = 1; clearTimeout(tt); tt = setTimeout(() => el.style.opacity = 0, 2200); }
+const vibrar = () => { try { if (navigator.vibrate) navigator.vibrate(12); } catch (_) {} };
+const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+function nomePadrao() {
+  const u = navigator.userAgent;
+  if (/iPhone/i.test(u)) return 'iPhone'; if (/iPad/i.test(u)) return 'iPad';
+  const m = /Android[^;]*;\s*([^;)]+?)(?:\s+Build|\))/.exec(u);
+  return m ? m[1].trim().slice(0, 40) : 'Celular';
+}
+
+// ---------- texto do slide (igual ao telão: P./T. coloridos, resposta do povo em negrito) ----------
+function htmlSlide(s, curto) {
+  if (!s) return '';
+  if (s.avisos) return `<div><b>${esc(s.avisos.icone)} ${esc(s.avisos.titulo)}</b>${s.avisos.pag ? ` <small>${esc(s.avisos.pag)}</small>` : ''}` +
+    s.avisos.itens.map(t => '<br>• ' + esc(t).replace(RX_MARCA, trocaMarca)).join('') + '</div>';
+  if (s.versos) return '<div>' + s.versos.map(v => `<sup>${esc(v.n)}</sup>${esc(v.t)}`).join(' ') + '</div>';
+  const cfg = (est && est.cfg) || {};
+  let povo = false;
+  const trocas = [];
+  const linhas = esc(s.texto).split('\n').map((l, i) => {
+    const num = i === 0 && s.numerado ? /^\s*(\d+)\.\s+/.exec(l) : null;
+    if (num) return (cfg.mostrarRotulos === false ? '' : `<span class="quem">${num[1]}.</span> `) + l.slice(num[0].length);
+    const m = /^\s*([PTLCD])\.\s+/.exec(l), antes = povo;
+    let quem = '';
+    if (m) { povo = m[1] === 'T'; if (cfg.mostrarRotulos !== false) quem = `<span class="quem">${m[1]}.</span> `; l = l.slice(m[0].length); }
+    else if (/^\s*(—|R\.)/.test(l)) povo = true;
+    if (i > 0 && povo !== antes) trocas[i] = true;
+    return quem + (povo ? `<span class="resp">${l}</span>` : l);
+  });
+  const separar = !curto && cfg.espacoResposta !== false;
+  let html = linhas.map((l, i) => i === 0 ? l : (separar && trocas[i] ? '<span class="entre"></span>' : '<br>') + l).join('')
+    .replace(RX_MARCA, trocaMarca);
+  if (s.refrao) html = `<span class="resp">${html}</span>`;
+  if (s.img && !s.texto) html = '<span class="aviso-img">🖼 Imagem</span>';
+  return `<div>${html}</div>`;      // um bloco só (a caixa do telão centraliza com flex)
+}
+
+// ---------- 🔗 links (mesa de som…): abrem numa aba nova; só http/https ----------
+let ultimosLinks = '';
+function renderLinksCel() {
+  const lista = (est.links || []).filter(l => /^https?:\/\//i.test(l.url));
+  const chave = JSON.stringify(lista) + papel;
+  if (chave === ultimosLinks) return;
+  ultimosLinks = chave;
+  const html = para => lista.filter(l => l.para === 'todos' || l.para === para)
+    .map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${/^data:image\//.test(l.img || '') ? `<img src="${l.img}" alt="">` : `<i>${esc(l.icone || '🔗')}</i>`}${esc(l.nome)}</a>`).join('');
+  $('#linksMusico').innerHTML = html('musico');
+  $('#linksControle').innerHTML = html('controle');
+  $('#cxLinks').hidden = !$('#linksControle').innerHTML;
+}
+
+// ---------- desenho ----------
+function render() {
+  if (!est) return;
+  document.documentElement.style.setProperty('--cor-quem', (est.cfg && est.cfg.corRotulo) || '#ff5a4f');
+  $('#nomeRoteiro').textContent = est.roteiro || 'MiguelAngelus';
+  const selo = $('#selo');
+  selo.textContent = est.preto ? 'Tela preta' : est.mudo ? 'Mudo' : est.altar ? 'Altar' : est.camera ? 'Câmera' : est.noAr.slide ? 'Ao vivo' : est.tocando.some(t => t.tipo === 'video' && !t.pausado) ? 'Vídeo' : 'Livre';
+  selo.classList.toggle('vivo', !!(est.preto || est.altar || est.noAr.slide || est.camera));
+  if (!est.projecao) selo.textContent += ' · telão fechado';
+  if (papel === 'telao') return renderTelao();        // 📺 telão: só o slide, em tela cheia
+  renderLinksCel();
+  if (papel === 'musico') return renderMusico();      // músico: só as cifras
+
+  // aviso
+  const av = $('#avisoAtivo');
+  av.hidden = !est.aviso;
+  if (est.aviso) av.innerHTML = `📢 <b>Aviso na tela:</b> ${esc(est.aviso.texto)}<div class="linha" style="margin-top:8px"><button data-cmd="avisoRepetir">↻ Repetir</button><button data-cmd="avisoRetirar">✕ Retirar</button></div>`;
+
+  // no ar
+  const n = est.noAr;
+  $('#noArTit').textContent = n.tit ? n.tit + (n.idx >= 0 ? ` · ${n.idx + 1}/${n.total}` : '') : '';
+  const telaNoAr = $('#noAr');
+  telaNoAr.innerHTML = est.preto ? '<span class="vazia">■ Tela preta</span>' : est.camera ? '<span class="vazia">📷 Câmera no telão</span>' :
+    n.slide ? htmlSlide(n.slide) : est.tocando.some(t => t.tipo === 'video') ? '<span class="vazia">🎬 Vídeo no telão</span>' : '<span class="vazia">Nada no ar</span>';
+
+  // próximo
+  const p = est.prox;
+  $('#proxRot').textContent = p && p.abre ? 'Próximo item (abre)' : 'Próximo';
+  $('#proxTit').textContent = (p && p.tit) || '';
+  $('#prox').innerHTML = p ? (p.slide ? htmlSlide(p.slide, true) : `<span class="vazia">${esc(p.tit || '—')}</span>`) : '<span class="vazia">Fim do roteiro</span>';
+
+  // slides do item aberto
+  const a = est.aberto;
+  $('#abertoTit').textContent = a ? a.tit : '';
+  const vivoAqui = a && n.tit && a.rIdx === est.vivoIdx;
+  $('#tira').innerHTML = !a ? '<span class="sutil">Abra um item no Roteiro.</span>' : a.midia ? `<span class="sutil">${a.midia.tipo === 'video' ? '🎬 Vídeo' : '🎵 Áudio'}: ${esc(a.midia.nome)} — controles na aba Mídia.</span>` :
+    !a.slides.length ? '<span class="sutil">Item sem slides.</span>' :
+    a.slides.map((s, i) => `<button class="sl ${vivoAqui && n.idx === i ? 'vivo' : ''} ${a.idx === i ? 'foco' : ''}" data-slide="${i}">${htmlSlide(s, true)}<span class="n">${i + 1}</span></button>`).join('');
+  const f = $('#tira .foco'); if (f) f.scrollIntoView({ block: 'nearest', inline: 'center' });
+
+  $('#btProjecao').textContent = est.projecao ? '✕ Fechar o telão' : '▣ Abrir o telão';
+  $('#btProjecao').classList.toggle('ligado', !!est.projecao);
+  if ($('#btMudo')) $('#btMudo').classList.toggle('ligado', !!est.mudo);
+  $('#btAltar').classList.toggle('ligado', !!est.altar);
+  $('#btPix').hidden = !est.temPix;                    // só aparece com o QR code do Pix cadastrado no computador
+  $('#btPix').classList.toggle('ligado', !!est.pix);
+  $('#btQrAoVivo').hidden = !est.aoVivo;                // só com o "Acompanhar pela internet" ligado no computador
+  $('#btQrAoVivo').classList.toggle('ligado', !!est.qrAoVivo);
+
+  // roteiro
+  renderRoteiros();
+  if (aba === 'musico') renderMusico();
+  $('#listaRoteiro').innerHTML = est.itens.length ? est.itens.map((it, i) => `
+    <button class="it ${a && a.rIdx === i ? 'sel' : ''}" data-item="${i}"><span class="tag">${esc(it.rot)}</span><span class="tit">${esc(it.tit || '—')}</span>${est.vivoIdx === i ? '<span class="noar"></span>' : ''}</button>`).join('')
+    : '<p class="sutil">Roteiro vazio.</p>';
+
+  // mídia
+  const cx = $('#cxAberta');
+  cx.hidden = !(a && a.midia);
+  if (a && a.midia) {
+    const tocandoEsta = est.tocando.find(t => t.id === a.midia.id);
+    cx.innerHTML = `<h3>${a.midia.tipo === 'video' ? '🎬' : '🎵'} ${esc(a.midia.nome)}</h3><div class="linha">
+      <button data-midia="${esc(a.midia.id)}" data-macao="midiaTocar" style="background:var(--acento);color:#1b1503;border:0;font-weight:700">${tocandoEsta ? (tocandoEsta.pausado ? '▶ Continuar' : '❚❚ Pausar') : a.midia.tipo === 'video' ? '▶ Tocar no telão' : '▶ Tocar'}</button>
+      ${tocandoEsta ? `<button data-midia="${esc(a.midia.id)}" data-macao="midiaParar">■ Parar</button>` : ''}</div>`;
+  }
+  $('#tocando').innerHTML = est.tocando.length ? est.tocando.map(t => `<div class="toc"><span>${t.tipo === 'video' ? '🎬' : '🎵'}</span><span class="nm">${esc(t.nome)}</span>
+      <span class="t">${fmt(t.t)} / ${fmt(t.dur)}</span>
+      <button data-midia="${esc(t.id)}" data-macao="midiaTocar">${t.pausado ? '▶' : '❚❚'}</button><button data-midia="${esc(t.id)}" data-macao="midiaParar">■</button></div>`).join('')
+    : '<p class="sutil">Nada tocando.</p>';
+  if (document.activeElement !== $('#vol')) $('#vol').value = est.volume;
+  $('#cxCameras').hidden = !est.cameras.length;
+  $('#cameras').innerHTML = est.cameras.map(c => `<button class="it ${est.camera === c.id ? 'sel' : ''}" data-camera="${esc(c.id)}"><span class="tit">📷 ${esc(c.nome)}</span>${est.camera === c.id ? '<span class="noar"></span>' : ''}</button>`).join('') +
+    (est.camera ? '<button data-camera="" class="it"><span class="tit">✕ Tirar a câmera do telão</span></button>' : '');
+  $('#letra').checked = !!est.letra;
+  // câmeras PTZ: posições prontas + setas/zoom (segurar)
+  const ptzHtml = est.cameras.filter(c => c.ptz).map(c => `<div class="ptz-cel"><div class="sutil" style="margin:10px 0 6px">🎮 ${esc(c.nome)}</div>
+    ${c.posicoes.length ? `<div class="ptz-pos">${c.posicoes.map(p => `<button data-ptzir="${esc(c.id)}:${p.n}">📍 ${esc(p.nome)}</button>`).join('')}</div>` : ''}
+    <div class="ptz-ctl"><div class="ptz-pad">
+      <span></span><button data-pm="${esc(c.id)}:0:-1">▲</button><span></span>
+      <button data-pm="${esc(c.id)}:-1:0">◀</button><button data-ptzhome="${esc(c.id)}">⌂</button><button data-pm="${esc(c.id)}:1:0">▶</button>
+      <span></span><button data-pm="${esc(c.id)}:0:1">▼</button><span></span></div>
+      <div class="ptz-zm"><button data-pz="${esc(c.id)}:1">＋ Zoom</button><button data-pz="${esc(c.id)}:-1">− Zoom</button></div></div></div>`).join('');
+  if ($('#ptzCel').dataset.html !== ptzHtml) { $('#ptzCel').dataset.html = ptzHtml; $('#ptzCel').innerHTML = ptzHtml; }
+  $('#temas').innerHTML = est.temas.map(t => `<button class="${est.tema === t.id ? 'sel' : ''}" data-tema="${esc(t.id)}" style="background:${esc(t.fundo)};color:${esc(t.texto)}" title="${esc(t.nome)}">Aa<small>${esc(t.nome)}</small></button>`).join('');
+
+  // recentes do aviso
+  const salvos = est.salvos || [];
+  $('#avRecentes').innerHTML = (salvos.length ? '<div class="sutil" style="margin-bottom:6px">Avisos salvos</div>' +
+    salvos.map((r, i) => `<button class="rec" data-salvo="${i}">💾 ${esc(r)}</button>`).join('') : '') +
+    (est.recentes.length ? '<div class="sutil" style="margin:8px 0 6px">Recentes</div>' +
+    est.recentes.map((r, i) => `<button class="rec" data-rec="${i}">📢 ${esc(r)}</button>`).join('') : '');
+}
+
+// ---------- modo músico: cifras dos cantos do roteiro, acompanhando o telão ----------
+let papel = ''; try { papel = localStorage.getItem('mgl.celular.papel') || ''; } catch (_) {}
+let papelEscolhido = 'controle', musica = [], chaveMusica = '';
+const ultimaLinha = {};                               // por canto: última linha destacada (o refrão se repete; segue em frente)
+const ultimaPart = {};                                // 🎼 por canto: último lugar destacado na partitura
+let transp = {}; try { transp = JSON.parse(localStorage.getItem('mgl.celular.transp') || '{}'); } catch (_) {}
+let tamCifra = 15; try { tamCifra = +localStorage.getItem('mgl.celular.tamCifra') || 15; } catch (_) {}
+// 🎼 (1.8.6) cifra ou partitura: a última escolha vale para os outros cantos; cada canto lembra a sua (só neste aparelho)
+let verPref = 'cifra', verCanto = {};
+try { verPref = localStorage.getItem('mgl.celular.ver') || 'cifra'; verCanto = JSON.parse(localStorage.getItem('mgl.celular.verCanto') || '{}'); } catch (_) {}
+const urlPartitura = id => '/api/partitura?t=' + encodeURIComponent(token) + '&id=' + encodeURIComponent(id);
+function verDe(m) {
+  if (!(m.partitura && m.partitura.length)) return 'cifra';
+  if (!m.cifra) return 'partitura';
+  return verCanto[m.titulo] || verPref;
+}
+// Meu instrumento (instrumentos transpositores): o músico lê no tom do instrumento, que soa junto com os outros.
+// Si♭ lê 1 tom acima do som real; Mi♭ lê 1 tom e meio abaixo; Fá lê uma quinta acima. Só neste aparelho.
+const INSTR = { c: 0, bb: 2, eb: -3, f: 7 };
+let instr = 'c'; try { instr = localStorage.getItem('mgl.celular.instr') || 'c'; } catch (_) {}
+if (!(instr in INSTR)) instr = 'c';
+const RX_AC = /^[A-G][#b]?(?:m|M|maj|min|sus|dim|aug|add|°|º|\+)?\d*(?:M|\+|°|º|maj\d*)?(?:\([^)]*\))?(?:[+\-]\d+)?(?:\/[A-G][#b]?\d*)?$/;
+const ehAcordes = l => {
+  let s = l.trim();
+  if (/^\(.*\)$/.test(s)) s = s.slice(1, -1);
+  const p = s.replace(/\|/g, ' ').split(/\s+/).filter(Boolean);
+  return p.length > 0 && p.every(x => RX_AC.test(x) || /^[-–.x:|]+$/i.test(x) || RX_AC.test(x.replace(/^\(|\)$/g, '')));
+};
+const NS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'], NB = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+const nota = (n, p, b) => { let i = NS.indexOf(n); if (i < 0) i = NB.indexOf(n); return i < 0 ? n : (b ? NB : NS)[((i + p) % 12 + 12) % 12]; };
+const transpAcorde = (a, p) => { if (!p) return a; const b = /^[A-G]b/.test(a); return a.replace(/^([A-G][#b]?)/, n => nota(n, p, b)).replace(/\/([A-G][#b]?)/, (_, n) => '/' + nota(n, p, b)); };
+function transpLinha(l, p) {
+  if (!p) return l;
+  let out = '', falta = 0;
+  const rx = /(\S+)|(\s+)/g; let m;
+  while ((m = rx.exec(l))) {
+    if (m[2]) { out += ' '.repeat(Math.max(1, m[2].length - falta)); falta = Math.max(0, falta - m[2].length + 1); continue; }
+    const t = m[1].replace(/[()]/g, ''), novo = RX_AC.test(t) ? m[1].replace(t, transpAcorde(t, p)) : m[1];
+    falta += novo.length - m[1].length; out += novo;
+  }
+  return out;
+}
+const palavras = t => (t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(RX_MARCA_CRUA, '').replace(/^\s*([ptlcd]\.|\d+\.|—)\s*/, '').replace(/[^a-z ]+/g, ' ').split(/\s+/).filter(w => w.length > 1);
+
+function htmlCifra(m, passos) {
+  return m.cifra.split('\n').map((l, k) => {
+    let cls = '', txt = l;
+    if (/^\s*[EBGDAe]\|/.test(l)) cls = 'tb';
+    else if (/^\s*\[[^\]]*\]/.test(l)) { cls = 'sec'; txt = l.replace(/(\][^\n]*)/, s => transpLinha(s, passos)); }
+    else if (ehAcordes(l)) { cls = 'ac'; txt = transpLinha(l, passos); }
+    return `<span class="l ${cls}" data-k="${k}">${esc(txt) || ' '}</span>`;
+  }).join('\n');
+}
+
+function renderMusico(refazer) {
+  if (papel !== 'musico' && aba !== 'musico') return;    // controle: só quando a aba 🎸 Cifras está aberta
+  document.documentElement.style.setProperty('--tam-cifra', tamCifra + 'px');
+  document.documentElement.style.setProperty('--zoom-part', Math.max(1, tamCifra / 15).toFixed(2));
+  const vivo = est && est.vivoIdx != null ? est.vivoIdx : -1;
+  const chave = JSON.stringify(musica) + JSON.stringify(transp) + instr + verPref + JSON.stringify(verCanto);
+  if (refazer || chave !== chaveMusica) {
+    chaveMusica = chave;
+    $('#mCantos').innerHTML = musica.length ? musica.map(m => {
+      const pMusica = transp[m.titulo] || 0, p = pMusica + INSTR[instr];
+      const tom = m.tom ? transpAcorde(m.tom, p) : (p ? (p > 0 ? '+' : '') + p : '—');
+      // instrumento transpositor: lembra o tom em que a música soa (o dos outros músicos)
+      const soa = INSTR[instr] && m.cifra && m.tom ? `<div class="sutil">o grupo toca em ${esc(transpAcorde(m.tom, pMusica))}</div>` : '';
+      const ver = verDe(m), temP = !!(m.partitura && m.partitura.length);
+      const troca = temP && m.cifra ? `<div class="mc-ver"><button data-ver="cifra" data-vt="${esc(m.titulo)}" class="${ver === 'cifra' ? 'sel' : ''}">🎸 Cifra</button><button data-ver="partitura" data-vt="${esc(m.titulo)}" class="${ver === 'partitura' ? 'sel' : ''}">🎼 Partitura</button></div>` : '';
+      return `<div class="mc" data-i="${m.i}">
+        <div class="mc-cab"><div class="tt"><div class="mom">${esc(m.momento)}</div>${esc(m.titulo)}${m.autor ? `<div class="sutil">${esc(m.autor)}</div>` : ''}${m.deOutro && ver === 'cifra' ? `<div class="sutil">cifra de: ${esc(m.deOutro)}</div>` : ''}${ver === 'cifra' ? soa : ''}</div>
+          <span class="noar" hidden>no telão</span>
+          ${troca}
+          ${m.cifra && ver === 'cifra' ? `<div class="mc-tom"><button data-tr="${esc(m.titulo)}" data-p="-1">−</button><b title="Tom">${esc(tom)}</b><button data-tr="${esc(m.titulo)}" data-p="1">+</button></div>` : ''}</div>
+        ${ver === 'partitura' ? `<div class="part">${m.partitura.map((id, n) => `<span class="pg" data-n="${n}"><img src="${urlPartitura(id)}" alt="Partitura, página ${n + 1}" data-tent="0"></span>`).join('')}</div>`
+        : m.cifra ? `<pre class="cifra">${htmlCifra(m, p)}</pre>`
+          : `<div class="sem">${(m.letra || 'Sem letra.').split('\n').map((l, k) => `<span class="l" data-k="${k}">${esc(l).replace(RX_MARCA, trocaMarca) || ' '}</span>`).join('\n')}</div>
+             ${m.rezado ? '' : `<a class="cc" href="https://www.cifraclub.com.br/?q=${encodeURIComponent(m.titulo)}" target="_blank" rel="noopener">🔎 Abrir no Cifra Club</a>`}`}
+      </div>`;
+    }).join('') : '<p class="sutil">Nenhum canto no roteiro aberto.</p>';
+  }
+  // o canto que está no telão: borda vermelha e a linha cantada agora destacada
+  $$('#mCantos .mc').forEach(c => { const v = +c.dataset.i === vivo; c.classList.toggle('vivo', v); c.querySelector('.noar').hidden = !v; });
+  $$('#mCantos .agora').forEach(x => x.classList.remove('agora'));
+  $$('#mCantos .faixa, #mCantos .faixa-l').forEach(x => x.remove());
+  const card = $(`#mCantos .mc[data-i="${vivo}"]`);
+  if (!card) return;
+  const slide = est && est.noAr ? est.noAr.slide : null;
+  // mesmo slide de antes (o estado chega várias vezes): repete o destaque, sem avançar nem rolar a tela
+  const chaveSlide = vivo + '|' + (est && est.noAr && est.noAr.idx != null ? est.noAr.idx : '') + '|' + ((slide && slide.texto) || '');
+  if (chaveSlide === renderMusico.ultimo) {
+    const el = card.querySelector(`.l[data-k="${ultimaLinha[vivo]}"]`);
+    if (el) { el.classList.add('agora'); const a = el.previousElementSibling; if (a && a.classList.contains('ac')) a.classList.add('agora'); }
+    if (ultimaPart[vivo]) desenharFaixa(card, ultimaPart[vivo]);
+    return;
+  }
+  const mudou = chaveSlide !== renderMusico.ultimo;
+  renderMusico.ultimo = chaveSlide;
+  // começo da 1ª linha do slide (no slide a frase pode vir inteira; na cifra, quebrada em linhas curtas)
+  const alvo = palavras(((slide && slide.texto) || '').split('\n').find(l => palavras(l).length) || '').slice(0, 6);
+  let marcada = null;
+  // 🎼 partitura: a pauta onde começa o slide (pelo mapa da letra que veio do PDF)
+  const mv = musica.find(x => x.i === vivo);
+  if (mv && verDe(mv) === 'partitura' && mv.partMapa) {
+    const achado = acharNaPartitura(mv.partMapa, slide && slide.texto, ultimaPart[vivo]);
+    if (achado) { ultimaPart[vivo] = achado; marcada = desenharFaixa(card, achado); }
+  }
+  if (alvo.length && !marcada) {
+    const linhas = [...card.querySelectorAll('.l:not(.ac):not(.tb):not(.sec)')];
+    const cand = linhas.map(el => {
+      const w = palavras(el.textContent).slice(0, 6);
+      if (w.length < 2) return { el, nota: 0 };
+      let seguidas = 0;                                       // palavras iguais na mesma ordem, a partir do início
+      while (seguidas < Math.min(w.length, alvo.length) && w[seguidas] === alvo[seguidas]) seguidas++;
+      const set = new Set(w), comum = alvo.filter(x => set.has(x)).length;
+      return { el, nota: Math.max(seguidas, comum * 0.8) / Math.min(w.length, alvo.length) };
+    }).filter(x => x.nota >= 0.6);
+    const ult = ultimaLinha[vivo] != null ? ultimaLinha[vivo] : -1;
+    const esc1 = cand.find(x => +x.el.dataset.k > ult) || cand.sort((a, b) => b.nota - a.nota)[0];
+    if (esc1) {
+      marcada = esc1.el; marcada.classList.add('agora');
+      const ant = marcada.previousElementSibling;
+      if (ant && ant.classList.contains('ac')) ant.classList.add('agora');
+      ultimaLinha[vivo] = +marcada.dataset.k;
+    }
+  }
+  if (mudou && $('#mSeguir').checked) (marcada || card).scrollIntoView({ block: marcada ? 'center' : 'start', behavior: 'smooth' });
+}
+
+// 🎼 etapa 3: acha o começo do slide na letra da partitura (só as letras: o PDF separa as sílabas) e desenha a faixa
+const soLetrasCel = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(RX_MARCA_CRUA, '').replace(/^\s*([a-z]\.|r\/|—|-)\s*/, '').replace(/[^a-z]/g, '');
+// quanto do começo do slide aparece neste trecho da letra (pedaços de 5 letras)
+function notaTrecho(slide, trecho) {
+  const g = new Set(); for (let i = 0; i + 5 <= trecho.length; i++) g.add(trecho.slice(i, i + 5));
+  let ok = 0, tot = 0; for (let i = 0; i + 5 <= slide.length; i++) { tot++; if (g.has(slide.slice(i, i + 5))) ok++; }
+  return tot ? ok / tot : 0;
+}
+function acharNaPartitura(mapa, texto, antes) {
+  const sl = (texto || '').split('\n').map(soLetrasCel).filter(x => x.length >= 3).join('');
+  if (sl.length < 6) return null;
+  const todas = [];
+  mapa.forEach((pg, n) => (pg || []).forEach((l, k) => todas.push({ n, k, l })));
+  for (const tam of [16, 10]) {
+    const alvo = sl.slice(0, tam);
+    const cands = [];
+    todas.forEach((x, j) => {
+      const s = x.l.t + (todas[j + 1] ? todas[j + 1].l.t : '') + (todas[j + 2] ? todas[j + 2].l.t : '');
+      const p = s.indexOf(alvo);
+      if (p >= 0 && p < x.l.t.length) cands.push({ n: x.n, k: x.k, j, nota: notaTrecho(sl.slice(0, 80), s.slice(p)) });
+    });
+    if (!cands.length) continue;
+    // estrofes que começam igual: vale a que mais combina com o resto do slide; empate (refrão repetido) segue em frente
+    const melhor = Math.max(...cands.map(c => c.nota));
+    const bons = cands.filter(c => c.nota >= melhor - 0.04);
+    return (antes && bons.find(c => c.j > antes.j)) || bons[0];
+  }
+  return null;
+}
+// as páginas da partitura chegam depois e empurram a tela: quando uma carrega, a faixa volta para o meio (até 20 s depois)
+let rolouFaixa = 0;
+document.addEventListener('load', e => {
+  if (e.target.tagName !== 'IMG' || !e.target.closest('.part') || Date.now() - rolouFaixa > 20000 || !$('#mSeguir').checked) return;
+  clearTimeout(desenharFaixa.t);
+  desenharFaixa.t = setTimeout(() => { const f = $('#mCantos .part .faixa'); if (f) f.scrollIntoView({ block: 'center' }); }, 150);
+}, true);
+function desenharFaixa(card, a) {
+  rolouFaixa = Date.now();
+  const pg = card.querySelector('.pg[data-n="' + a.n + '"]');
+  const mv = musica.find(x => String(x.i) === card.dataset.i);
+  const l = mv && mv.partMapa && mv.partMapa[a.n] && mv.partMapa[a.n][a.k];
+  if (!pg || !l) return null;
+  const f = document.createElement('div');
+  f.className = 'faixa'; f.style.top = (l.a * 100) + '%'; f.style.height = ((l.b - l.a) * 100) + '%';
+  const m = document.createElement('div');
+  m.className = 'faixa-l'; m.style.top = (l.la * 100) + '%'; m.style.height = ((l.lb - l.la) * 100) + '%';
+  pg.appendChild(f); pg.appendChild(m);
+  return f;
+}
+
+function aplicarPapel() {
+  document.body.classList.toggle('musico', papel === 'musico');
+  document.body.classList.toggle('telao', papel === 'telao');
+  $('#telao').hidden = papel !== 'telao';
+  if (papel === 'musico') irAba('musico');
+  if (papel === 'telao') { telaoChave = ''; setTimeout(() => $('#telaoDica').style.opacity = 0, 6000); if (est) renderTelao(); }
+}
+
+// ---------- 📺 Telão (1.8.4, ideia do Luciano — Paróquia Santa Marina, SP) ----------
+// Um tablet ou TV no presbitério mostra o mesmo slide do telão, com as cores do telão, e não controla nada.
+let telaoChave = '';
+function renderTelao() {
+  const t = $('#telao'), cfg = est.cfg || {}, s = est.noAr && est.noAr.slide;
+  t.style.background = cfg.corFundo || '#000';
+  t.style.color = cfg.corTexto || '#fff';
+  t.classList.toggle('maius', !!cfg.maiusculas);
+  t.classList.toggle('negrito', !!cfg.negrito);
+  t.classList.toggle('sombra', cfg.sombra !== false);
+  const vazio = est.preto || est.mudo || est.camera || est.altar || !s || (s.img && !s.texto && !s.versos && !s.avisos);
+  const html = vazio ? '' : htmlSlide(s);
+  const av = $('#telaoAviso');
+  av.hidden = !est.aviso;
+  if (est.aviso) av.textContent = '📢 ' + est.aviso.texto;
+  const chave = [html, innerWidth, innerHeight, JSON.stringify(cfg), est.aviso ? est.aviso.texto : ''].join('|');
+  if (chave === telaoChave) return;
+  telaoChave = chave;
+  $('#telaoTxt').innerHTML = html;
+  ajustarTelao();
+}
+// o maior tamanho de letra em que o slide inteiro cabe na tela (busca binária)
+function ajustarTelao() {
+  const t = $('#telao'), tx = $('#telaoTxt'), av = $('#telaoAviso');
+  if (!tx.innerHTML) return;
+  const cs = getComputedStyle(t);
+  const W = t.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const H = t.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - (av.hidden ? 0 : av.offsetHeight);
+  let lo = 10, hi = Math.max(12, H / 2);
+  for (let k = 0; k < 16; k++) {
+    const m = (lo + hi) / 2;
+    tx.style.fontSize = m + 'px';
+    if (tx.scrollHeight <= H && tx.scrollWidth <= W) lo = m; else hi = m;
+  }
+  tx.style.fontSize = Math.floor(lo) + 'px';
+}
+addEventListener('resize', () => { if (papel === 'telao' && est) { telaoChave = ''; renderTelao(); } });
+$('#telao').addEventListener('click', () => {
+  const d = document.documentElement, f = d.requestFullscreen || d.webkitRequestFullscreen;
+  if (f && !(document.fullscreenElement || document.webkitFullscreenElement)) { try { const p = f.call(d); if (p && p.catch) p.catch(() => {}); } catch (_) {} }
+  $('#telaoDica').style.opacity = 0;
+});
+
+// ---------- trocar de roteiro (lista como os cards do computador) ----------
+let trocando = false;
+let filtroCap = ''; try { filtroCap = localStorage.getItem('mgl.celular.capela') || ''; } catch (_) {}
+const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+function nomeDia(iso, hoje) {
+  const d = new Date(iso + 'T12:00:00'), h = new Date(hoje + 'T12:00:00');
+  const dif = Math.round((d - h) / 864e5);
+  const data = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return dif === 0 ? `Hoje · ${DIAS[d.getDay()]}, ${data}` : dif === 1 ? `Amanhã · ${DIAS[d.getDay()]}, ${data}` : `${DIAS[d.getDay()]}, ${data}`;
+}
+
+function renderRoteiros() {
+  const R = est.roteiros || { lista: [], locais: [] };
+  const atual = R.lista.find(x => x.id === est.roteiroId);
+  $('#rotNome').textContent = est.roteiro || '—';
+  $('#rotInfo').innerHTML = atual ? `${esc(atual.quando)}${atual.local ? ` · <span style="color:${esc(atual.corLocal)}">●</span> ${esc(atual.local)}` : ''}` : '';
+  $('#btTrocar').textContent = trocando ? 'Voltar' : 'Trocar';
+  $('#btTrocar').classList.toggle('sel', trocando);
+  $('#vistaItens').hidden = trocando;
+  $('#vistaRoteiros').hidden = !trocando;
+  $('#nav').hidden = aba === 'midia' || trocando;      // escolhendo o roteiro: mais espaço para a lista
+  if (!trocando) return;
+  if (filtroCap && filtroCap !== '-' && !R.locais.some(l => l.id === filtroCap)) filtroCap = '';
+  $('#chipsCapela').innerHTML = R.locais.length < 2 ? '' :
+    `<button data-cap="" class="${!filtroCap ? 'sel' : ''}">Todas</button>` +
+    R.locais.map(l => `<button data-cap="${esc(l.id)}" class="${filtroCap === l.id ? 'sel' : ''}"><i style="background:${esc(l.cor)}"></i>${esc(l.nome)}</button>`).join('');
+  const lista = R.lista.filter(x => !filtroCap || x.localId === filtroCap);
+  const NOMES = { proximas: 'Próximas', semdata: 'Sem data', anteriores: 'Anteriores' };
+  let h = '', grupo = '', dia = '';
+  for (const x of lista) {
+    if (x.grupo !== grupo) { grupo = x.grupo; dia = ''; h += `<div class="grupo">${NOMES[grupo]}</div>`; }
+    if (x.iso && x.iso !== dia) { dia = x.iso; h += `<div class="dia">${esc(nomeDia(x.iso, R.hoje))}</div>`; }
+    const ab = x.id === est.roteiroId;
+    h += `<button class="rc ${ab ? 'aberto' : ''}" data-rot="${esc(x.id)}" style="--cor-lit:${esc(x.cor)};--cor-txt:${esc(x.corTxt || '#fff')}">
+      <div class="faixa-lit">${esc(x.lit || 'Sem data definida')}</div>
+      <div class="corpo"><div class="nm">${esc(x.nome)}</div>
+        <div class="ln"><span>${esc(x.quando)}</span>${x.local ? `<span><i style="background:${esc(x.corLocal)}"></i> ${esc(x.local)}</span>` : ''}
+          ${ab ? '<span class="ab">aberto</span>' : `<span style="margin-left:auto">${x.itens} itens</span>`}</div></div></button>`;
+  }
+  $('#listaRoteiros').innerHTML = h || '<p class="sutil">Nenhum roteiro.</p>';
+}
+
+function irAba(nome) {
+  if (nome !== 'roteiro') trocando = false;
+  aba = nome;
+  $$('[data-aba]').forEach(s => s.hidden = s.dataset.aba !== nome);
+  $$('[data-ir]').forEach(b => b.classList.toggle('sel', b.dataset.ir === nome));
+  $('#nav').hidden = nome === 'midia' || (nome === 'roteiro' && trocando);
+  $('main').scrollTop = 0;
+  if (nome === 'musico') { renderMusico.ultimo = ''; renderMusico(true); }
+}
+
+// ---------- conexão ----------
+function conectado(sim) {
+  $('#pt').classList.toggle('on', sim);
+  $('#faixa').hidden = sim;
+  $('#telaoPt').hidden = sim;
+  if (sim) { vivoEm = Date.now(); $('#fora').hidden = true; }
+}
+
+function conectar() {
+  if (fonte) fonte.close();
+  if (!token) { mostrarPareamento(); return; }
+  fonte = new EventSource('/api/eventos?t=' + encodeURIComponent(token));
+  fonte.onmessage = e => {
+    conectado(true);
+    try { est = JSON.parse(e.data); } catch (_) { return; }
+    if (est && est.itens) render();
+  };
+  fonte.addEventListener('musica', e => { try { musica = JSON.parse(e.data) || []; } catch (_) { return; } renderMusico(true); });
+  fonte.onopen = () => conectado(true);
+  fonte.onerror = () => {
+    conectado(false);
+    if (fonte.readyState === EventSource.CLOSED) setTimeout(verificar, 1500);   // servidor recusou: pode ter sido desligado ou o celular tirado
+  };
+}
+
+async function verificar() {
+  try {
+    const r = await (await fetch('/api/ping?t=' + encodeURIComponent(token), { cache: 'no-store' })).json();
+    if (!r.ok && r.motivo === 'pareamento') { esquecer(); return mostrarPareamento('Este celular foi desconectado no computador. Pareie de novo.'); }
+    if (r.papel && r.papel !== papel) { papel = r.papel; try { localStorage.setItem('mgl.celular.papel', papel); } catch (_) {} aplicarPapel(); }
+    conectar();
+  } catch (_) {
+    // computador fora do ar / controle desligado / outro Wi-Fi
+    if (Date.now() - vivoEm > 20000) mostrarFora();
+    setTimeout(verificar, 3000);
+  }
+}
+
+function mostrarFora() {
+  $('#foraTit').textContent = 'Sem conexão com o computador';
+  $('#foraTxt').innerHTML = 'Confira se o celular está no <b>mesmo Wi-Fi</b> do computador e se o MiguelAngelus está aberto, com o controle pelo celular ligado.';
+  $('#fora').hidden = false;
+}
+
+function esquecer() { token = ''; try { localStorage.removeItem(CHAVE); } catch (_) {} if (fonte) fonte.close(); }
+
+function mostrarPareamento(msg) {
+  $('#par').hidden = false;
+  $('#parErro').textContent = msg || '';
+  if (!$('#parNome').value) $('#parNome').value = nomePadrao();
+  const c = new URLSearchParams(location.search).get('c');
+  if (c && !$('#parCod').value) $('#parCod').value = c;
+}
+
+async function parear() {
+  const codigo = $('#parCod').value.replace(/\D/g, ''), nome = $('#parNome').value.trim() || nomePadrao();
+  if (codigo.length !== 4) { $('#parErro').textContent = 'Digite os 4 números do código.'; return; }
+  $('#parOk').disabled = true;
+  try {
+    const r = await fetch('/api/parear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo, nome, papel: papelEscolhido }) });
+    const j = await r.json();
+    if (r.status === 429) { $('#parErro').textContent = 'Muitas tentativas erradas. Espere 1 minuto e use o código novo que aparece no computador.'; return; }
+    if (!j.ok) { $('#parErro').textContent = 'Código errado ou vencido. Confira o código que aparece agora no computador.'; return; }
+    token = j.token;
+    papel = j.papel || papelEscolhido;
+    try { localStorage.setItem(CHAVE, token); localStorage.setItem('mgl.celular.papel', papel); } catch (_) {}
+    aplicarPapel();
+    history.replaceState(null, '', '/');          // tira o código do endereço (ele não vale mais)
+    $('#par').hidden = true;
+    conectar();
+  } catch (_) {
+    $('#parErro').textContent = 'Não consegui falar com o computador. Confira o Wi-Fi.';
+  } finally { $('#parOk').disabled = false; }
+}
+
+async function cmd(acao, dados) {
+  vibrar();
+  try {
+    const r = await fetch('/api/comando?t=' + encodeURIComponent(token), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao, ...dados }) });
+    if (r.status === 401) { esquecer(); mostrarPareamento('Este celular foi desconectado no computador. Pareie de novo.'); }
+  } catch (_) { toast('Sem conexão — o comando não chegou'); }
+}
+
+// ---------- tela sempre acesa ----------
+let acordou = false;
+async function manterAcesa() {
+  if (acordou) return;
+  try { if ('wakeLock' in navigator) { await navigator.wakeLock.request('screen'); acordou = true; return; } } catch (_) {}
+  try { await $('#acordado').play(); acordou = true; } catch (_) {}      // sem HTTPS: um vídeo mudo em repetição mantém a tela ligada
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { acordou = false; if (token) verificar(); } });
+
+// ---------- eventos ----------
+document.addEventListener('click', e => {
+  manterAcesa();
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.cmd) return cmd(b.dataset.cmd);
+  if (b.dataset.ir) return irAba(b.dataset.ir);
+  if (b.dataset.slide) return cmd('slide', { i: +b.dataset.slide });
+  if (b.dataset.item) { cmd('item', { i: +b.dataset.item }); return irAba('controle'); }
+  if (b.dataset.macao) return cmd(b.dataset.macao, { id: b.dataset.midia });
+  if (b.dataset.camera !== undefined) return cmd('camera', { id: b.dataset.camera });
+  if (b.dataset.tema) return cmd('tema', { id: b.dataset.tema });
+  if (b.id === 'papelControle' || b.id === 'papelMusico' || b.id === 'papelTelao') return escolherPapel(b.id === 'papelMusico' ? 'musico' : b.id === 'papelTelao' ? 'telao' : 'controle');
+  if (b.dataset.ver) {     // 🎼 cifra ou partitura neste canto; vira o padrão dos outros
+    verCanto[b.dataset.vt] = verPref = b.dataset.ver;
+    try { localStorage.setItem('mgl.celular.ver', verPref); localStorage.setItem('mgl.celular.verCanto', JSON.stringify(verCanto)); } catch (_) {}
+    return renderMusico(true);
+  }
+  if (b.dataset.tr) { transp[b.dataset.tr] = (transp[b.dataset.tr] || 0) + +b.dataset.p; try { localStorage.setItem('mgl.celular.transp', JSON.stringify(transp)); } catch (_) {} return renderMusico(true); }
+  if (b.id === 'mMenor' || b.id === 'mMaior') { tamCifra = Math.max(10, Math.min(28, tamCifra + (b.id === 'mMaior' ? 1 : -1))); try { localStorage.setItem('mgl.celular.tamCifra', tamCifra); } catch (_) {} return renderMusico(); }
+  if (b.id === 'btTrocar') { trocando = !trocando; renderRoteiros(); $('main').scrollTop = 0; return; }
+  if (b.dataset.cap !== undefined) { filtroCap = b.dataset.cap; try { localStorage.setItem('mgl.celular.capela', filtroCap); } catch (_) {} return renderRoteiros(); }
+  if (b.dataset.rot) {
+    if (est && b.dataset.rot === est.roteiroId) { trocando = false; return renderRoteiros(); }
+    const nome = (b.querySelector('.nm') || {}).textContent || 'este roteiro';
+    if (!confirm(`Abrir "${nome}" no computador?`)) return;
+    cmd('roteiro', { id: b.dataset.rot }); trocando = false; renderRoteiros(); return toast('Roteiro aberto');
+  }
+  if (b.dataset.salvo) { cmd('avisoSalvo', { i: +b.dataset.salvo }); $('#folhaAviso').hidden = true; return toast('Aviso no telão'); }
+  if (b.dataset.rec) { cmd('avisoRecente', { i: +b.dataset.rec }); $('#folhaAviso').hidden = true; return toast('Aviso no telão'); }
+});
+// página da partitura que ainda não chegou ao computador (acabou de ser enviada): tenta de novo algumas vezes
+$('#mCantos').addEventListener('error', e => {
+  const img = e.target; if (!img || img.tagName !== 'IMG') return;
+  const n = +img.dataset.tent || 0;
+  if (n >= 6) { img.outerHTML = '<div class="falta">Página da partitura não chegou. Feche e abra o app.</div>'; return; }
+  img.dataset.tent = n + 1;
+  setTimeout(() => { img.src = img.src.replace(/&_=\d+$/, '') + '&_=' + Date.now(); }, 1500);
+}, true);
+$('#btAviso').addEventListener('click', () => { $('#folhaAviso').hidden = false; $('#avTexto').value = ''; });
+$('#avFechar').addEventListener('click', () => $('#folhaAviso').hidden = true);
+$('#folhaAviso').addEventListener('click', e => { if (e.target.id === 'folhaAviso') $('#folhaAviso').hidden = true; });
+$('#avMostrar').addEventListener('click', () => {
+  const t = $('#avTexto').value.trim();
+  if (!t) return toast('Escreva o aviso');
+  cmd('aviso', { texto: t }); $('#folhaAviso').hidden = true; toast('Aviso no telão');
+});
+$('#vol').addEventListener('change', e => cmd('volume', { v: +e.target.value }));
+$('#mInstr').value = instr;
+$('#mInstr').addEventListener('change', e => { instr = e.target.value; try { localStorage.setItem('mgl.celular.instr', instr); } catch (_) {} renderMusico(true); });
+// Câmera PTZ: segurar a seta/zoom repete o comando a cada 250 ms; ao soltar, para (e o computador para sozinho se o sinal cair)
+let ptzSegura = null;
+function envioPtz(acao, dados) { fetch('/api/comando?t=' + encodeURIComponent(token), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao, ...dados }) }).catch(() => {}); }
+function soltarPtz() {
+  if (!ptzSegura) return;
+  clearInterval(ptzSegura.timer); ptzSegura.bt.classList.remove('ativo');
+  envioPtz('ptzParar', { id: ptzSegura.id });
+  ptzSegura = null;
+}
+$('#ptzCel').addEventListener('pointerdown', e => {
+  const m = e.target.closest('[data-pm]'), z = e.target.closest('[data-pz]');
+  if (!m && !z) return;
+  e.preventDefault(); soltarPtz(); vibrar(); manterAcesa();
+  const bt = m || z;
+  const [id, a, b] = bt.dataset[m ? 'pm' : 'pz'].split(':');
+  const enviar = () => m ? envioPtz('ptzMover', { id, dx: +a, dy: +b }) : envioPtz('ptzZoom', { id, z: +a });
+  enviar();
+  bt.classList.add('ativo');
+  ptzSegura = { id, bt, timer: setInterval(enviar, 250) };
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => $('#ptzCel').addEventListener(ev, soltarPtz));
+$('#ptzCel').addEventListener('click', e => {
+  const ir = e.target.closest('[data-ptzir]'), h = e.target.closest('[data-ptzhome]');
+  if (ir) { const [id, n] = ir.dataset.ptzir.split(':'); cmd('ptzIr', { id, n: +n }); toast('Câmera indo para a posição'); }
+  if (h) cmd('ptzHome', { id: h.dataset.ptzhome });
+});
+$('#letra').addEventListener('change', e => cmd('letra', { on: e.target.checked }));
+$('#parOk').addEventListener('click', parear);
+$('#parCod').addEventListener('keydown', e => { if (e.key === 'Enter') parear(); });
+$('#foraTentar').addEventListener('click', () => { $('#fora').hidden = true; verificar(); });
+
+// início: com token, conecta; com ?c= no endereço (QR code), já preenche o código
+function escolherPapel(p) {
+  papelEscolhido = p;
+  $('#papelControle').classList.toggle('sel', p === 'controle');
+  $('#papelMusico').classList.toggle('sel', p === 'musico');
+  $('#papelTelao').classList.toggle('sel', p === 'telao');
+}
+{ const p = new URLSearchParams(location.search).get('papel'); if (p === 'musico' || p === 'telao') escolherPapel(p); }
+if (token) { aplicarPapel(); conectar(); } else mostrarPareamento();
+</script>
+</body>
+</html>

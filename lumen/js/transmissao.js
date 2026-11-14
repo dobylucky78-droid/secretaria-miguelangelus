@@ -1,0 +1,149 @@
+'use strict';
+/*
+ * Transmissão (NDI): faixa de letras para o OBS.
+ * A página decide O QUE vai na faixa (conforme o que está no ar e os liga/desliga de cada tipo em Ajustes)
+ * e manda para o aplicativo (MiguelAngelus.exe), que desenha a faixa com fundo transparente e transmite por NDI.
+ * No navegador (sem o aplicativo) o NDI não existe: a seção dos Ajustes avisa.
+ * Usa S, NO_APP, Avisos, salvarConfig, $… (em tempo de execução).
+ */
+
+const Transmissao = { ultimo: '', ultimoPix: '', status: { ativo: false, conexoes: 0, erro: null }, timer: 0 };
+
+function paraApp(msg) {
+  try { if (NO_APP) window.chrome.webview.postMessage(msg); } catch (_) {}
+}
+
+// Tipo do que está no ar: cantos | respostas | leituras | avisos | null (imagens, vídeos…)
+function categoriaAoVivo() {
+  if (S.live.altar || (!S.live.item && S.live.slide)) return 'avisos';   // botão Altar, mensagem rápida
+  const it = S.live.item;
+  if (!it) return null;
+  switch (it.tipo) {
+    case 'canto': case 'salmo': return 'cantos';
+    case 'leitura': case 'biblia': return 'leituras';
+    case 'texto': return /leitura|evangelho/i.test(it.titulo || '') ? 'leituras' : 'respostas';
+    case 'ordinario': case 'oracao': case 'terco': case 'angelus': case 'preces': case 'prefacio': case 'eucaristica': return 'respostas';
+    case 'avisos': return 'avisos';
+    default: return null;
+  }
+}
+
+const CAMPO_CATEGORIA = { cantos: 'faixaCantos', respostas: 'faixaRespostas', leituras: 'faixaLeituras', avisos: 'faixaAvisos' };
+
+// Linhas da faixa a partir do slide: respostas do povo ("— …") e refrões em negrito
+function linhasDoSlide(s) {
+  const maius = t => S.config.maiusculas ? t.toLocaleUpperCase('pt-BR') : t;
+  if (s.versos) return { linhas: [maius(s.versos.map(v => v.t).join(' '))], negrito: [false] };
+  const semMarcas = t => tirarMarcas(t).replace(/\s*\n\s*/g, ' ').trim();
+  if (s.avisos) return { linhas: [maius(s.avisos.titulo), ...s.avisos.itens.map(t => maius(semMarcas(t)))],
+    negrito: [true, ...s.avisos.itens.map(() => false)] };
+  let povo = false;
+  const linhas = [], negrito = [];
+  for (const [i, l] of (s.texto || '').split('\n').entries()) {
+    if (!l.trim()) continue;
+    povo = povoDaLinha(l, povo);
+    const sem = (i === 0 && s.numerado ? l.replace(/^\s*\d+\.\s+/, '') : l).replace(RX_MARCAS, '');   // sem o nº da prece/estrofe e sem as marcas de negrito/itálico
+    linhas.push(maius(sem.replace(/^\s*—\s*/, '').replace(RX_QUEM, '').trim()));   // … e sem "P."/"T."
+    negrito.push(povo || !!s.refrao);
+  }
+  return { linhas, negrito };
+}
+
+function conteudoFaixa() {
+  if (S.live.preto || S.mudo) return { linhas: [], negrito: [] };          // tela preta ou 🔇 Mudo: a faixa some também
+  if (S.live.slide?.secao) return { linhas: [], negrito: [] };             // slide com o nome da parte: só no telão
+  // aviso na tela (placa, criança…) tem prioridade, se estiver ligado para a transmissão
+  if (Avisos.atual && S.config.faixaAvisos) return { linhas: [Avisos.atual.texto.replace(RX_MARCAS, '')], negrito: [true] };
+  const cat = categoriaAoVivo();
+  if (!cat || !S.config[CAMPO_CATEGORIA[cat]] || !S.live.slide) return { linhas: [], negrito: [] };
+  if (S.live.slide.img && S.live.slide.layout === 'so') return { linhas: [], negrito: [] };
+  return linhasDoSlide(S.live.slide);
+}
+
+// Chamado sempre que algo vai para o telão (slide, tela preta, aviso). Junta chamadas seguidas numa só.
+function atualizarFaixa(forcar = false) {
+  if (!NO_APP || !S.config.ndiLigado) return;
+  clearTimeout(Transmissao.timer);
+  Transmissao.timer = setTimeout(() => {
+    const c = conteudoFaixa();
+    const msg = { tipo: 'faixa', ...c, fonte: primeiraFonte(S.config.fonte), tamanho: +S.config.faixaTamanho || 4.6,
+      opacidade: +(S.config.faixaOpacidade ?? 0.6), corTexto: S.config.corTexto || '#ffffff',
+      transicao: { rapida: 0, suave: 380, lenta: 650 }[S.config.transicao] ?? 380 };       // (1.7.6) como no telão
+    const chave = JSON.stringify(msg);
+    if (!forcar && chave === Transmissao.ultimo) return;
+    Transmissao.ultimo = chave;
+    paraApp(msg);
+  }, 30);
+}
+
+// 💠 Pix no OBS (1.6.7): com o Pix no ar, a faixa do CNPJ e o QR code vão por cima, no alto (como no telão com a câmera).
+// As imagens vão numa mensagem à parte, só quando o Pix liga/desliga ou muda — a faixa de letras continua leve.
+function atualizarPixNdi(forcar = false) {
+  if (!NO_APP || !S.config.ndiLigado) return;
+  const on = !!(S.pixNoAr && S.config.faixaPix !== false && Pix.qr);
+  const msg = { tipo: 'ndiPix', on, qr: on ? Pix.qr : '', faixa: on ? Pix.faixa : '',
+    qrTam: +S.config.pixQrCamera || 36, faixaTam: +S.config.pixFaixaCamera || 11 };
+  const chave = `${on}|${msg.qr.length}|${msg.faixa.length}|${msg.qr.slice(-40)}|${msg.faixa.slice(-40)}|${msg.qrTam}|${msg.faixaTam}`;
+  if (!forcar && chave === Transmissao.ultimoPix) return;
+  Transmissao.ultimoPix = chave;
+  paraApp(msg);
+}
+
+const primeiraFonte = f => (f || 'Segoe UI').split(',')[0].replace(/["']/g, '').trim();
+
+function aplicarNdi() {
+  if (!NO_APP) return renderNdi();
+  paraApp({ tipo: 'ndi', ligar: !!S.config.ndiLigado, nome: S.config.ndiNome || 'MiguelAngelus Letras' });
+  paraApp({ tipo: 'ndiTelao', ligar: !!S.config.ndiTelao });
+  Transmissao.ultimo = '';
+  atualizarFaixa(true);
+  atualizarPixNdi(true);
+}
+
+function renderNdi() {
+  const st = Transmissao.status, el = $('#ndiInfo'), selo = $('#estadoNdi');
+  let txt, cls = '';
+  if (!NO_APP) txt = 'A transmissão por NDI funciona só no aplicativo MiguelAngelus.exe (não no navegador).';
+  else if (st.erro) { txt = '⚠ ' + st.erro; cls = 'erro'; }
+  else if (!st.ativo) txt = 'Desligado.';
+  else if (st.conexoes > 0) { txt = `● Transmitindo — ${st.conexoes} programa(s) recebendo (ex.: OBS).`; cls = 'ok'; }
+  else txt = '● Transmitindo — esperando o OBS conectar.';
+  if (el) { el.textContent = txt; el.className = 'status ' + cls; }
+  // (1.8.5) telão inteiro
+  const et = $('#ndiTelaoInfo');
+  if (et) {
+    let t2 = '', c2 = '';
+    if (!NO_APP) t2 = '';
+    else if (st.telaoErro) { t2 = '⚠ ' + st.telaoErro; c2 = 'erro'; }
+    else if (!st.telao) t2 = '';
+    else if (st.telaoConexoes > 0) { t2 = `● Telão inteiro: ${st.telaoConexoes} programa(s) recebendo${st.telaoSituacao ? ' — ' + st.telaoSituacao : ''}.`; c2 = 'ok'; }
+    else t2 = '● Telão inteiro: esperando o Cast (ou o OBS) conectar.';
+    et.textContent = t2; et.className = 'status ' + c2; et.hidden = !t2;
+  }
+  if (selo) {
+    selo.hidden = !(NO_APP && st.ativo);
+    selo.textContent = st.conexoes > 0 ? `● NDI (${st.conexoes})` : '● NDI';
+    selo.classList.toggle('conectado', st.conexoes > 0);
+    selo.title = txt;
+  }
+}
+
+function ligarTransmissao() {
+  if (NO_APP) {
+    window.chrome.webview.addEventListener('message', e => {
+      if (e.data?.tipo === 'ndiStatus') { Transmissao.status = e.data; renderNdi(); }
+    });
+  }
+  // qualquer mudança nos campos da transmissão (Ajustes) vale na hora
+  $('#dlgAjustes').addEventListener('input', e => {
+    const k = e.target.dataset?.cfg || '';
+    if (k === 'ndiLigado' || k === 'ndiNome') aplicarNdi();
+    else if (k === 'ndiTelao') paraApp({ tipo: 'ndiTelao', ligar: !!S.config.ndiTelao });
+    else if (k === 'faixaPix' || /^pix(Qr|Faixa)Camera$/.test(k)) atualizarPixNdi();
+    else if (/^faixa|^fonte$|^corTexto$|^maiusculas$/.test(k)) atualizarFaixa(true);
+  });
+  $('#estadoNdi').addEventListener('click', () => abrirAjustes('ndi'));
+  renderNdi();
+  if (S.config.ndiLigado) aplicarNdi();
+  else if (S.config.ndiTelao && NO_APP) paraApp({ tipo: 'ndiTelao', ligar: true });
+}

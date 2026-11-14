@@ -1,0 +1,1538 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>MiguelAngelus — Projeção para a Missa</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/operador.css">
+<script>try { if (localStorage.getItem('lumen.temaApp') === 'claro') document.documentElement.dataset.temaApp = 'claro'; } catch (_) {}
+  // (Secretaria MiguelAngelus 1.0) o mesmo programa aberto no modo Secretaria: só Agenda e Avisos (index.html?app=secretaria)
+  const SECRETARIA = new URLSearchParams(location.search).get('app') === 'secretaria';
+  const VERSAO_SECRETARIA = '1.0.0';   // versão da Secretaria (a do .iss e do .csproj precisam bater)
+  if (SECRETARIA) { document.documentElement.classList.add('app-secretaria'); document.title = 'Secretaria MiguelAngelus'; }</script>
+<link rel="icon" type="image/svg+xml" href="img/icone.svg">
+</head>
+<body>
+
+<!-- ============ Tela de abertura (some quando terminar de carregar e sincronizar) ============ -->
+<div id="splash" class="splash">
+  <div class="splash-cartao">
+    <div class="splash-curva"></div>
+    <div class="splash-marca">
+      <img src="img/icone.svg" alt="">
+      <div class="splash-nome"><b>Miguel</b>Angelus</div>
+      <div class="splash-sub">Projeção para a Missa</div>
+    </div>
+    <div class="splash-info">
+      <div class="splash-gratis"><b>Gratuito · uso livre</b></div>
+      <div data-versao>Versão 1.8.10</div>
+      <div>© 2026</div>
+      <div><b>PASCOM</b></div>
+      <div><b>São José Operário Ilha</b></div>
+    </div>
+    <div class="splash-status"><span class="splash-pontos"><i></i><i></i><i></i></span><span id="splashStatus">Carregando…</span></div>
+  </div>
+</div>
+<script>if (SECRETARIA) {
+  // mesmo cartão da família (como o do Cast), em amarelo: "MiguelAngelus" igual aos outros e "Secretaria" estilizado
+  document.querySelector('.splash-marca img').src = 'img/secretaria.svg';
+  document.querySelector('.splash-nome').innerHTML = '<b>Miguel</b>Angelus <span class="marca-sec">Secretaria</span>';
+  document.querySelector('.splash-sub').textContent = 'Agenda e avisos da paróquia';
+  document.querySelector('.splash [data-versao]').textContent = 'Versão ' + VERSAO_SECRETARIA;
+}</script>
+
+<!-- ============ TOPO: marca + menus + liturgia ============ -->
+<header class="topo">
+  <div class="marca" role="button" tabindex="0" title="Sobre o MiguelAngelus"><img src="img/icone.svg" alt="" class="logo-mini"> <span class="dourado">Miguel</span>Angelus</div>
+
+  <nav class="menubar" id="menubar">
+    <div class="menu"><button class="menu-titulo">Arquivo</button>
+      <div class="menu-itens">
+        <button data-menu="novoRoteiro">Novo roteiro</button>
+        <button data-menu="duplicarRoteiro">Duplicar roteiro</button>
+        <hr>
+        <button data-menu="folheto">Importar folheto (PDF, Word ou TXT)…</button>
+        <button data-menu="folhetosLote">Ler folhetos antigos (cantos e orações)…</button>
+        <button data-menu="biblia">Importar Bíblia (Zefania XML)…</button>
+        <button data-menu="txt">Importar cantos (.txt)…</button>
+        <button data-menu="midia">Adicionar vídeo ou áudio…</button>
+        <hr>
+        <button data-menu="exportar">Exportar backup…</button>
+        <button data-menu="importar">Importar backup…</button>
+        <hr>
+        <button data-menu="imprimir">🖨 Imprimir roteiro… <span class="atalho">Ctrl+P</span></button>
+      </div>
+    </div>
+    <div class="menu"><button class="menu-titulo">Editar</button>
+      <div class="menu-itens">
+        <button data-menu="desfazer" disabled title="Desfaz a última mudança no roteiro aberto">↶ Desfazer <span class="atalho">Ctrl+Z</span></button>
+        <button data-menu="refazer" disabled>↷ Refazer <span class="atalho">Ctrl+Y</span></button>
+        <hr>
+        <button data-menu="novoCanto">Novo canto…</button>
+        <button data-menu="novaOracao">Nova oração…</button>
+        <button data-menu="classificacoes">Classificações dos cantos…</button>
+        <hr>
+        <button data-menu="localizar">🔎 Localizar em tudo… <span class="atalho">Ctrl+F</span></button>
+        <button data-menu="inserir">＋ Inserir no roteiro… <span class="atalho">Ctrl+I</span></button>
+      </div>
+    </div>
+    <div class="menu"><button class="menu-titulo">Exibir</button>
+      <div class="menu-itens">
+        <button data-menu="ver-roteiros">Roteiros <span class="atalho">Alt+1</span></button>
+        <button data-menu="ver-cantos">Cantos <span class="atalho">Alt+2</span></button>
+        <button data-menu="ver-biblia">Bíblia <span class="atalho">Alt+3</span></button>
+        <button data-menu="ver-missa">Orações e Missa <span class="atalho">Alt+4</span></button>
+        <button data-menu="ver-videos">Vídeos <span class="atalho">Alt+5</span></button>
+        <button data-menu="ver-audios">Áudios <span class="atalho">Alt+6</span></button>
+        <button data-menu="ver-apresentacoes">Apresentações <span class="atalho">Alt+7</span></button>
+        <button data-menu="ver-cameras">Câmeras <span class="atalho">Alt+8</span></button>
+        <button data-menu="ver-calendario">Calendário litúrgico <span class="atalho">Alt+9</span></button>
+        <hr>
+        <button data-menu="telaCheia">Painel em tela cheia <span class="atalho">F11</span></button>
+      </div>
+    </div>
+    <div class="menu"><button class="menu-titulo">Projeção</button>
+      <div class="menu-itens">
+        <button data-menu="projecao">Abrir janela de projeção</button>
+        <hr>
+        <button data-menu="proximo">Próximo slide <span class="atalho">→</span></button>
+        <button data-menu="anterior">Slide anterior <span class="atalho">←</span></button>
+        <button data-menu="mudo">🔇 Mudo (só o fundo) <span class="atalho">M</span></button>
+        <button data-menu="congelar">❄ Congelar o telão <span class="atalho">C</span></button>
+        <button data-menu="limpar">Limpar a tela <span class="atalho">Esc</span></button>
+        <button data-menu="altar">Olhar para o altar <span class="atalho">L</span></button>
+        <button data-menu="pix">Pix da paróquia (QR code) <span class="atalho">P</span></button>
+        <hr>
+        <button data-menu="mensagem">Mensagem rápida…</button>
+        <button data-menu="aviso">Aviso na tela (carro, criança…)… <span class="atalho">A</span></button>
+        <button data-menu="retirarAviso">Retirar o aviso</button>
+      </div>
+    </div>
+    <div class="menu"><button class="menu-titulo">Agenda</button>
+      <div class="menu-itens">
+        <button data-menu="agenda-calendario">Calendário…</button>
+        <button data-menu="agenda-celebracoes">Celebrações recorrentes…</button>
+        <hr>
+        <button data-menu="agenda-paroquia">Paróquia e comunidades…</button>
+      </div>
+    </div>
+    <div class="menu"><button class="menu-titulo">Ferramentas</button>
+      <div class="menu-itens">
+        <button data-menu="ajustes">Ajustes…</button>
+        <hr>
+        <button data-menu="folhetoOnline">🌐 Baixar folheto da Arquidiocese…</button>
+        <button data-menu="liturgiaDia">📖 Liturgia diária automática (Paulus)…</button>
+        <button data-menu="partiturasFolheto">🎼 Partituras do folheto (PDF do domingo)…</button>
+        <hr>
+        <button data-menu="celular">📱 Controle pelo celular…</button>
+        <hr>
+        <button data-menu="temaLiturgico">✝ Temas por tempo litúrgico…</button>
+        <button data-menu="avisosParoquiais">📢 Avisos paroquiais…</button>
+        <button data-menu="roteirosRepetidos">🧹 Juntar roteiros repetidos…</button>
+      </div>
+    </div>
+    <div class="menu"><button class="menu-titulo">Ajuda</button>
+      <div class="menu-itens">
+        <button data-menu="manual">📘 Manual do MiguelAngelus <span class="atalho">F1</span></button>
+        <button data-menu="manualAparencia">🎨 Manual da aparência dos slides</button>
+        <button data-menu="atalhos">Atalhos do teclado…</button>
+        <button data-menu="atualizar">Procurar atualizações…</button>
+        <button data-menu="novidades">📋 Novidades (histórico de versões)…</button>
+        <hr>
+        <button data-menu="sobre">Sobre o MiguelAngelus…</button>
+      </div>
+    </div>
+  </nav>
+
+  <div id="liturgia" class="liturgia"></div>
+  <span id="estadoSync" class="estado-ndi" hidden title="Sincronização">☁</span>
+  <span id="estadoAoVivo" class="estado-ndi" hidden title="Acompanhar pela internet">🌐 …</span>
+  <span id="estadoNdi" class="estado-ndi" hidden title="Transmissão NDI">● NDI</span>
+  <span id="estadoProj" class="estado-proj">projeção fechada</span>
+  <button id="btnProjecao" class="primario">Abrir projeção</button>
+</header>
+
+<!-- ============ Secretaria MiguelAngelus (só no modo Secretaria: index.html?app=secretaria) ============ -->
+<main id="secretaria" class="sec-home" hidden>
+  <div class="sec-cab">
+    <img src="img/secretaria.svg" alt="">
+    <div>
+      <h1><span class="dourado">Miguel</span>Angelus <span class="marca-sec">Secretaria</span></h1>
+      <p class="sutil">Agenda e avisos da paróquia. O que for feito aqui vai pela nuvem para o MiguelAngelus:
+        as celebrações aparecem nos cards e roteiros, e os avisos entram sozinhos na tela de Avisos das Missas.</p>
+    </div>
+  </div>
+  <div id="secNuvem" class="sec-nuvem"></div>
+  <div class="sec-cartoes">
+    <button type="button" data-sec="calendario"><span class="ic">📅</span><b>Calendário</b>
+      <span>As celebrações do mês. Mudar o horário ou cancelar num dia; celebração avulsa (casamento, batizado, Missa de 7º dia…).</span></button>
+    <button type="button" data-sec="celebracoes"><span class="ic">⛪</span><b>Celebrações recorrentes</b>
+      <span>Missas e celebrações que se repetem toda semana ou todo mês (ex.: 1ª sexta-feira).</span></button>
+    <button type="button" data-sec="paroquia"><span class="ic">🏛</span><b>Paróquia e comunidades</b>
+      <span>Dados da paróquia, matriz e capelas, padroeiros.</span></button>
+    <button type="button" data-sec="avisos"><span class="ic">📢</span><b>Avisos paroquiais</b>
+      <span>O aviso, de quando até quando vale e em quais comunidades.</span></button>
+    <button type="button" data-sec="avisosCel"><span class="ic">🖨</span><b>Avisos de uma celebração</b>
+      <span>Folha para ler no ambão (ou PDF) e imagens para o Holyrics.</span></button>
+    <button type="button" data-sec="nuvem"><span class="ic">☁</span><b>Nuvem da paróquia</b>
+      <span>Conectar ao Google Drive da paróquia (o mesmo do MiguelAngelus) e sincronizar.</span></button>
+  </div>
+  <section class="sec-semana">
+    <h2>Próximos 7 dias</h2>
+    <p class="sutil pequeno">Clique numa celebração para ver, imprimir ou gerar as imagens dos avisos dela.</p>
+    <div id="secSemana"></div>
+  </section>
+</main>
+
+<main class="layout">
+  <!-- ============ TRILHO: módulos ============ -->
+  <nav class="trilho abas">
+    <button data-aba="roteiros" class="ativa" title="Roteiros: preparar as Missas (Alt+1)"><span class="ic">📋</span>Roteiros</button>
+    <button data-aba="cantos" title="Cantos (Alt+2)"><span class="ic">🎵</span>Cantos</button>
+    <button data-aba="biblia" title="Bíblia (Alt+3)"><span class="ic">📖</span>Bíblia</button>
+    <button data-aba="missa" title="Orações e partes da Missa (Alt+4)"><span class="ic">🙏</span>Orações</button>
+    <button data-aba="videos" title="Vídeos: da pasta deste computador, em subpastas (Alt+5)"><span class="ic">🎬</span>Vídeos</button>
+    <button data-aba="audios" title="Áudios: da pasta deste computador, em subpastas (Alt+6)"><span class="ic">🎧</span>Áudios</button>
+    <button data-aba="apresentacoes" title="Apresentações: slides com imagem e texto, ou PDF (Alt+7)"><span class="ic">🖼️</span>Apresent.</button>
+    <button data-aba="cameras" title="Câmeras ao vivo no telão (Alt+8)"><span class="ic">📷</span>Câmeras</button>
+    <button data-aba="calendario" title="Calendário litúrgico: consultar qualquer data (Alt+9)"><span class="ic">📆</span>Calendário</button>
+  </nav>
+
+  <!-- ============ MÓDULO aberto ============ -->
+  <aside class="painel modulos">
+    <section id="aba-roteiros" class="aba ativa">
+      <div class="modulo-tit">Roteiros <button type="button" class="btn-nuvem" data-nuvem hidden title="Buscar agora na nuvem o que os outros computadores mudaram (e mandar o que mudou aqui)">☁ Atualizar</button></div>
+      <input id="buscaRoteiro" type="search" placeholder="Buscar roteiro…">
+      <div class="linha botoes-midia">
+        <button id="btnNovoRoteiro" class="primario" title="Novo roteiro em branco">＋ Novo</button>
+        <button id="btnFolheto" title="Montar o roteiro a partir do folheto: PDF (versão Celular), Word (.docx) ou texto (.txt). Também dá para arrastar o arquivo para a janela.">📄 Folheto</button>
+        <button id="btnAgenda" title="Agenda: calendário e celebrações">📅 Agenda</button>
+      </div>
+      <button id="btnFolhetoOnline" class="euc-atalho" title="Baixar o folheto &quot;A Missa&quot; (versão Celular) direto do site da Arquidiocese e montar os roteiros">🌐 Baixar folheto da Arquidiocese</button>
+      <button id="btnLiturgiaDia" class="euc-atalho" title="Monta os roteiros do dia com as leituras da Liturgia Diária (Paulus)">📖 Liturgia do dia (Missas de semana)</button>
+      <button id="btnPartFolheto" class="euc-atalho" title="Lê o PDF de partituras do domingo inteiro (ex.: Folheto Povo de Deus, São Paulo), separa as músicas e liga cada uma ao canto do roteiro aberto, para os músicos verem no celular">🎼 Partituras do folheto</button>
+      <input type="file" id="arqFolheto" accept=".pdf,.docx,.txt,.doc" hidden>
+
+      <div class="separador">Roteiro aberto</div>
+      <label class="campo">Nome <input id="nomeRoteiro" placeholder="Nome do roteiro"></label>
+      <div class="linha">
+        <label class="campo">Data <input type="date" id="dataRoteiro"></label>
+        <label class="campo">Hora <input type="time" id="horaRoteiro"></label>
+      </div>
+      <label class="campo">Responsável <input id="respRoteiro" placeholder="Quem prepara esta celebração"></label>
+      <label class="campo">Cor litúrgica (cor do card)
+        <select id="corRoteiro">
+          <option value="">Automática</option><option value="verde">Verde</option><option value="branco">Branco</option>
+          <option value="vermelho">Vermelho</option><option value="roxo">Roxo</option><option value="rosa">Rosa</option>
+        </select>
+      </label>
+      <label class="campo">Local (define a apresentação no telão)
+        <select id="selLocalRoteiro"></select>
+      </label>
+      <label class="campo">Modelo
+        <select id="selModelo">
+          <option value="">Aplicar modelo de Missa…</option>
+          <option value="dominical">Missa dominical / solenidade</option>
+          <option value="semanal">Missa durante a semana</option>
+        </select>
+      </label>
+      <div class="linha">
+        <button id="btnLetrasRoteiro" hidden title="Roteiro importado antes da versão 1.6.14: põe as letras P. (padre) e T. (todos) nas falas, como nos folhetos importados agora">🅿 Pôr P./T.</button>
+        <button id="btnDuplicarRoteiro" title="Duplicar este roteiro">⎘ Duplicar</button>
+        <button id="btnExcluirRoteiro" class="perigo" title="Excluir este roteiro">✕ Excluir</button>
+      </div>
+      <p class="sutil pequeno">Os itens do roteiro ficam na coluna da direita, onde você também adiciona cantos, leituras, orações…
+        Os roteiros criados pela Agenda já vêm com data, hora e local.</p>
+    </section>
+
+    <section id="aba-cantos" class="aba">
+      <div class="modulo-tit">Cantos <button type="button" class="btn-nuvem" data-nuvem hidden title="Buscar agora na nuvem o que os outros computadores mudaram (e mandar o que mudou aqui)">☁ Atualizar</button></div>
+      <div class="linha">
+        <input id="buscaCanto" type="search" placeholder="Buscar título, autor ou letra…">
+        <button id="btnNovoCanto" class="primario">Novo</button>
+      </div>
+      <div class="linha">
+        <select id="filtroMomento"></select>
+        <button id="btnClassif" title="Criar, renomear, apagar e pôr em ordem as classificações dos cantos">⚙</button>
+        <button id="btnImportarTxt" title="Importar letras de arquivos .txt (um canto por arquivo)">Importar .txt</button>
+      </div>
+      <button id="btnFolhetosLote" title="Selecione vários folhetos (PDF, .docx ou .txt): guarda os cantos e as orações eucarísticas (não cria roteiros)">📄 Ler folhetos antigos (cantos e orações)…</button>
+      <div class="linha">
+        <button id="btnImportarCantos" title="Trazer cantos (com cifras e favoritos) de um arquivo .json exportado por outro MiguelAngelus">⤓ Importar cantos…</button>
+        <button id="btnExportarFav" title="Salvar os favoritos e os cantos com cifra num arquivo .json (para outro computador ou paróquia)">⤒ Exportar favoritos</button>
+      </div>
+      <input type="file" id="arqFolhetosLote" accept=".pdf,.docx,.txt" multiple hidden>
+      <input type="file" id="arqTxt" accept=".txt" multiple hidden>
+      <input type="file" id="arqCantos" accept=".json" hidden>
+      <div id="visaoCantos" class="visao-cantos"></div>
+      <div id="listaCantos" class="lista"></div>
+    </section>
+
+    <section id="aba-biblia" class="aba">
+      <div class="modulo-tit">Bíblia <button type="button" class="btn-nuvem" data-nuvem hidden title="Buscar agora na nuvem o que os outros computadores mudaram (e mandar o que mudou aqui)">☁ Atualizar</button></div>
+      <div id="bibliaVazia" class="vazio-grande">
+        <p>Nenhuma Bíblia importada ainda.</p>
+        <p class="sutil">Importe o seu arquivo <b>Zefania XML</b>. O MiguelAngelus aceita a Bíblia católica completa, com os 73 livros.</p>
+        <button class="primario" data-importar-biblia>Importar Bíblia (Zefania XML)</button>
+      </div>
+      <div id="bibliaConteudo" hidden>
+        <div class="linha">
+          <select id="selBiblia"></select>
+          <button data-importar-biblia title="Importar outra Bíblia">Importar</button>
+        </div>
+        <div class="linha">
+          <input id="refBiblia" placeholder="Ex.: Jo 3,16-18 · Sl 23 · Eclo 3,2-6">
+          <button id="btnIrRef" class="primario">Ir</button>
+        </div>
+        <div id="refErro" class="status erro"></div>
+        <p class="sutil pequeno">Escolha livro, capítulo e versículo no painel ao lado, ou digite a referência acima.</p>
+        <div class="separador">Buscar palavra</div>
+        <div class="linha">
+          <input id="buscaBiblia" type="search" placeholder="Ex.: pão da vida">
+          <button id="btnBuscaBiblia">Buscar</button>
+        </div>
+        <div id="resBusca" class="lista resultados"></div>
+        <button id="btnRemoverBiblia" class="perigo pequeno">Remover esta Bíblia</button>
+      </div>
+      <input type="file" id="arqBiblia" accept=".xml" hidden>
+    </section>
+
+    <section id="aba-missa" class="aba">
+      <div class="modulo-tit">Orações <button type="button" class="btn-nuvem" data-nuvem hidden title="Buscar agora na nuvem o que os outros computadores mudaram (e mandar o que mudou aqui)">☁ Atualizar</button></div>
+      <button id="btnAbrirEuc" class="euc-atalho" title="Catálogo de Orações Eucarísticas e Prefácios, com as combinações permitidas">✝ Orações Eucarísticas e Prefácios</button>
+      <div class="linha">
+        <input id="buscaOracao" type="search" placeholder="Buscar oração… (Enter abre)">
+        <button id="btnNovaOracao" class="primario">Nova</button>
+      </div>
+      <div id="listaOracoes"></div>
+
+      <div class="separador" title="Duplo clique numa parte para corrigir o texto">Partes fixas da Missa <span class="sutil pequeno">(duplo clique edita)</span></div>
+      <div id="listaOrdinario"></div>
+      <p class="sutil pequeno">Confira os textos com o Missal adotado na sua paróquia. Eles ficam no arquivo <code>js/ordinario.js</code>.</p>
+    </section>
+
+    <section id="aba-calendario" class="aba">
+      <div class="modulo-tit">Calendário litúrgico</div>
+      <div id="calLit" class="cal-lit"></div>
+    </section>
+
+    <section id="aba-midia" class="aba">
+      <div class="modulo-tit" id="midiaTit">Vídeos</div>
+      <div class="linha">
+        <input id="buscaMidia" type="search" placeholder="Buscar…">
+      </div>
+      <div class="linha botoes-midia">
+        <button id="btnPastaMidia" class="primario" data-so="video audio" title="A pasta deste computador onde ficam os arquivos (ex.: E:\Backup Holyrics\media\video). As subpastas viram pastas aqui.">📁 Escolher pasta…</button>
+        <button id="btnRelerPasta" data-so="video audio" title="Ler a pasta de novo (arquivos novos ou apagados)">⟳</button>
+        <button id="btnAddMidia" data-so="video audio" title="Guardar um arquivo dentro do MiguelAngelus (fora da pasta)">＋ Importar arquivo</button>
+        <span data-so="apresentacao"><button type="button" class="btn-nuvem" data-nuvem hidden title="Buscar agora na nuvem o que os outros computadores mudaram (e mandar o que mudou aqui)">☁ Atualizar</button></span>
+        <button id="btnNovaApres" class="primario" data-so="apresentacao" title="Slides personalizados com imagem e texto — ou importe um PDF do PowerPoint/Canva">＋ Apresentação</button>
+        <button id="btnNovaCamera" class="primario" data-so="camera" title="Câmera ao vivo no telão (câmeras NDI pelo NDI Webcam, ou webcam comum)">＋ Câmera</button>
+      </div>
+      <div id="pastaMidiaInfo" class="sutil pequeno" data-so="video audio"></div>
+      <input type="file" id="arqMidia" accept="video/*,audio/*,.mkv,.mov" multiple hidden>
+      <input type="file" id="arqApImagens" accept="image/*" multiple hidden>
+      <input type="file" id="arqApImagem" accept="image/*" hidden>
+      <input type="file" id="arqApPdf" accept=".pdf" hidden>
+      <div id="listaMidias" class="lista"></div>
+      <p class="sutil pequeno" data-so="video">Vídeos (MP4, WebM) tocam no telão com som. Cada computador escolhe a sua pasta
+        (ex.: a do Google Drive): se as subpastas forem iguais, os roteiros acham o mesmo vídeo em todos.</p>
+      <p class="sutil pequeno" data-so="audio">Áudios (MP3, M4A, WAV) tocam neste computador, e dá para projetar textos enquanto tocam.
+        Cada computador escolhe a sua pasta; com as mesmas subpastas, os roteiros acham o mesmo áudio em todos.</p>
+      <p class="sutil pequeno" data-so="apresentacao"><b>Apresentações</b> são slides feitos aqui (imagem + texto, ou páginas de um PDF) e entram no backup.</p>
+      <p class="sutil pequeno" data-so="camera">Câmeras NDI chegam pelo <b>NDI Webcam</b> (NDI Tools); webcams comuns também servem.
+        Na tela de controle, o quadro 📷 Câmeras põe e tira do telão.</p>
+    </section>
+  </aside>
+
+  <!-- ============ CENTRO: item e slides ============ -->
+  <section class="painel centro">
+    <div id="itemCab" class="item-cab"></div>
+    <div id="slides" class="grade-slides"></div>
+    <div id="navBiblia" class="nav-biblia"></div>
+    <div id="cardsRoteiros" class="cards-roteiros"></div>
+    <div id="painelEucaristia" class="painel-euc"></div>
+    <input type="file" id="arqImgSlide" accept="image/*" hidden>
+    <input type="file" id="arqFolhetosEuc" accept=".pdf,.docx,.txt" multiple hidden>
+    <input type="file" id="arqEucJson" accept=".json" hidden>
+  </section>
+
+  <!-- ============ DIREITA: ao vivo + roteiro ============ -->
+  <aside class="painel direita">
+    <div class="divisor" id="divisorDireita" title="Arraste para alargar ou estreitar esta coluna (dois cliques: volta ao normal)"></div>
+    <div class="rotulo-vivo"><span class="bolinha"></span> <span id="rotuloVivo">AO VIVO</span></div>
+    <div class="preview"><iframe id="preview" src="projecao.html?preview=1" title="Prévia da projeção"></iframe></div>
+    <div class="divisor-h" id="divisorPrevia" title="Arraste para cima ou para baixo: prévia menor = mais espaço para o roteiro (dois cliques: volta ao normal)"></div>
+    <div class="linha controles">
+      <button id="btnAnt" title="Anterior (←)">◀ Anterior</button>
+      <button id="btnProx" class="primario" title="Próximo (→ ou Espaço)">Próximo ▶</button>
+    </div>
+    <div class="linha controles">
+      <button id="btnLimpar" title="Limpar texto (Esc)">Limpar</button>
+      <button id="btnCongelar" title="Congelar o telão (C): o slide que está no ar fica parado enquanto você navega e edita outros slides. Clique de novo para soltar — vai para o telão o slide que você deixou escolhido.">Congelar</button>
+      <button id="btnMudo" title="Mudo: o telão fica só com o fundo enquanto você navega pelos slides; clique de novo (ou M) para mostrar o slide que estiver no ar (M)">Mudo</button>
+      <button id="btnTirarCamera" title="Tirar a câmera do telão (volta o slide)" disabled>📷 Tirar</button>
+      <button id="btnAltar" title="Slide &quot;Todos dirijam seu olhar para o altar&quot; (L). Clique de novo para voltar ao slide que estava no ar.">⛪ Altar</button>
+      <button id="btnAviso" title="Aviso na tela: placa de carro, responsável por criança… (A)">📢 Aviso</button>
+      <button id="btnPix" title="QR code do Pix da paróquia no telão — ofertório, fim da Missa (P). Clique de novo para voltar ao que estava no ar.">💠 Pix</button>
+      <button id="btnQrAoVivo" hidden title="QR code &quot;Acompanhe no celular&quot; no canto do telão (o slide continua). Clique de novo para tirar.">📱 QR</button>
+    </div>
+    <div id="temasRapidos" class="temas-rapidos"></div>
+
+    <div id="avisoAtivo" class="aviso-ativo" hidden></div>
+    <div id="cameraAtiva" class="tocando camera-ativa" hidden></div>
+    <div id="tocando" class="tocando" hidden></div>
+
+    <section id="aba-roteiro" class="roteiro-painel">
+      <div class="linha roteiro-cab">
+        <div class="roteiro-tit">Roteiro da Missa</div>
+        <span class="espaco"></span>
+        <button id="btnVerRoteiros" class="pequeno" title="Ver todos os roteiros e preparar (📋 Roteiros)">Trocar…</button>
+      </div>
+      <div class="roteiro-atual">
+        <div id="roteiroAtualNome" class="roteiro-atual-nome"></div>
+        <div id="roteiroAtualInfo" class="roteiro-atual-info"></div>
+      </div>
+      <div id="roteiroItens" class="lista roteiro"></div>
+      <div class="adicionar">
+        <span class="sutil">Adicionar:</span>
+        <button data-add="canto">Canto</button>
+        <button data-add="leitura">Leitura</button>
+        <button data-add="salmo">Salmo</button>
+        <button data-add="antifona" title="Antífona de Entrada ou da Comunhão (do Missal): entra depois do item aberto — aberto o canto de Entrada, vira a de Entrada; o de Comunhão, a da Comunhão">Antífona</button>
+        <button data-add="intencoes" title="Intenções da Missa (falecidos, ação de graças, aniversários…): uma por linha, entra depois do item aberto">Intenções</button>
+        <button data-add="oracao">Oração</button>
+        <button data-add="angelus" title="Ângelus (no Tempo Pascal, a Regina Caeli entra sozinha)">Ângelus</button>
+        <button data-add="terco" title="Terço inteiro: abertura, os 5 mistérios do dia e o encerramento">📿 Terço</button>
+        <button data-add="ladainha" title="Ladainha rezada (escolha qual em Orações → Ladainhas) ou cantada (escolha um canto de Ladainha)">Ladainha</button>
+        <button data-add="preces">Preces</button>
+        <button data-add="ordinario">Parte da Missa</button>
+        <button data-add="homilia" title="Slide para a homilia (fica no ar o tempo todo)">Homilia</button>
+        <button data-add="momento" title="Slide só com o nome do momento (Saudação, Bênção Final…), escolhido de uma lista">Momento</button>
+        <button data-add="texto">Texto</button>
+        <button data-add="imagem" title="Imagem (banner, flyer, cartaz…): só a imagem, ou com texto. Escolha o arquivo, cole (Ctrl+V) ou arraste para a janela">🖼 Imagem</button>
+        <button data-add="avisos" title="Tela de avisos paroquiais: título chamativo e os avisos programados para a data">Avisos</button>
+        <button data-add="midia" title="Vídeo, áudio, apresentação ou câmera">Mídia</button>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<!-- ============ Ajustes ============ -->
+<dialog id="dlgAjustes">
+  <form method="dialog" class="form ajustes">
+    <h2>Ajustes</h2>
+    <div class="ajustes-corpo">
+      <nav class="ajustes-nav">
+        <button type="button" data-ajsec="app">🖥️ Aparência do app</button>
+        <button type="button" data-ajsec="aparencia" class="ativa">🎨 Aparência do telão</button>
+        <button type="button" data-ajsec="biblia">📖 Bíblia</button>
+        <button type="button" data-ajsec="altar">⛪ Botão Altar</button>
+        <button type="button" data-ajsec="nomes">🙏 Papa e Bispo</button>
+        <button type="button" data-ajsec="terco">📿 Terço</button>
+        <button type="button" data-ajsec="pix">💠 Pix da paróquia</button>
+        <button type="button" data-ajsec="ndi">📡 Transmissão (OBS)</button>
+        <button type="button" data-ajsec="celular">📱 Controle pelo celular</button>
+        <button type="button" data-ajsec="joystick">🎮 Joysticks</button>
+        <button type="button" data-ajsec="sync">☁ Sincronização</button>
+        <button type="button" data-ajsec="backup">💾 Backup</button>
+      </nav>
+
+      <div class="ajustes-paineis">
+        <section data-ajpainel="app">
+          <h3>🖥️ Aparência do app</h3>
+          <label class="campo">Cores desta tela (a do operador)
+            <select data-cfg="temaApp">
+              <option value="escuro">Escuro (padrão)</option>
+              <option value="claro">Claro: fundo branco e letras pretas</option>
+            </select>
+          </label>
+          <div class="campo">Tamanho das letras desta tela (para quem enxerga melhor com letras maiores)
+            <span class="linha zoom-app"><button type="button" data-zoomapp="-1" title="Diminuir (Ctrl e −)">A−</button>
+              <b id="zoomAppValor">100%</b>
+              <button type="button" data-zoomapp="1" title="Aumentar (Ctrl e +)">A+</button>
+              <button type="button" data-zoomapp="0" title="Voltar ao normal (Ctrl e 0)">Normal</button></span>
+            <span class="sutil pequeno">Também pelo teclado: Ctrl e + aumenta, Ctrl e − diminui, Ctrl e 0 volta ao normal. Vale só neste computador.</span>
+          </div>
+          <label class="check"><input type="checkbox" data-cfg="atualizarAuto"> Procurar atualizações ao abrir</label>
+          <p class="sutil pequeno">Muda só a tela do MiguelAngelus. O telão continua com o tema dele (quadradinhos <b>Tema</b> na tela de controle ou <b>Agenda → Paróquia → 🖼</b>).</p>
+        </section>
+
+        <section data-ajpainel="aparencia" class="ativa">
+          <h3>🎨 Aparência do telão</h3>
+          <div class="perfis-tela">
+            <label class="campo">Configurações salvas
+              <select id="perfilSel"><option value="">— escolha para aplicar —</option></select></label>
+            <button type="button" id="perfilSalvar" title="Guarda a aparência atual (fonte, tamanho, cores, maiúsculas, negrito, alinhamento, linhas por slide…) com um nome">💾 Salvar a atual com um nome…</button>
+            <button type="button" id="perfilGravar" hidden title="Grava a aparência atual por cima da configuração escolhida">Gravar por cima</button>
+            <button type="button" id="perfilApagar" class="perigo" hidden>🗑</button>
+          </div>
+          <label class="campo">Fonte
+            <select data-cfg="fonte">
+              <optgroup label="Sem serifa — as mais legíveis no telão">
+              <option value='"Segoe UI", Arial, sans-serif' style='font-family:"Segoe UI", Arial, sans-serif'>Segoe UI</option>
+              <option value='"Segoe UI Semibold", "Segoe UI", Arial, sans-serif' style='font-family:"Segoe UI Semibold", "Segoe UI", Arial, sans-serif'>Segoe UI Semibold (mais encorpada)</option>
+              <option value='Arial, Helvetica, sans-serif' style='font-family:Arial, Helvetica, sans-serif'>Arial</option>
+              <option value='Calibri, Arial, sans-serif' style='font-family:Calibri, Arial, sans-serif'>Calibri</option>
+              <option value='Verdana, sans-serif' style='font-family:Verdana, sans-serif'>Verdana</option>
+              <option value='Tahoma, Verdana, sans-serif' style='font-family:Tahoma, Verdana, sans-serif'>Tahoma</option>
+              <option value='"Trebuchet MS", sans-serif' style='font-family:"Trebuchet MS", sans-serif'>Trebuchet MS</option>
+              <option value='Candara, Calibri, sans-serif' style='font-family:Candara, Calibri, sans-serif'>Candara</option>
+              <option value='Corbel, Calibri, sans-serif' style='font-family:Corbel, Calibri, sans-serif'>Corbel</option>
+              <option value='Bahnschrift, "Segoe UI", sans-serif' style='font-family:Bahnschrift, "Segoe UI", sans-serif'>Bahnschrift (estreita)</option>
+              <option value='"Franklin Gothic Medium", Arial, sans-serif' style='font-family:"Franklin Gothic Medium", Arial, sans-serif'>Franklin Gothic</option>
+              <option value='"Lucida Sans Unicode", "Segoe UI", sans-serif' style='font-family:"Lucida Sans Unicode", "Segoe UI", sans-serif'>Lucida Sans</option>
+              <option value='"Century Gothic", "Segoe UI", sans-serif' style='font-family:"Century Gothic", "Segoe UI", sans-serif'>Century Gothic (com Office)</option>
+              <option value='"Gill Sans MT", Calibri, sans-serif' style='font-family:"Gill Sans MT", Calibri, sans-serif'>Gill Sans (com Office)</option>
+              </optgroup>
+              <optgroup label="Com serifa — estilo livro e missal">
+              <option value='Georgia, serif' style='font-family:Georgia, serif'>Georgia</option>
+              <option value='Cambria, Georgia, serif' style='font-family:Cambria, Georgia, serif'>Cambria</option>
+              <option value='Constantia, Georgia, serif' style='font-family:Constantia, Georgia, serif'>Constantia</option>
+              <option value='"Palatino Linotype", "Book Antiqua", Georgia, serif' style='font-family:"Palatino Linotype", "Book Antiqua", Georgia, serif'>Palatino</option>
+              <option value='"Times New Roman", Times, serif' style='font-family:"Times New Roman", Times, serif'>Times New Roman</option>
+              <option value='"Sitka Text", Georgia, serif' style='font-family:"Sitka Text", Georgia, serif'>Sitka</option>
+              <option value='"Book Antiqua", "Palatino Linotype", serif' style='font-family:"Book Antiqua", "Palatino Linotype", serif'>Book Antiqua (com Office)</option>
+              <option value='Garamond, "Palatino Linotype", serif' style='font-family:Garamond, "Palatino Linotype", serif'>Garamond (com Office)</option>
+              </optgroup>
+              <optgroup label="Estreitas — letra grande, cabe mais por linha">
+              <option value='"Arial Narrow", Impact, Arial, sans-serif' style='font-family:"Arial Narrow", Arial, sans-serif'>Arial Narrow (com Office)</option>
+              <option value='Impact, "Arial Narrow", sans-serif' style='font-family:Impact, "Arial Narrow", sans-serif'>Impact</option>
+              </optgroup>
+              <optgroup label="Destaque — títulos e avisos">
+              <option value='"Segoe UI Black", "Arial Black", sans-serif' style='font-family:"Segoe UI Black", "Arial Black", sans-serif'>Segoe UI Black</option>
+              <option value='"Arial Black", Arial, sans-serif' style='font-family:"Arial Black", Arial, sans-serif'>Arial Black</option>
+              <option value='Gabriola, Georgia, serif' style='font-family:Gabriola, Georgia, serif'>Gabriola (caligráfica)</option>
+              </optgroup>
+            </select>
+          </label>
+          <label class="campo so-manual">Tamanho máximo do texto
+            <input type="range" min="4" max="14" step="0.5" data-cfg="fonteMax">
+          </label>
+          <div class="linha">
+            <label class="campo">Cor do texto <input type="color" data-cfg="corTexto"></label>
+            <label class="campo">Cor de fundo <input type="color" data-cfg="corFundo"></label>
+          </div>
+          <label class="campo so-manual">Alinhamento
+            <select data-cfg="alinhamento">
+              <option value="center">Centralizado</option>
+              <option value="left">À esquerda</option>
+              <option value="justify">Justificado (linhas curtas à esquerda)</option>
+              <option value="justify-center">Justificado e centralizado (linhas curtas no centro)</option>
+            </select>
+          </label>
+          <div class="linha">
+            <button type="button" id="btnFundo">Imagem de fundo…</button>
+            <button type="button" id="btnSemFundo">Remover imagem</button>
+          </div>
+          <input type="file" id="arqFundo" accept="image/*" hidden>
+          <input type="file" id="arqFundoItem" accept="image/*" hidden>
+          <label class="check"><input type="checkbox" data-cfg="sombra"> Sombra no texto</label>
+          <label class="check"><input type="checkbox" data-cfg="maiusculas"> Texto em MAIÚSCULAS</label>
+          <label class="check"><input type="checkbox" data-cfg="negrito"> Texto em <b>negrito</b></label>
+          <label class="check"><input type="checkbox" data-cfg="rodape"> Mostrar rodapé (título / referência)</label>
+          <div class="linha">
+            <label class="check" title="Cada parte do roteiro (Entrada, Ato Penitencial, Coleta, Salmo…) começa com um slide só com o nome dela — ideia do Hermínio"><input type="checkbox" data-cfg="slideSecao"> 1º slide de cada parte com o nome dela</label>
+            <label class="check" title="Ex.: 3. Ato Penitencial — na ordem do roteiro"><input type="checkbox" data-cfg="numerarSecoes"> com número</label>
+          </div>
+          <div class="linha">
+            <label class="check" title="Em vez de um slide só com o nome, o nome da parte vai em cima do texto, no 1º slide dela, colorido como no folheto — ideia do Thiago"><input type="checkbox" data-cfg="secaoJunto"> Nome da parte <b>junto do texto</b>, colorido</label>
+            <label class="campo">Cor <input type="color" data-cfg="corSecao"></label>
+          </div>
+          <div class="linha">
+            <label class="check" title="Como no folheto: ✠ Proclamação do Evangelho; na Oração Eucarística, no &quot;Santificai&quot; (…o Corpo e ✠ o Sangue…), logo antes da consagração — a hora do carrilhão; e na bênção final (Pai e Filho ✠ e Espírito Santo) — ideia do Thiago"><input type="checkbox" data-cfg="cruz"> Cruz <b style="color:#c8102e">✠</b> do Missal (Evangelho, Santificai, bênção)</label>
+            <label class="campo">Desenho <select data-cfg="estiloCruz" title="O desenho da cruz no telão">
+              <option value="missal">✠ do Missal</option>
+              <option value="latina">✝ latina (como no folheto)</option></select></label>
+            <label class="campo">Cor <input type="color" data-cfg="corCruz"></label>
+          </div>
+          <label class="check" title="Nas leituras importadas do folheto (da versão 1.7.8 em diante), o número de cada versículo pequeno em cima, na cor do P./T. — ideia do Thiago"><input type="checkbox" data-cfg="versosFolheto"> Números dos versículos nas leituras, como no folheto</label>
+          <label class="campo">Transição entre os slides
+            <select data-cfg="transicao" title="Como o texto, a câmera e os vídeos trocam no telão (e a faixa de letras do OBS) — ideia do Thiago">
+              <option value="suave">Suave: some e aparece devagar (padrão)</option>
+              <option value="lenta">Lenta: bem devagar</option>
+              <option value="rapida">Rápida: quase direto (como era antes)</option>
+            </select>
+          </label>
+          <div class="linha">
+            <label class="check" title="P. (presidente), T. (todos), L. (leitor), C. (comentarista), D. (diácono) — vêm do folheto"><input type="checkbox" data-cfg="mostrarRotulos"> Mostrar quem fala (P., T., L.…)</label>
+            <label class="campo">Cor <input type="color" data-cfg="corRotulo"></label>
+          </div>
+          <label class="check" title="Um pequeno espaço antes e depois da linha do povo (T.), separando a resposta do que o padre diz"><input type="checkbox" data-cfg="espacoResposta"> Espaço entre as falas (separa a resposta do povo)</label>
+          <label class="check" title="Junta os versos de cada estrofe do salmo num parágrafo, em vez de uma linha por verso como no folheto"><input type="checkbox" data-cfg="salmoCorrido"> Salmo em texto corrido (não quebra a linha a cada verso)</label>
+          <p class="sutil pequeno">As imagens dos cantos da tela (brasão, padroeiro…) ficam em <b>Agenda → Paróquia</b>, para cada comunidade.</p>
+
+          <h3 class="aj-sub">📏 Tamanho dos slides</h3>
+          <label class="check auto-chave" title="A cada slide, o programa calcula o tamanho da letra, as linhas e o espaço entre as palavras para o texto ocupar toda a área das margens abaixo"><input type="checkbox" data-cfg="slideAuto"> ✨ <b>Automático</b>: a letra, as linhas e o espaço entre as palavras se ajustam a cada slide para ocupar toda a área das margens</label>
+          <p class="sutil pequeno auto-dica">Para <b>separar</b> um slide em dois, deixe uma <b>linha em branco</b> no texto (Enter duas vezes); para <b>juntar</b>, tire a linha em branco.
+            Cada slide tem no máximo 6 linhas (7 quando a última ficaria sozinha): um bloco maior é dividido sozinho, em partes iguais e no fim de uma frase. Negrito, itálico, sublinhado e cores do editor continuam valendo.</p>
+          <label class="check so-manual"><input type="checkbox" data-cfg="quebraAuto"> Limitar linhas e caracteres por slide</label>
+          <div class="linha so-manual">
+            <label class="campo">Linhas por slide <input type="number" min="1" max="12" data-cfg="linhasPorSlide"></label>
+            <label class="campo">Caracteres por linha <input type="number" min="15" max="90" data-cfg="caracteresPorLinha"></label>
+          </div>
+          <label class="check so-manual"><input type="checkbox" data-cfg="quebraCantos"> Aplicar também às letras dos cantos</label>
+          <div class="linha" title="Área útil do slide (ideia do Hermínio): o texto, as linhas e o tamanho da letra ficam dentro destas margens">
+            <label class="campo">Margem dos lados (% da tela) <input type="range" min="0" max="25" step="1" data-cfg="margemLados"></label>
+            <label class="campo">Margem em cima e embaixo (%) <input type="range" min="0" max="25" step="1" data-cfg="margemTopo"></label>
+          </div>
+          <label class="check" title="Cada imagem dos cantos (brasão, PASCOM, padroeiro) vira um quadrado; o texto ocupa a área toda e contorna os quadrados, usando os espaços entre eles. Desligado: a área do texto inteira desvia das imagens."><input type="checkbox" data-cfg="contornarCantos"> Texto contorna as imagens dos cantos (ocupa os espaços entre elas)</label>
+          <label class="check" title="Ao desviar de uma imagem de um lado só (ex.: o padroeiro embaixo à direita), deixa o mesmo espaço do outro lado: o texto não fica puxado para um lado — ideia do Thiago"><input type="checkbox" data-cfg="centralizarCantos"> Texto sempre centralizado (desvia igual dos dois lados)</label>
+          <div id="previaMargens" class="previa-margens" title="O telão em miniatura: pontilhado = limite das margens; tracejado = onde o texto ficou (desviando das imagens dos cantos)">
+            <iframe src="projecao.html?preview&amp;mini=margens" title="Miniatura do telão" tabindex="-1"></iframe>
+            <span class="pm-medidas"></span>
+          </div>
+          <p class="sutil pequeno" style="margin-top:-4px">Pontilhado: limite das margens. Tracejado amarelo: a área do texto; azul: o quadrado de cada imagem, que o texto contorna
+            (as da comunidade do roteiro aberto). O texto de exemplo é o slide que está no ar ou aberto.</p>
+          <p class="sutil pequeno so-manual">Ligado: textos longos (leituras, orações) viram vários slides, sempre com letra grande e do mesmo tamanho.
+            Desligado: cada slide mantém o texto inteiro e a letra diminui até caber na tela.</p>
+        </section>
+
+        <section data-ajpainel="biblia">
+          <h3>📖 Bíblia</h3>
+          <label class="campo">Versículos por slide
+            <input type="number" min="1" max="8" data-cfg="versosPorSlide">
+          </label>
+          <label class="check"><input type="checkbox" data-cfg="numerarVersos"> Mostrar número dos versículos</label>
+          <h4>📅 Liturgia do dia</h4>
+          <label class="campo">Fonte principal das leituras
+            <select data-cfg="fonteLeituras">
+              <option value="paulus">Paulus (Liturgia Diária, a mesma editora do Missal)</option>
+              <option value="api">API Liturgia Diária (Dancrf)</option>
+            </select>
+          </label>
+          <p class="sutil pequeno">Se a fonte principal não responder (sem internet, site fora do ar ou dia ainda não publicado),
+            o MiguelAngelus tenta a outra e avisa de onde vieram as leituras. As orações do dia vêm sempre da API.</p>
+        </section>
+
+        <section data-ajpainel="altar">
+          <h3>⛪ Botão Altar</h3>
+          <label class="campo">Texto que aparece no telão (botão ⛪ Altar ou tecla L)
+            <input data-cfg="textoAltar" placeholder="TODOS DIRIJAM SEU OLHAR PARA O ALTAR">
+          </label>
+          <p class="sutil pequeno">Usa a aparência do telão. Apertar de novo volta ao slide que estava no ar.</p>
+        </section>
+
+        <section data-ajpainel="nomes">
+          <h3>🙏 Papa e Bispo</h3>
+          <p class="sutil pequeno">Nas orações eucarísticas e nos folhetos vem "o vosso servo o Papa <b>N.</b>, o nosso Bispo <b>N.</b>". No telão, o
+            <b>N.</b> sai com estes nomes — nos folhetos importados, nas orações eucarísticas do catálogo e nas orações. Vale para todos os
+            computadores (vai pela nuvem). Quando mudar o Papa ou o Bispo, é só trocar aqui; deixe em branco para o telão mostrar "N.".</p>
+          <label class="campo">Nome do Papa (como se diz na Missa)
+            <input id="nomePapa" placeholder="Leão">
+          </label>
+          <label class="campo">Nome do Bispo da diocese (na Oração Eucarística se diz "o nosso Bispo …", também para o arcebispo)
+            <input id="nomeBispo" placeholder="Orani João">
+          </label>
+          <p class="sutil pequeno" id="nomesExemplo"></p>
+        </section>
+
+        <section data-ajpainel="terco">          <h3>📿 Terço no telão</h3>
+          <div id="tercoAjustes"></div>
+        </section>
+
+        <section data-ajpainel="pix">
+          <h3>💠 Pix da paróquia</h3>
+          <p class="sutil pequeno">O botão <b>💠 Pix</b> (ou a tecla <b>P</b>) mostra no telão o QR code e a faixa com a chave, para o
+            ofertório e o fim da Missa. Apertar de novo volta ao que estava no ar. As imagens vão para a nuvem com o resto:
+            basta colocar num computador.</p>
+          <div class="pix-cadeado linha" id="pixCadeado"></div>
+          <div class="pix-cfg" id="pixCfg">
+            <div><b>QR code</b><div class="pix-prev" id="pixPrevQr"></div>
+              <span class="linha"><button type="button" data-pix="qr">Escolher imagem…</button><button type="button" data-pixtirar="qr" class="perigo">Tirar</button></span></div>
+            <div><b>Faixa com a chave (para conferir)</b><div class="pix-prev larga" id="pixPrevFaixa"></div>
+              <span class="linha"><button type="button" data-pix="faixa">Escolher imagem…</button><button type="button" data-pixtirar="faixa" class="perigo">Tirar</button></span></div>
+          </div>
+          <p class="sutil pequeno">Antes de usar na Missa, leia o QR code com o aplicativo do banco e confira se aparece o nome e o
+            CNPJ da paróquia (não precisa pagar nada).</p>
+          <label class="check" title="Liga quando o canto do Ofertório (ou &quot;Apresentação das Oferendas&quot;) vai para o telão e desliga quando outro item do roteiro entra no ar. Limpar a letra (Esc) não desliga. Se você mexer no botão durante o ofertório, vale o que você fez."><input type="checkbox" data-cfg="pixOfertorio"> Ligar o Pix sozinho no ofertório (e desligar ao passar para o próximo item)</label>
+          <h4>Tamanho no telão (deste computador)</h4>
+          <label class="campo">Sem câmera — altura do cartão (faixa + QR code; os slides ficam embaixo)
+            <span class="linha"><input type="range" min="40" max="80" step="1" data-cfg="pixCartao"><b class="pix-val" data-pixval="pixCartao"></b></span></label>
+          <label class="campo">Com câmera — tamanho do QR code (canto superior direito)
+            <span class="linha"><input type="range" min="20" max="55" step="1" data-cfg="pixQrCamera"><b class="pix-val" data-pixval="pixQrCamera"></b></span></label>
+          <label class="campo">Com câmera — altura da faixa do CNPJ (canto superior esquerdo)
+            <span class="linha"><input type="range" min="6" max="20" step="0.5" data-cfg="pixFaixaCamera"><b class="pix-val" data-pixval="pixFaixaCamera"></b></span></label>
+          <p class="sutil pequeno">Em % da altura da tela. Ligue o 💠 Pix e mexa aqui para ver no telão na hora.</p>
+          <input type="file" id="pixArq" accept="image/*" hidden>
+        </section>
+
+        <section data-ajpainel="ndi">
+          <h3>📡 Transmissão (NDI → OBS)</h3>
+          <label class="check"><input type="checkbox" data-cfg="ndiLigado"> Transmitir a faixa de letras por NDI</label>
+          <label class="campo">Nome da fonte NDI (aparece no OBS) <input data-cfg="ndiNome" placeholder="MiguelAngelus Letras"></label>
+          <div class="campo">Mostrar na faixa:</div>
+          <div class="linha" style="flex-wrap:wrap; gap:4px 14px">
+            <label class="check"><input type="checkbox" data-cfg="faixaCantos"> Cantos e salmo</label>
+            <label class="check"><input type="checkbox" data-cfg="faixaRespostas"> Respostas e orações</label>
+            <label class="check"><input type="checkbox" data-cfg="faixaLeituras"> Leituras</label>
+            <label class="check"><input type="checkbox" data-cfg="faixaAvisos"> Avisos e Altar</label>
+            <label class="check" title="Com o 💠 Pix no ar, a faixa do CNPJ (alto à esquerda) e o QR code (alto à direita) também vão para o OBS"><input type="checkbox" data-cfg="faixaPix"> 💠 Pix</label>
+          </div>
+          <div class="linha">
+            <label class="campo">Tamanho da letra <input type="range" min="3" max="8" step="0.2" data-cfg="faixaTamanho"></label>
+            <label class="campo">Fundo da faixa <input type="range" min="0" max="1" step="0.05" data-cfg="faixaOpacidade"></label>
+          </div>
+          <p id="ndiInfo" class="status"></p>
+          <p class="sutil pequeno">No OBS (com o plugin <b>DistroAV</b>): <b>+ → Fonte NDI™</b> → escolha "MiguelAngelus Letras" e coloque
+            <b>por cima da câmera</b>. Só a faixa aparece; o resto é transparente. Mudo e Limpar esvaziam a faixa.</p>
+
+          <label class="check" title="A mesma imagem da janela de projeção (fundo, imagens, vídeos, Pix), 15 vezes por segundo. Só pesa enquanto algum programa está recebendo."><input type="checkbox" data-cfg="ndiTelao"> Transmitir também o <b>telão inteiro</b> por NDI ("MiguelAngelus Telão")</label>
+          <p id="ndiTelaoInfo" class="status"></p>
+          <p class="sutil pequeno">Para o <b>MiguelAngelus Cast</b> em outro computador da rede: lá, em <b>+ Cena</b>, o telão aparece sozinho na lista.
+            A janela de projeção precisa estar aberta (pode estar atrás de outras, mas não minimizada).</p>
+
+          <h3 class="aj-sub">🌐 Acompanhar pela internet</h3>
+          <p class="sutil pequeno">Os slides do telão (só o texto) no celular, tablet ou TV de quem lê o QR code — pelo 4G, de qualquer lugar.
+            Mudo e Limpar também valem lá.</p>
+          <div id="aoVivoPainel"></div>
+        </section>
+
+        <section data-ajpainel="celular">
+          <h3>📱 Controle pelo celular</h3>
+          <p class="sutil pequeno">Para a equipe da PASCOM controlar o telão andando pela igreja. O celular precisa estar no
+            <b>mesmo Wi-Fi</b> deste computador. Não precisa instalar nada: abre no navegador e pode virar um ícone na tela inicial.</p>
+          <label class="check"><input type="checkbox" id="celLigado"> Ligar o controle pelo celular</label>
+          <div id="celPainel"></div>
+          <h3 class="aj-sub">🔗 Links no celular</h3>
+          <p class="sutil pequeno">Botões que aparecem no celular (aba 🎸 Cifras dos músicos e aba 🎬 Mídia do controle) e abrem outra página
+            — ex.: a <b>mesa de som</b>. O endereço só abre se o celular estiver na mesma rede do aparelho (a mesa no roteador do
+            MiguelAngelus: o celular no Wi-Fi MiguelAngelus). Vão para os outros computadores pela nuvem.</p>
+          <div id="linksCel"></div>
+          <button type="button" id="btnLinkNovo">＋ Adicionar link</button>
+        </section>
+
+        <section data-ajpainel="joystick">
+          <h3>🎮 Joysticks</h3>
+          <p class="sutil pequeno">Até dois controles USB (tipo Xbox, como o GameSir) para mexer nas câmeras PTZ e no telão. Funcionam mesmo com o
+            MiguelAngelus minimizado ou atrás do OBS. A configuração vale para este computador.</p>
+          <div id="joyPainel"></div>
+        </section>
+
+        <section data-ajpainel="sync">
+          <h3>☁ Sincronização entre computadores</h3>
+          <label class="campo">Onde guardar
+            <select id="syncModo">
+              <option value="">Desligada</option>
+              <option value="google">Google Drive da paróquia (entrar com a conta)</option>
+              <option value="pasta">Uma pasta deste computador (Google Drive para computador, OneDrive…)</option>
+            </select>
+          </label>
+          <div data-syncmodo="google" hidden>
+            <div class="linha" style="flex-wrap:wrap">
+              <button type="button" id="btnGoogleArquivo" title="O JSON baixado no Google Cloud (Clientes → App para computador → Fazer download do JSON)">Carregar arquivo do Google…</button>
+              <button type="button" id="btnGoogleConectar" class="primario">Conectar</button>
+              <button type="button" id="btnGoogleDesconectar" hidden>Desconectar</button>
+            </div>
+            <p id="syncGoogleInfo" class="sutil pequeno"></p>
+          </div>
+          <div data-syncmodo="pasta" hidden class="linha">
+            <input id="syncPasta" readonly placeholder="Escolha a pasta compartilhada…">
+            <button type="button" id="btnSyncPasta">Escolher pasta…</button>
+          </div>
+          <div class="linha">
+            <button type="button" id="btnSyncAgora">☁ Sincronizar agora</button>
+            <span id="syncInfo" class="status" style="flex:1"></span>
+          </div>
+          <p class="sutil pequeno">Ao abrir, o MiguelAngelus pega o que há de mais novo; ao fechar (e a cada 3 min), envia o que mudou aqui.
+            Vão para a nuvem: roteiros, cantos, orações, apresentações, Bíblias e a Agenda. Vídeos e áudios só se você escolher
+            (eles aparecem nos outros computadores com <b>⬇ Baixar</b>). Os ajustes do telão e do NDI ficam só neste computador.</p>
+        </section>
+
+        <section data-ajpainel="backup">
+          <h3>💾 Backup</h3>
+          <p class="sutil pequeno">Cantos, orações, roteiros, Agenda, apresentações e ajustes ficam guardados neste computador.
+            Exporte um backup de vez em quando (vídeos e áudios não entram: guarde os arquivos originais).</p>
+          <div class="linha">
+            <button type="button" id="btnExportar">Exportar backup</button>
+            <button type="button" id="btnImportar">Importar backup</button>
+          </div>
+          <input type="file" id="arqBackup" accept=".json" hidden>
+        </section>
+      </div>
+    </div>
+    <div class="linha">
+      <span class="sutil pequeno">As mudanças são salvas e aparecem na projeção na hora.</span>
+      <span class="espaco"></span>
+      <button value="fechar" class="primario">Fechar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Agenda ============ -->
+<dialog id="dlgAgenda">
+  <div class="agenda">
+    <div class="agenda-topo">
+      <nav class="agenda-abas">
+        <button data-ag="paroquia">🏛 Paróquia</button>
+        <button data-ag="celebracoes">⛪ Celebrações</button>
+        <button data-ag="calendario" class="ativa">📅 Calendário</button>
+      </nav>
+      <span class="espaco"></span>
+      <button id="btnFecharAgenda" class="primario">Fechar</button>
+    </div>
+
+    <section id="ag-paroquia" class="ag-sec">
+      <div class="par-grade">
+        <div class="par-bloco">
+          <div class="separador">Dados da paróquia</div>
+          <label class="campo">Nome da paróquia <input data-par="nome" placeholder="Ex.: Paróquia São José Operário"></label>
+          <label class="campo">Padroeiro(a) <input data-par="padroeiro" placeholder="Ex.: São José Operário"></label>
+          <label class="campo">(Arqui)diocese <input data-par="diocese" placeholder="Ex.: Arquidiocese de São Sebastião do Rio de Janeiro"></label>
+          <label class="campo">Página dos folhetos da (arqui)diocese <input data-par="siteFolhetos" type="url" placeholder="https://arqrio.org.br/folhetos/"></label>
+          <label class="campo">Endereço da secretaria <input data-par="endereco"></label>
+          <div class="linha">
+            <label class="campo">Telefone <input data-par="telefone"></label>
+            <label class="campo">Site / e-mail / Instagram <input data-par="contato"></label>
+          </div>
+          <label class="campo">Pároco <input data-par="paroco" placeholder="Ex.: Pe. …"></label>
+          <p class="sutil pequeno">Salvo automaticamente enquanto você digita.</p>
+          <div class="separador">Apresentação no telão</div>
+          <p class="sutil pequeno">Imagens nos cantos da tela (brasão, logo da PASCOM, padroeiro…). A padrão vale para todas as
+            comunidades; cada comunidade pode trocar os cantos que quiser no botão 🖼 da lista ao lado.</p>
+          <button id="btnLayoutParoquia" class="primario">🖼 Apresentação padrão da paróquia…</button>
+        </div>
+        <div class="par-bloco">
+          <div class="separador">Matriz e capelas (comunidades)</div>
+          <div class="par-form">
+            <label class="campo">Tipo <select id="parLocTipo"></select></label>
+            <label class="campo par-nome">Nome <input id="parLocNome" placeholder="Ex.: Nossa Senhora de Fátima"></label>
+            <label class="campo par-sigla">Sigla <input id="parLocSigla" placeholder="NSF" maxlength="8"></label>
+            <label class="campo par-cor-campo">Cor <input type="color" id="parLocCor"></label>
+            <label class="campo par-end">Endereço <input id="parLocEndereco" placeholder="Rua, número, bairro"></label>
+            <label class="campo par-padroeiro" title="No dia do padroeiro, os roteiros desta comunidade ficam como Solenidade (nome e cor)">Padroeiro(a)
+              <input id="parLocPadroeiro" placeholder="Ex.: São José Operário"></label>
+            <label class="campo par-pad-dia">Dia <input id="parLocPadDia" placeholder="dd/mm" maxlength="5"></label>
+            <label class="campo par-pad-cor">Cor <select id="parLocPadCor"><option value="branco">Branco</option><option value="vermelho">Vermelho (mártir)</option></select></label>
+            <button id="btnParLocal" class="primario">Adicionar</button>
+            <button id="btnParLocalCancelar" hidden>Cancelar edição</button>
+          </div>
+          <div id="parLocais" class="par-locais"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ag-celebracoes" class="ag-sec">
+      <div class="ag-form">
+        <label class="campo">Semana do mês <select id="agSemana"></select></label>
+        <label class="campo">Dia <select id="agDia"></select></label>
+        <label class="campo">Hora <input type="time" id="agHora" value="19:00"></label>
+        <label class="campo">Tipo <select id="agTipo"></select></label>
+        <label class="campo">Local <select id="agLocal"></select></label>
+        <label class="campo ag-desc">Descrição <small class="sutil">(opcional)</small> <input id="agDescricao" placeholder="Ex.: Missa Matriz"></label>
+        <button id="btnAgAdicionar" class="primario">Adicionar</button>
+        <button id="btnAgCancelarEdicao" hidden>Cancelar edição</button>
+      </div>
+      <p class="sutil pequeno ag-dica">"Semana do mês": deixe em <b>Todas</b> para toda semana, ou escolha, por exemplo, <b>1ª</b> + <b>Sexta</b> para a primeira sexta-feira do mês.</p>
+      <div id="agLista" class="ag-lista"></div>
+    </section>
+
+    <section id="ag-calendario" class="ag-sec ativa">
+      <div class="cal-topo">
+        <button id="calAnt" title="Mês anterior">←</button>
+        <h2 id="calTitulo"></h2>
+        <button id="calProx" title="Próximo mês">→</button>
+        <button id="calHoje" class="pequeno">Hoje</button>
+        <select id="calFiltroLocal" class="cal-filtro" title="Mostrar só uma comunidade"></select>
+        <span class="sutil pequeno cal-legenda">📋 abre (ou cria) o roteiro da celebração · ⋮ altera ou cancela só naquele dia · + adiciona uma celebração avulsa</span>
+      </div>
+      <div id="calGrade" class="cal-grade"></div>
+    </section>
+  </div>
+</dialog>
+
+<!-- ============ Apresentação (imagens nos cantos) ============ -->
+<dialog id="dlgLayout">
+  <form method="dialog" class="form">
+    <h2 id="layTitulo">Apresentação</h2>
+    <p id="layDica" class="sutil pequeno"></p>
+    <div id="layPrevia" class="lay-previa com-mini">
+      <iframe src="projecao.html?preview&amp;mini=layout" title="Miniatura do telão com estas imagens" tabindex="-1"></iframe>
+      <img class="lay-img" data-canto="se" alt="" hidden>
+      <img class="lay-img" data-canto="sd" alt="" hidden>
+      <img class="lay-img" data-canto="ie" alt="" hidden>
+      <img class="lay-img" data-canto="id" alt="" hidden>
+      <div id="layTexto" class="lay-texto">Texto de exemplo<br>da projeção</div>
+    </div>
+    <div id="layControles" class="lay-controles"></div>
+    <input type="file" id="arqLayout" accept="image/*" hidden>
+    <div class="campo">Tema do telão (cor de fundo e letra)</div>
+    <div id="layTemas" class="lay-temas"></div>
+    <p class="sutil pequeno">Dica: use imagens PNG com fundo transparente (brasão, logos, santos recortados). O tema <b>Ajustes</b> usa a aparência de <b>Ferramentas → Ajustes</b>; na tela de controle dá para trocar o tema na hora.</p>
+    <div class="linha">
+      <button type="button" id="btnLaySalvar" title="Grava agora e, com a nuvem ligada, já envia para os outros computadores">💾 Salvar e enviar para a nuvem</button>
+      <span class="espaco"></span><button value="ok" class="primario">Pronto</button></div>
+  </form>
+</dialog>
+
+<!-- ============ Uma celebração do calendário ============ -->
+<dialog id="dlgEvento">
+  <form id="formEvento" method="dialog" class="form">
+    <h2 id="evTitulo">Celebração</h2>
+    <div class="linha">
+      <label class="campo">Data <input type="date" name="data"></label>
+      <label class="campo">Hora <input type="time" name="hora"></label>
+      <label class="campo">Tipo <select name="tipo"></select></label>
+      <label class="campo">Local <select name="local"></select></label>
+    </div>
+    <label class="campo">Descrição <small class="sutil">(opcional se escolher o local)</small> <input name="descricao" placeholder="Ex.: Missa de 7º dia, Casamento de Ana e João…"></label>
+    <p id="evInfo" class="sutil pequeno"></p>
+    <div class="linha">
+      <button type="button" id="btnEvCancelarDia" class="perigo">Cancelar neste dia</button>
+      <button type="button" id="btnEvRestaurar" title="Volta ao horário e descrição normais">Desfazer alteração</button>
+      <button type="button" id="btnEvExcluir" class="perigo">Excluir</button>
+      <span class="espaco"></span>
+      <button value="fechar" formnovalidate>Voltar</button>
+      <button value="salvar" class="primario">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Mensagem rápida ============ -->
+<!-- ============ Classificações dos cantos ============ -->
+<dialog id="dlgClassif">
+  <form method="dialog" class="form classif">
+    <h2>🏷 Classificações dos cantos</h2>
+    <p class="sutil pequeno" style="margin:0">A ordem daqui é a das pastas na aba Cantos e das listas de escolha. As da Missa (🔒) não mudam de nome nem
+      são apagadas, porque o folheto e o roteiro dependem delas, mas podem mudar de lugar.</p>
+    <div id="classifLista" class="classif-lista"></div>
+    <div class="linha">
+      <input id="classifNova" placeholder="Nova classificação (ex.: Batizado, Crisma, Natal…)" maxlength="40" style="flex:1">
+      <button type="button" id="btnClassifNova" class="primario">＋ Criar</button>
+    </div>
+    <div class="linha">
+      <span class="espaco"></span>
+      <button value="fechar">Fechar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgMensagem">
+  <form method="dialog" class="form">
+    <h2>Mensagem rápida</h2>
+    <textarea id="msgRapida" rows="4" placeholder="Aviso, intenção, nome do leitor…"></textarea>
+    <div class="linha">
+      <span class="espaco"></span>
+      <button value="cancelar">Cancelar</button>
+      <button type="button" id="btnMsg" class="primario">Projetar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Aviso na tela ============ -->
+<dialog id="dlgAviso">
+  <form method="dialog" class="form">
+    <h2>📢 Aviso na tela</h2>
+    <p class="sutil" style="margin:0">Aparece numa faixa por cima do que estiver no telão, sem tirar a letra do ar.</p>
+    <nav class="agenda-abas">
+      <button type="button" data-av="veiculo">🚗 Veículo</button>
+      <button type="button" data-av="crianca">🧒 Criança</button>
+      <button type="button" data-av="livre">✏️ Outro aviso</button>
+    </nav>
+    <div id="avCamposVeiculo" class="linha">
+      <label class="campo">Placa <input id="avPlaca" placeholder="ABC-1D23" autocomplete="off" spellcheck="false"></label>
+      <label class="campo">Modelo / cor (opcional) <input id="avModelo" placeholder="ex.: Gol prata" autocomplete="off"></label>
+    </div>
+    <div id="avCamposCrianca">
+      <label class="campo">Nome da criança <input id="avCrianca" placeholder="ex.: Maria Eduarda" autocomplete="off"></label>
+    </div>
+    <label class="campo" id="avCampoLocal">Favor comparecer… <input id="avLocal" placeholder="à porta da igreja"></label>
+    <div id="avSalvos" hidden>
+      <div class="campo">Avisos salvos — clique para usar (e editar), ou ▶ para mostrar direto</div>
+      <div id="avSalvosLista" class="av-salvos"></div>
+    </div>
+    <label class="campo">Texto que vai aparecer (pode editar)
+      <textarea id="avTexto" rows="3" placeholder="Escreva o aviso…"></textarea>
+    </label>
+    <div class="linha" id="avSalvarLinha" hidden>
+      <button type="button" id="avSalvar">💾 Salvar este aviso</button>
+      <button type="button" id="avSalvarNovo" hidden>Salvar como novo</button>
+      <button type="button" id="avApagarSalvo" class="perigo" hidden>🗑 Apagar o salvo</button>
+      <span class="sutil pequeno">Salvar é opcional: dá para mostrar sem salvar.</span>
+    </div>
+    <div class="linha">
+      <label class="campo">Tempo na tela
+        <select id="avDuracao">
+          <option value="30">30 segundos</option><option value="60">1 minuto</option>
+          <option value="120">2 minutos</option><option value="300">5 minutos</option><option value="0">Até eu retirar</option>
+        </select>
+      </label>
+      <label class="campo">Posição
+        <select id="avPosicao"><option value="alto">Faixa no alto</option><option value="baixo">Faixa embaixo</option></select>
+      </label>
+    </div>
+    <div id="avRecentes" hidden>
+      <div class="campo">Recentes (clique para mostrar de novo)</div>
+      <div id="avRecentesLista" class="av-recentes"></div>
+    </div>
+    <div class="linha">
+      <span class="espaco"></span>
+      <button value="cancelar">Cancelar</button>
+      <button value="mostrar" id="avMostrar" class="primario">Mostrar na tela</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Localizar em tudo ============ -->
+<dialog id="dlgLocalizar">
+  <form method="dialog" class="form">
+    <h2>🔎 Localizar em tudo</h2>
+    <input id="locTermo" type="search" placeholder="Canto, oração, roteiro, aviso ou trecho da Bíblia…" autocomplete="off">
+    <div id="locResultados" class="loc-resultados"></div>
+    <div class="linha"><span class="sutil pequeno"><kbd>↑</kbd> <kbd>↓</kbd> escolhem · <kbd>Enter</kbd> abre · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> coloca no roteiro</span><span class="espaco"></span><button value="fechar">Fechar</button></div>
+  </form>
+</dialog>
+
+<!-- ============ Inserir no roteiro (Ctrl+I / Insert) ============ -->
+<dialog id="dlgInserir">
+  <form method="dialog" class="form">
+    <h2>＋ Inserir no roteiro</h2>
+    <input id="insTermo" type="search" placeholder="O que inserir? Ex.: bênção, comunhão, pai nosso, leitura, canto entrada…" autocomplete="off">
+    <div id="insLista" class="loc-resultados"></div>
+    <div class="linha"><span class="sutil pequeno"><kbd>↑</kbd> <kbd>↓</kbd> escolhem · <kbd>Enter</kbd> insere depois do item aberto · para um canto, oração ou versículo pelo nome: <kbd>Ctrl</kbd>+<kbd>F</kbd></span><span class="espaco"></span><button value="fechar">Fechar</button></div>
+  </form>
+</dialog>
+
+<!-- ============ Imprimir roteiro ============ -->
+<dialog id="dlgImprimir">
+  <form method="dialog" class="form">
+    <h2>🖨 Imprimir roteiro</h2>
+    <p class="sutil" style="margin:0"><b id="impRoteiro"></b> — imprime no papel ou salva em PDF ("Salvar como PDF" na janela de impressão).</p>
+    <label class="check"><input type="radio" name="modeloImp" value="resumo"> <b>Resumo</b> — só a ordem da celebração (uma folha para o padre e a equipe)</label>
+    <label class="check"><input type="radio" name="modeloImp" value="completo"> <b>Completo</b> — com os textos: letras dos cantos, orações, leituras, preces e avisos</label>
+    <label class="check"><input type="radio" name="modeloImp" value="musicos"> <b>Músicos</b> — os cantos com a cifra e o tom (ou a letra, se não houver cifra)</label>
+    <div class="linha"><span class="espaco"></span><button value="cancelar">Cancelar</button><button value="imprimir" class="primario">Imprimir…</button></div>
+  </form>
+</dialog>
+
+<!-- ============ Avisos paroquiais (programados + aparência da tela) ============ -->
+<dialog id="dlgAvisosPar">
+  <form method="dialog" class="form">
+    <h2 id="apTitulo">📢 Avisos paroquiais</h2>
+    <p class="sutil ap-cel-explica" style="margin:0">Escolha o dia e a celebração: aparecem só os avisos que valem nela.
+      Imprima a folha para ler no ambão (ou salve em PDF) ou gere as imagens para o Holyrics.</p>
+    <p class="sutil ap-cad-explica" style="margin:0">Os avisos programados entram sozinhos no item <b>Avisos</b> dos roteiros das Missas do período
+      (e da comunidade escolhida). No roteiro, dá para acrescentar avisos só daquela Missa.</p>
+    <div id="apLista" class="ap-lista"></div>
+    <div class="ap-form">
+      <label class="campo">Aviso
+        <textarea id="apTexto" rows="3" placeholder="Ex.: Inscrições abertas para a Crisma até o dia 30, na secretaria."></textarea></label>
+      <div class="linha">
+        <label class="campo">A partir de <input type="date" id="apInicio"></label>
+        <label class="campo">Até (inclusive) <input type="date" id="apFim"></label>
+        <span class="espaco"></span>
+        <button type="button" id="apCancelar" hidden>Cancelar</button>
+        <button type="button" id="apAdicionar" class="primario">+ Adicionar</button>
+      </div>
+      <div class="campo">Onde avisar <small class="sutil">(marque uma ou mais comunidades, ou Todas)</small></div>
+      <div id="apLocais" class="ap-locais"></div>
+      <p class="sutil pequeno" style="margin:0">Sem data final: o aviso continua até ser apagado.</p>
+    </div>
+    <details id="apCel" class="ap-cel">
+      <summary>🖨 Avisos de uma celebração — papel (PDF) e imagens para o Holyrics</summary>
+      <div class="linha">
+        <label class="campo">Dia <input type="date" id="apcData"></label>
+        <label class="campo apc-cel-campo">Celebração <select id="apcCel"></select></label>
+      </div>
+      <div id="apcLista" class="apc-lista"></div>
+      <div class="linha">
+        <button type="button" id="apcImprimir" title="Folha A4 com os avisos desta celebração, para ler no ambão (escolha &quot;Salvar como PDF&quot; para guardar)">🖨 Imprimir / salvar PDF…</button>
+        <button type="button" id="apcImagens" class="primario" title="Uma imagem Full HD por slide, no jeito da tela de avisos do telão">🖼 Gerar imagens</button>
+        <span class="espaco"></span>
+      </div>
+      <div class="linha apc-pasta"><span class="sutil pequeno">Pasta das imagens: <b id="apcPasta">—</b></span><span class="espaco"></span>
+        <button type="button" id="apcEscolher">Escolher pasta…</button><button type="button" id="apcAbrirPasta">Abrir pasta</button></div>
+      <div id="apcPrevia" class="apc-previa"></div>
+    </details>
+    <details class="ap-estilo">
+      <summary>🎨 Aparência da tela de avisos</summary>
+      <div class="linha">
+        <label class="campo">Título <input id="apeTitulo" placeholder="Avisos Paroquiais"></label>
+        <label class="campo">Ícone <select id="apeIcone"></select></label>
+        <label class="campo">Faixa do título <input type="color" id="apeCorTitulo"></label>
+        <label class="campo">Letra do título <input type="color" id="apeCorTituloTexto"></label>
+      </div>
+      <div class="linha">
+        <label class="campo">Fundo
+          <select id="apeFundo"><option value="tema">O do tema do telão</option><option value="cor">Uma cor própria</option></select></label>
+        <span id="apeCoresFundo" class="linha">
+          <label class="campo">Cor do fundo <input type="color" id="apeCorFundo"></label>
+          <label class="campo">Cor da letra <input type="color" id="apeCorTexto"></label>
+        </span>
+        <label class="campo">Avisos por slide
+          <select id="apePorSlide"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
+      </div>
+      <label class="check"><input type="checkbox" id="apeNoRoteiro"> Colocar o item <b>Avisos</b> sozinho nos roteiros novos (antes da bênção final)</label>
+      <div class="linha"><div id="apeAmostra" class="ape-amostra"></div><span class="espaco"></span><button type="button" id="apePadrao">Voltar ao padrão</button></div>
+    </details>
+    <div class="linha">
+      <button type="button" id="apLimpar" class="perigo" hidden>Apagar vencidos</button>
+      <!-- (Secretaria) as duas janelas separadas: um botão leva de uma à outra -->
+      <button type="button" id="apIrCadastro" class="ap-so-cel" title="Cadastrar, mudar ou apagar avisos">✎ Cadastrar / editar avisos</button>
+      <button type="button" id="apIrCel" class="ap-so-cad" title="Folha para o ambão (PDF) e imagens para o Holyrics de uma Missa">🖨 Avisos de uma celebração…</button>
+      <span class="espaco"></span>
+      <button value="fechar" class="primario">Fechar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Folhetos da Arquidiocese ============ -->
+<dialog id="dlgFolhetoOnline">
+  <form method="dialog" class="form">
+    <h2 id="folOnlineTitulo">🌐 Folhetos da Arquidiocese</h2>
+    <p class="sutil pequeno">Os folhetos publicados em <b id="folOnlineSite">arqrio.org.br/folhetos</b> (a página é configurada em Agenda → Paróquia).
+      Escolha um: o MiguelAngelus baixa e monta os roteiros das celebrações, como no botão 📄 Folheto.</p>
+    <p id="folOnlineGenerico" class="sutil pequeno" hidden>Aqui aparecem todos os PDFs com link nessa página. Se houver, prefira a versão
+      para celular; folhetos em colunas também montam, mas dê uma conferida no roteiro.</p>
+    <div id="folOnlineLista" class="fol-lista"></div>
+    <div class="linha">
+      <span class="espaco"></span>
+      <button value="fechar" formnovalidate>Fechar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Nova câmera ============ -->
+<dialog id="dlgCamera">
+  <form method="dialog" class="form">
+    <h2>📷 Câmera no telão</h2>
+    <p class="sutil pequeno">Para câmeras <b>NDI</b>: abra o <b>NDI Webcam</b> (vem no NDI Tools), escolha a câmera NDI nele, e ela aparece
+      aqui como "NDI Webcam Video 1". Webcams comuns (USB) também aparecem.</p>
+    <label class="campo">Câmera <select id="camDispositivo"></select></label>
+    <label class="campo">Nome (como vai aparecer na lista) <input id="camNome" placeholder="Ex.: Câmera do altar"></label>
+    <div class="linha">
+      <span class="espaco"></span>
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="ok" class="primario">Adicionar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Atalhos ============ -->
+<dialog id="dlgAtalhos">
+  <form method="dialog" class="form">
+    <h2>Atalhos do teclado</h2>
+    <ul class="atalhos">
+      <li><kbd>→</kbd> <kbd>Espaço</kbd> <kbd>PgDn</kbd> próximo slide</li>
+      <li><kbd>←</kbd> <kbd>PgUp</kbd> slide anterior</li>
+      <li><kbd>M</kbd> (ou <kbd>B</kbd>) mudo: só o fundo do tema</li>
+      <li><kbd>L</kbd> "Todos dirijam seu olhar para o altar" (de novo: volta ao slide anterior)</li>
+      <li><kbd>Esc</kbd> limpar a tela (e parar o vídeo)</li>
+      <li><kbd>C</kbd> congelar o telão: navegue e edite à vontade; <kbd>C</kbd> de novo solta e mostra o slide escolhido</li>
+      <li>No fim de um item, <kbd>→</kbd> passa para o próximo do roteiro</li>
+      <li>Numa mídia, <kbd>Espaço</kbd> pausa e continua</li>
+      <li><kbd>Alt</kbd>+<kbd>1</kbd> a <kbd>9</kbd> troca de módulo (Roteiros, Cantos, Bíblia, Orações, Vídeos, Áudios, Apresentações, Câmeras, Calendário)</li>
+      <li><kbd>A</kbd> aviso na tela · <kbd>F1</kbd> manual · <kbd>F11</kbd> painel em tela cheia</li>
+      <li>Na busca de orações, <kbd>Enter</kbd> abre a primeira encontrada</li>
+      <li><kbd>Ctrl</kbd>+<kbd>F</kbd> localizar em tudo: <kbd>↑</kbd> <kbd>↓</kbd> escolhem, <kbd>Enter</kbd> abre, <kbd>Ctrl</kbd>+<kbd>Enter</kbd> coloca no roteiro</li>
+      <li><kbd>Ctrl</kbd>+<kbd>I</kbd> (ou <kbd>Insert</kbd>) inserir no roteiro: digite "bênção", "comunhão", "leitura"… e <kbd>Enter</kbd></li>
+    </ul>
+    <div class="linha"><span class="espaco"></span><button value="ok" class="primario">OK</button></div>
+  </form>
+</dialog>
+
+<!-- ============ Sobre ============ -->
+<dialog id="dlgSobre">
+  <form method="dialog" class="form sobre">
+    <img src="img/logo.svg" alt="MiguelAngelus" class="logo-boas-vindas">
+    <p>Software de projeção pensado para a <b>liturgia católica</b>: Bíblia com 73 livros, roteiro da Missa,
+      folheto da Arquidiocese, orações, cantos, vídeo e áudio.</p>
+    <p class="sutil"><b>Miguel</b> + <b>Angelus</b> ("anjo", em latim): uma homenagem ao Miguel, que idealizou e criou
+      esse projeto, e a <b>São Miguel Arcanjo</b>, cuja festa foi na semana em que o programa nasceu. 😇</p>
+    <div class="creditos">
+      <div class="credito"><img class="foto" src="img/foto-miguel.webp" alt="Miguel">
+        <div><span class="sutil pequeno">Criado por</span><b>Miguel Aurelio Dutra Martins</b></div></div>
+      <div class="credito"><img class="foto" src="img/foto-marcio.webp" alt="Marcio">
+        <div><span class="sutil pequeno">Desenvolvido por</span><b>Marcio Aurelio Rios Martins</b></div></div>
+    </div>
+    <div class="sobre-brasoes">
+      <figure><img src="img/brasao-paroquia.webp" alt="Brasão da Paróquia São José Operário"><figcaption>Paróquia São José Operário (RJ)</figcaption></figure>
+    </div>
+    <!-- redes da paróquia e site do MiguelAngelus (abrem no navegador do Windows) -->
+    <div class="sobre-redes">
+      <a href="https://www.instagram.com/saojoseoperarioilha/" target="_blank" rel="noopener" class="ig" title="Instagram da Paróquia São José Operário">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.3" fill="currentColor"/></svg>@saojoseoperarioilha</a>
+      <a href="https://www.facebook.com/saojoseoperarioilha" target="_blank" rel="noopener" class="fb" title="Facebook da Paróquia São José Operário">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.5 21v-7.6h2.6l.4-3h-3V8.5c0-.9.3-1.5 1.6-1.5h1.6V4.3c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.2H7.9v3h2.6V21z"/></svg>saojoseoperarioilha</a>
+      <a href="https://www.youtube.com/@SaoJos%C3%A9Oper%C3%A1rioIlha" target="_blank" rel="noopener" class="yt" title="YouTube da Paróquia São José Operário">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.6 7.2a2.6 2.6 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.6 2.6 0 0 0 2.4 7.2 27 27 0 0 0 2 12a27 27 0 0 0 .4 4.8 2.6 2.6 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.6 2.6 0 0 0 1.8-1.8A27 27 0 0 0 22 12a27 27 0 0 0-.4-4.8zM10 15V9l5.2 3z"/></svg>São José Operário Ilha</a>
+      <a href="https://pascom-sjo.github.io/" target="_blank" rel="noopener" class="site" title="Site do MiguelAngelus">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>pascom-sjo.github.io</a>
+      <a href="https://www.youtube.com/@MiguelAngelusapp" target="_blank" rel="noopener" class="tut" title="Vídeos tutoriais do MiguelAngelus no YouTube">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9.2v5.6l4.6-2.8z" fill="currentColor"/></svg>Vídeos tutoriais</a>
+      <a href="mailto:contato.miguelangelus@gmail.com" target="_blank" rel="noopener" class="mail" title="E-mail do MiguelAngelus: dúvidas, sugestões e outras paróquias">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 6.5 12 13l8.5-6.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>contato.miguelangelus@gmail.com</a>
+    </div>
+    <p class="sutil pequeno" id="versaoApp">Versão 1.8.10</p>
+    <div class="linha"><span class="espaco"></span><button value="ok" class="primario">OK</button></div>
+  </form>
+</dialog>
+
+<!-- ============ Senha do Pix (4 dígitos; o programa guarda só o hash) ============ -->
+<dialog id="dlgPin">
+  <form method="dialog" class="form" id="formPin" autocomplete="off">
+    <h2 id="pinTitulo">Senha do Pix</h2>
+    <p class="sutil pequeno" id="pinTexto"></p>
+    <input id="pinCampo" type="password" inputmode="numeric" pattern="\d{4}" maxlength="4" autocomplete="off"
+      class="pin-campo" aria-label="Senha de 4 números">
+    <input id="pinCampo2" type="password" inputmode="numeric" pattern="\d{4}" maxlength="4" autocomplete="off"
+      class="pin-campo" aria-label="Repita a senha" placeholder="repita" hidden>
+    <p class="erro pequeno" id="pinErro"></p>
+    <div class="linha"><span class="espaco"></span><button value="cancelar" type="button" id="pinCancelar">Cancelar</button>
+      <button value="ok" class="primario" id="pinOk">OK</button></div>
+  </form>
+</dialog>
+
+<!-- ============ Novidades (o que mudou em cada versão) ============ -->
+<dialog id="dlgNovidades">
+  <form method="dialog" class="form">
+    <h2 id="novTitulo">Novidades</h2>
+    <div id="novCorpo" class="nov-corpo"></div>
+    <div class="linha"><span class="espaco"></span><button value="ok" class="primario">OK</button></div>
+  </form>
+</dialog>
+
+<!-- ============ Editor de canto ============ -->
+<dialog id="dlgCanto">
+  <form id="formCanto" method="dialog" class="form">
+    <h2>Canto</h2>
+    <label class="campo">Título
+      <span class="linha"><input name="titulo" required><button type="button" id="btnProcurarNome" title="Pesquisar o nome da música na internet pela primeira linha da letra">Procurar nome</button></span>
+    </label>
+    <div class="linha">
+      <label class="campo">Autor <input name="autor" placeholder="Ex.: Comunidade Shalom"></label>
+      <label class="campo">CD / álbum <input name="cd" placeholder="Ex.: Na Dança da Vida"></label>
+      <label class="campo">Momento da Missa <select name="momento"></select></label>
+      <label class="campo estreito" style="max-width:80px">Tom <input name="tom" placeholder="G"></label>
+      <label class="check" title="Os favoritos aparecem primeiro na aba Cantos e na escolha do canto do roteiro"><input type="checkbox" name="favorito"> ⭐ Favorito</label>
+    </div>
+    <div class="dica-colar">
+      <span>Copiou a letra da internet ou do Holyrics? Cole tudo em <b>Estrofes</b> e clique em
+        <b>Organizar</b>: cifras saem, o refrão e o autor são separados sozinhos.</span>
+      <button type="button" id="btnOrganizar">Organizar</button>
+    </div>
+    <label class="campo">Refrão <small class="sutil">— opcional; aparece depois de cada estrofe e, conforme abaixo, também no começo</small>
+      <textarea name="refrao" rows="4"></textarea>
+    </label>
+    <label class="campo comeca-por">O canto começa
+      <select name="comecaPor">
+        <option value="refrao">pelo refrão (refrão → estrofe → refrão…)</option>
+        <option value="estrofe">pela 1ª estrofe (estrofe → refrão → estrofe…)</option>
+      </select>
+    </label>
+    <label class="campo">Estrofes / letra <small class="sutil">— deixe uma linha em branco entre um slide e outro</small>
+      <textarea name="letra" rows="14"></textarea>
+    </label>
+    <details id="cxCifra" class="cx-cifra">
+      <summary>🎸 Cifra para os músicos <small class="sutil">— acordes em cima da letra; aparece no app dos músicos</small></summary>
+      <textarea name="cifra" rows="14" class="cifra-edit" spellcheck="false" placeholder="Cole aqui a cifra (acordes em cima da letra), por exemplo:&#10;&#10;G          D/F#      Em&#10;Santo, Santo, Santo é o Senhor"></textarea>
+      <div class="linha"><button type="button" id="btnLetraDaCifra" title="Monta o refrão e as estrofes (para o telão) a partir da letra que está na cifra">Montar a letra a partir da cifra</button>
+        <span class="sutil pequeno">Use quando o canto ainda não tem letra, ou a letra cantada é diferente.</span></div>
+    </details>
+    <details id="cxPartitura" class="cx-cifra">
+      <summary>🎼 Partitura para os músicos <small class="sutil">— PDF ou imagem; aparece no app dos músicos</small></summary>
+      <div class="linha">
+        <button type="button" id="btnPartCarregar" title="PDF do folheto (escolha as páginas deste canto), foto ou imagem da partitura. Também dá para arrastar o arquivo para cá.">Carregar PDF ou imagem…</button>
+        <button type="button" id="btnPartApagar" class="perigo" hidden>Tirar a partitura</button>
+        <input type="file" id="arqPartitura" accept=".pdf,application/pdf,image/*" multiple hidden>
+        <span class="sutil pequeno">No app dos músicos, cada um escolhe ver a cifra ou a partitura.</span>
+      </div>
+      <div id="partPaginas" class="part-paginas"></div>
+    </details>
+    <div class="linha">
+      <button type="button" id="btnExcluirCanto" class="perigo">Excluir</button>
+      <span class="espaco"></span>
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="salvar" class="primario">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ 🎼 Partitura: escolher as páginas do PDF (1.8.6) ============ -->
+<dialog id="dlgPartPdf" class="dlg-part-pdf">
+  <form method="dialog" class="form">
+    <h2>Páginas da partitura</h2>
+    <p class="sutil pequeno"><b id="partPdfNome"></b> — toque nas páginas deste canto (as que têm o título dele já vêm marcadas). As margens brancas saem sozinhas.</p>
+    <div id="partPdfGrade" class="part-pdf-grade"></div>
+    <div class="linha"><span class="espaco"></span>
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="usar" id="partPdfUsar" class="primario" disabled>Marque as páginas</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgPartFolheto" class="dlg-part-folheto">
+  <form method="dialog" class="form">
+    <h2>🎼 Partituras do folheto</h2>
+    <p class="sutil pequeno">O PDF com as partituras do domingo inteiro (por exemplo, “Partituras” do Folheto Povo de Deus, da Arquidiocese de São Paulo).
+      O MiguelAngelus separa as músicas pelo título e liga cada uma ao canto do roteiro aberto (<b id="partFolRoteiro"></b>) ou a um canto do acervo.
+      Confira as escolhas e clique em <b>Guardar</b>: os músicos passam a ver a partitura no celular (Cifra | Partitura).</p>
+    <div class="linha">
+      <button type="button" id="btnPartFolArq">📂 Abrir PDF…</button>
+      <button type="button" id="btnPartFolSite" title="Lista os PDFs de partituras publicados em arquisp.org.br/folheto-povo-de-deus">🌐 Baixar do site da Arquidiocese de SP</button>
+      <span class="espaco"></span>
+    </div>
+    <input type="file" id="arqPartFolheto" accept=".pdf,application/pdf" hidden>
+    <div id="partFolSiteLista" class="fol-lista" hidden></div>
+    <div id="partFolLista" class="part-fol-lista"></div>
+    <div class="linha"><span class="espaco"></span>
+      <button value="fechar" formnovalidate>Fechar</button>
+      <button type="button" id="btnPartFolGuardar" class="primario" disabled>Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Editor de oração ============ -->
+<dialog id="dlgOrdinario">
+  <form id="formOrdinario" method="dialog" class="form">
+    <h2>✎ <span id="ordTitulo"></span> <small class="sutil">— parte fixa da Missa</small></h2>
+    <p class="sutil pequeno">O texto salvo aqui vale para <b>todos os roteiros</b> e vai para os outros computadores pela nuvem.
+      Linha em branco separa os slides; comece a linha com <b>—</b> para a resposta do povo.</p>
+    <p id="ordAviso" class="status" hidden>Este texto já foi editado. <b>Restaurar</b> volta ao texto original do programa.</p>
+    <textarea id="ordTexto" rows="14"></textarea>
+    <details><summary class="sutil pequeno">Ver o texto original do programa</summary><pre id="ordOriginal" class="sutil pequeno" style="white-space:pre-wrap"></pre></details>
+    <div class="linha">
+      <button id="ordRestaurar" value="restaurar" formnovalidate>Restaurar original</button>
+      <span class="espaco"></span>
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="salvar" class="primario">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgOracao">
+  <form id="formOracao" method="dialog" class="form">
+    <h2>Oração</h2>
+    <div class="linha">
+      <label class="campo">Título <input name="titulo" required></label>
+      <label class="campo">Categoria <select name="categoria" id="categoriasOracao"></select></label>
+    </div>
+    <label class="campo">Texto
+      <small class="sutil">— linha em branco separa os slides; comece a linha com <b>—</b> para a resposta do povo (fica em negrito)</small>
+      <textarea name="texto" rows="16"></textarea>
+    </label>
+    <div class="linha">
+      <button type="button" id="btnExcluirOracao" class="perigo">Excluir</button>
+      <span class="espaco"></span>
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="salvar" class="primario">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Versão do terço (1.7.3) ============ -->
+<dialog id="dlgTercoVersao">
+  <form id="formTercoVersao" method="dialog" class="form terco-versao">
+    <h2>📿 Versão do terço</h2>
+    <p class="sutil pequeno">O que ficar <b>vazio</b> é o do terço tradicional. Linha em branco separa os slides; comece a linha com
+      <b>P.</b>, <b>T.</b>, <b>L.</b> ou <b>—</b> para quem fala.</p>
+    <div class="linha">
+      <label class="campo">Nome <input name="nome" required placeholder="Ex.: pelos Filhos, da Misericórdia"></label>
+      <label class="campo">Mistérios <select name="grupo">
+        <option value="">os do dia</option><option value="gozosos">sempre os Gozosos</option><option value="luminosos">sempre os Luminosos</option>
+        <option value="dolorosos">sempre os Dolorosos</option><option value="gloriosos">sempre os Gloriosos</option></select></label>
+    </div>
+    <label class="campo">Abertura <small class="sutil">— vazio: Sinal da cruz, Creio, Pai-Nosso, 3 Ave-Marias e Glória</small>
+      <textarea name="abertura" rows="5"></textarea></label>
+    <details class="tv-med"><summary>Cada mistério (ou dezena) <small class="sutil">— título próprio e meditação, opcionais</small></summary>
+      <p class="sutil pequeno">Com <b>título</b>, a parte vira uma dezena de tema próprio ("1ª Dezena — Nazaré: Escola da vocação"), no lugar do mistério do dia. A <b>meditação</b> vem depois do anúncio.</p>
+      <label class="campo">1º — título <small class="sutil">(opcional)</small><input name="tit1" placeholder="vazio: o 1º mistério do dia"></label>
+      <label class="campo">1º — meditação <textarea name="med1" rows="4"></textarea></label>
+      <label class="campo">2º — título <small class="sutil">(opcional)</small><input name="tit2" placeholder="vazio: o 2º mistério do dia"></label>
+      <label class="campo">2º — meditação <textarea name="med2" rows="4"></textarea></label>
+      <label class="campo">3º — título <small class="sutil">(opcional)</small><input name="tit3" placeholder="vazio: o 3º mistério do dia"></label>
+      <label class="campo">3º — meditação <textarea name="med3" rows="4"></textarea></label>
+      <label class="campo">4º — título <small class="sutil">(opcional)</small><input name="tit4" placeholder="vazio: o 4º mistério do dia"></label>
+      <label class="campo">4º — meditação <textarea name="med4" rows="4"></textarea></label>
+      <label class="campo">5º — título <small class="sutil">(opcional)</small><input name="tit5" placeholder="vazio: o 5º mistério do dia"></label>
+      <label class="campo">5º — meditação <textarea name="med5" rows="4"></textarea></label>
+    </details>
+    <div class="linha">
+      <label class="campo">Conta maior <small class="sutil">— vazio: Pai-Nosso</small><textarea name="contaMaior" rows="3"></textarea></label>
+      <label class="campo">Contas menores (10×) <small class="sutil">— vazio: Ave-Maria</small><textarea name="contasMenores" rows="3"></textarea></label>
+    </div>
+    <label class="check"><input type="checkbox" name="gloria"> Glória ao Pai depois da dezena (e a oração escolhida em "Depois do Glória")</label>
+    <label class="campo">Depois da dezena, também <small class="sutil">— opcional</small><textarea name="depois" rows="2"></textarea></label>
+    <label class="campo">Encerramento <small class="sutil">— vazio: Salve-Rainha (e Ladainha, se marcada) e Sinal da cruz</small><textarea name="final" rows="3"></textarea></label>
+    <div class="linha">
+      <button type="button" id="btnTercoVersaoExcluir" class="perigo">Excluir</button>
+      <span class="espaco"></span>
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="salvar" class="primario">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Liturgia do dia (Paulus) ============ -->
+<dialog id="dlgLiturgia">
+  <form id="formLiturgia" method="dialog" class="form">
+    <h2>📖 Liturgia do dia</h2>
+    <div id="litAuto" class="linha lit-auto">
+      <label class="campo">Dia <input type="date" id="litBuscaData"></label>
+      <button type="button" id="btnBuscarPaulus" class="primario">🌐 Buscar a liturgia</button>
+      <span class="sutil pequeno" style="flex:1">Busca sozinha as leituras na fonte escolhida nos Ajustes (📖 Bíblia), com a outra de reserva (precisa de internet). Se preferir, copie e cole como abaixo.</span>
+    </div>
+    <p class="sutil pequeno lit-fontes">Fontes: as leituras, o salmo e a aclamação vêm da <a href="https://www.paulus.com.br/portal/liturgia-diaria/" target="_blank">Liturgia Diária da Paulus</a>
+      (ou, se escolhida nos Ajustes ou de reserva, da API abaixo, que não traz a aclamação);
+      as orações do dia (Coleta, sobre as Oferendas, depois da Comunhão) e a Antífona da Comunhão vêm da
+      <a href="https://github.com/Dancrf/liturgia-diaria" target="_blank">API Liturgia Diária, de Dancrf</a> (projeto livre e gratuito). O MiguelAngelus só busca os textos na hora; nada fica guardado no programa.</p>
+    <ol class="lit-passos">
+      <li><button type="button" id="btnAbrirPaulus" class="primario">Abrir a Liturgia Diária (Paulus) ↗</button>
+        <span class="sutil">e escolha o dia na página (setas "Dia anterior / próximo").</span></li>
+      <li>Na página, aperte <kbd>Ctrl</kbd>+<kbd>A</kbd> e depois <kbd>Ctrl</kbd>+<kbd>C</kbd>.</li>
+      <li>Volte aqui e cole no quadro abaixo (<kbd>Ctrl</kbd>+<kbd>V</kbd>).</li>
+    </ol>
+    <textarea id="litTexto" rows="5" placeholder="Cole aqui a página da Liturgia Diária…"></textarea>
+    <div id="litResumo" class="lit-resumo"></div>
+    <div class="linha">
+      <label class="campo">Data <input type="date" id="litData"></label>
+      <label class="check"><input type="checkbox" id="litOE2"> Incluir a Oração Eucarística II com o prefácio próprio</label>
+    </div>
+    <div class="separador">Celebrações deste dia (Agenda)</div>
+    <div id="litCelebracoes" class="dist-lista"></div>
+    <p class="sutil pequeno">Cada celebração marcada ganha um roteiro com o modelo de Missa, as antífonas, as leituras, o salmo, a aclamação e as orações do dia. Os cantos ficam para você escolher.</p>
+    <div class="linha">
+      <span class="espaco"></span>
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="montar" id="btnLitMontar" class="primario" disabled>Montar roteiro(s)</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Texto de oração eucarística / prefácio ============ -->
+<dialog id="dlgTextoEuc">
+  <form id="formTextoEuc" method="dialog" class="form">
+    <h2 id="eucTitulo">Texto</h2>
+    <p id="eucOrigem" class="sutil pequeno"></p>
+    <textarea name="texto" rows="20" placeholder="Cole aqui o texto do Missal.&#10;&#10;Linha em branco separa os slides.&#10;— Linha começando com travessão é resposta do povo (fica em negrito)."></textarea>
+    <p class="sutil pequeno">Use o texto oficial do Missal Romano (CNBB). No prefácio, cole a partir de "Na verdade, é digno e justo…" até antes do Santo;
+      na oração, a partir de depois do Santo até o "Amém" final.</p>
+    <div class="linha">
+      <button type="button" id="btnEucApagar" class="perigo">Apagar texto</button>
+      <span class="espaco"></span>
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="salvar" class="primario">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Folheto → roteiros das celebrações ============ -->
+<dialog id="dlgDistribuir">
+  <form method="dialog" class="form">
+    <h2>Criar roteiros para as celebrações</h2>
+    <p class="sutil">Folheto: <b id="distTitulo"></b></p>
+    <div class="linha">
+      <label class="campo">Data da Missa <input type="date" id="distData"></label>
+      <span id="distAviso" class="status erro" style="flex:1"></span>
+    </div>
+    <p class="sutil pequeno">Cada celebração marcada ganha <b>o seu próprio roteiro</b>, uma cópia independente do folheto,
+      já com data, hora e local. Assim o responsável de cada Missa troca cantos, orações e avisos só no roteiro dela.</p>
+    <div id="distLista" class="dist-lista"></div>
+    <div class="linha">
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <span class="espaco"></span>
+      <button value="um" formnovalidate title="Como antes: um roteiro só, sem ligar às celebrações da Agenda">Só um roteiro, sem ligar à agenda</button>
+      <button value="criar" id="btnDistCriar" class="primario">Criar roteiros</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Nomes dos cantos novos do folheto ============ -->
+<dialog id="dlgNomes">
+  <form method="dialog" class="form">
+    <h2>Dê nome aos cantos novos</h2>
+    <p class="sutil pequeno">O folheto traz a letra, mas não o nome das músicas. Digite o nome de cada uma
+      (ou use <b>Procurar</b> para pesquisar pela primeira linha da letra). Isso só é feito uma vez:
+      quando o canto voltar num próximo folheto, o MiguelAngelus o reconhece pela letra e mantém o nome.</p>
+    <div id="listaNomes" class="lista-nomes"></div>
+    <div class="linha">
+      <span class="espaco"></span>
+      <button value="depois" formnovalidate>Deixar para depois</button>
+      <button value="salvar" class="primario">Salvar nomes</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast"></div>
+<dialog id="dlgAtualizacao">
+  <div class="form">
+    <h2 id="atuTitulo">Nova versão do MiguelAngelus</h2>
+    <p id="atuVersoes" class="sutil" style="margin:0"></p>
+    <div class="campo">O que mudou</div>
+    <pre id="atuNotas" class="atu-notas"></pre>
+    <p id="atuStatus" class="status" style="margin:0"></p>
+    <div class="linha" style="flex-wrap:wrap">
+      <button id="btnAtuPular" title="Não avisar mais desta versão">Pular esta versão</button>
+      <span class="espaco"></span>
+      <button id="btnAtuDepois">Depois</button>
+      <button id="btnAtuAgora" class="primario">Atualizar agora</button>
+    </div>
+    <p class="sutil pequeno" style="margin:0">O instalador só é usado se tiver a assinatura digital do MiguelAngelus. Os cantos, roteiros e ajustes continuam.</p>
+  </div>
+</dialog>
+
+<dialog id="dlgFechar">
+  <div class="form">
+    <h2>Fechar o MiguelAngelus</h2>
+    <p id="fecharInfo" style="margin:0"></p>
+    <progress id="fecharBarra" class="fechar-barra" hidden></progress>
+    <p id="fecharStatus" class="status" style="margin:0"></p>
+    <div class="linha" style="flex-wrap:wrap">
+      <button id="btnFecharCancelar">Cancelar</button>
+      <span class="espaco"></span>
+      <button id="btnFecharSem" title="Fecha agora; o que mudou aqui sobe para a nuvem na próxima vez que o programa estiver aberto">Fechar sem sincronizar</button>
+      <button id="btnFecharSync" class="primario">☁ Sincronizar e fechar</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="syncAbertura" class="sync-abertura" hidden><div><span class="sync-nuvem">☁</span><b>Sincronizando com a nuvem…</b>
+  <div id="syncProgresso" class="sutil" hidden><span></span></div></div></div>
+
+<script src="js/db.js"></script>
+<script src="js/liturgia.js"></script>
+<script src="js/biblia.js"></script>
+<script src="js/ordinario.js"></script>
+<script src="js/folheto.js"></script>
+<script src="js/midia.js"></script>
+<script src="js/oracoes.js"></script>
+<script src="js/tercodesenho.js"></script>
+<script src="js/terco.js"></script>
+<script src="js/agenda.js"></script>
+<script src="js/apresentacao.js"></script>
+<script src="js/temas.js"></script>
+<script src="js/roteiros.js"></script>
+<script src="js/eucaristia.js"></script>
+<script src="js/liturgiadia.js"></script>
+<script src="js/avisos.js"></script>
+<script src="js/avisosparoquiais.js"></script>
+<script src="js/impressao.js"></script>
+<script src="js/perfis.js"></script>
+<script src="js/historico.js"></script>
+<script src="js/localizar.js"></script>
+<script src="js/inserir.js"></script>
+<script src="js/apresentacoes.js"></script>
+<script src="js/calendario.js"></script>
+<script src="js/transmissao.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/ptz.js"></script>
+<script src="js/folhetosonline.js"></script>
+<script src="js/sincronia.js"></script>
+<script src="js/atualizacao.js"></script>
+<script src="js/novidades.js"></script>
+<script src="js/pix.js"></script>
+<script src="js/formatacao.js"></script>
+<script src="js/cowabunga.js"></script>
+<script src="js/cifras.js"></script>
+<script src="js/partituras.js"></script>
+<script src="lib/qrcode/qrcode.min.js"></script>
+<script src="js/celular.js"></script>
+<script src="js/links.js"></script>
+<script src="js/joystick.js"></script>
+<script src="js/aovivo.js"></script>
+<script src="js/classificacoes.js"></script>
+<script src="js/menus.js"></script>
+<script src="js/secretaria.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

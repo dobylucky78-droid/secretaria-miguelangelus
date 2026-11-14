@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>MiguelAngelus — Projeção</title>
+<link rel="icon" type="image/svg+xml" href="img/icone.svg">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+  body { cursor: none; font-family: "Segoe UI", Arial, sans-serif; }
+  body.preview, body.mostra-cursor { cursor: default; }
+  #fundo { position: fixed; inset: 0; background: #000 center / cover no-repeat; }
+  .canto { position: fixed; width: auto; max-width: 38vw; object-fit: contain; pointer-events: none; display: none; }
+  .canto.on { display: block; }
+  #canto-se { top: 2.5vh; left: 1.8vw; }
+  #canto-sd { top: 2.5vh; right: 1.8vw; }
+  #canto-ie { bottom: 0; left: 1vw; object-position: left bottom; }
+  #canto-id { bottom: 0; right: 1vw; object-position: right bottom; }
+  /* Terço (1.6.15): imagens nos cantos de baixo (no lugar das da comunidade) — o texto desvia delas como das outras */
+  #terco-ie { bottom: 1.5vh; left: 1.5vw; height: 34vh; max-width: 22vw; object-position: left bottom; }
+  #terco-id { bottom: 1.5vh; right: 1.5vw; height: 36vh; max-width: 22vw; object-position: right bottom; }
+  body.terco #canto-ie, body.terco #canto-id { display: none !important; }
+  body.terco #texto .contas { display: none; }     /* a dezena já aparece no desenho do terço */
+  #area { position: fixed; inset: 5vh 5vw 12vh; display: flex; align-items: center; justify-content: center; }
+  /* Slide com imagem (item "Imagem + texto") */
+  /* Câmera ao vivo (NDI Webcam / webcam): tela cheia; as imagens dos cantos continuam por cima */
+  #cam { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; display: none; }
+  body.camera #cam { display: block; }
+  /* (1.7.6) transição suave: a câmera e o vídeo aparecem e somem devagar (Ajustes → Aparência do telão → Transição) */
+  body.camera #cam, #video.on { animation: aparecer var(--trans, .14s) ease both; }
+  #cam.saindo, #video.saindo { animation: none; opacity: 0; transition: opacity var(--trans, .14s) ease; }
+  @keyframes aparecer { from { opacity: 0; } }
+  /* com a câmera no ar, as imagens dos cantos de baixo (padroeiro, logos) saem para não cobrir a imagem; as de cima ficam */
+  body.camera #canto-ie, body.camera #canto-id { display: none; }
+  body.camera.sem-letra #area, body.camera.sem-letra #rodape { visibility: hidden; }
+  /* "Letra por cima": o slide vira uma faixa na parte de baixo, sobre a câmera */
+  body.camera.com-letra #area { inset: auto 0 3vh 0; height: 27vh; padding: 1.2vh 5vw; background: rgba(0, 0, 0, .55); box-sizing: border-box; }
+  body.camera.com-letra #area:has(#texto:empty) { background: transparent; }
+  body.camera.com-letra #rodape { display: none; }
+  #imgSlide { position: fixed; display: none; object-fit: contain; transition: opacity var(--trans, .14s) ease; }
+  #veu { position: fixed; inset: 0; display: none; background: #000; pointer-events: none; }
+  body.lay-esquerda #imgSlide, body.lay-direita #imgSlide { display: block; top: 5vh; bottom: 12vh; width: 44vw; height: 83vh; }
+  body.lay-esquerda #imgSlide { left: 4vw; }
+  body.lay-esquerda #area { left: 51vw; right: 4vw; }
+  body.lay-direita #imgSlide { right: 4vw; }
+  body.lay-direita #area { left: 4vw; right: 51vw; }
+  body.lay-acima #imgSlide { display: block; top: 4vh; left: 5vw; width: 90vw; height: 52vh; }
+  body.lay-acima #area { top: 58vh; }
+  body.lay-fundo #imgSlide, body.lay-so #imgSlide { display: block; inset: 0; width: 100%; height: 100%; }
+  body.lay-fundo #imgSlide { object-fit: cover; }
+  body.lay-fundo #veu { display: block; }
+  body.lay-so #area, body.lay-so #rodape { display: none; }
+  /* "Capa do folheto" (slide de abertura): fundo branco, ilustração à direita, título vermelho e linha azul em letra serifada */
+  #papel { position: fixed; inset: 0; background: #fff; display: none; }
+  body.lay-capa #papel { display: block; }
+  body.lay-capa #imgSlide { display: block; top: 4vh; right: 3vw; width: 47vw; height: 92vh; }
+  body.lay-capa #area { left: 4vw; right: 52vw; top: 8vh; bottom: 8vh; }
+  body.lay-capa #rodape { display: none; }
+  body.lay-capa #texto { color: #1a1a1a; font-family: Georgia, "Times New Roman", serif; line-height: 1.15;
+    text-align: center !important; text-align-last: center !important; text-shadow: none !important; -webkit-text-stroke: 0 !important; }
+  #texto .capa-ed { display: block; font-size: .36em; color: #222; margin-bottom: .9em; font-family: "Segoe UI", Arial, sans-serif; }
+  #texto .capa-tit { display: block; color: #c4161c; font-weight: 600; }
+  #texto .capa-sub { display: block; color: #1d4f9c; font-size: .56em; margin-top: .6em; }
+  /* Pix da paróquia POR CIMA do que está passando (como a câmera): cartão branco com a faixa do CNPJ em cima e o
+     QR code embaixo. Sem câmera: o cartão ocupa o alto e os slides continuam, menores, na faixa de baixo.
+     Com câmera: o cartão fica menor no alto (o QR code continua grande o bastante para o celular ler). */
+  :root { --pix-cartao: 64vh; --pix-qr-cam: 36vh; --pix-faixa-cam: 11vh; }   /* tamanhos: Ajustes → 💠 Pix */
+  #pixCaixa { position: fixed; left: 50%; transform: translateX(-50%); top: 2.5vh; height: var(--pix-cartao); z-index: 4; display: none;
+    flex-direction: column; align-items: center; gap: 1.2vh; padding: 1.4vh 1.4vh 1.8vh; background: #fff; border-radius: 1.6vh;
+    box-shadow: 0 .6vh 2.4vh rgba(0,0,0,.45); box-sizing: border-box; }
+  body.pix-on #pixCaixa { display: flex; }
+  /* 🌐 "Acompanhe no celular": cartão no canto de baixo, por cima de tudo (o slide continua) */
+  #qrAoVivo { position: fixed; right: 2vw; bottom: 3vh; z-index: 6; display: none; align-items: center; gap: 1.4vw; padding: 1.2vh 1.4vw 1.2vh 1.2vh;
+    background: #fff; color: #111; border-radius: 1.6vh; box-shadow: 0 .8vh 3vh rgba(0,0,0,.45); font-family: "Segoe UI", sans-serif; }
+  #qrAoVivo.on { display: flex; }
+  #qrAoVivo img { width: 19vh; height: 19vh; image-rendering: pixelated; display: block; }
+  #qrAoVivo .av-t { font-size: 2.6vh; font-weight: 700; line-height: 1.25; }
+  #qrAoVivo .av-l { font-size: 2vh; color: #444; margin-top: .6vh; }
+  #qrAoVivo .av-c { font: 700 3.6vh Consolas, monospace; letter-spacing: .18em; color: #0f2347; margin-top: .4vh; }
+  #pixCaixa .pix-faixa { height: calc(var(--pix-cartao) * .16); max-width: 80vw; object-fit: contain; flex: none; }
+  #pixCaixa .pix-qr { flex: 1 1 auto; min-height: 0; aspect-ratio: 1; object-fit: contain; image-rendering: pixelated; }
+  body.pix-on:not(.camera) #imgSlide, body.pix-on:not(.camera) #rodape { display: none !important; }
+  /* com a câmera: faixa no canto superior esquerdo, QR code no canto superior direito; sem as imagens dos cantos */
+  body.pix-on.camera .canto { display: none !important; }
+  body.pix-on.camera #pixCaixa { left: 2vw; right: 2vw; top: 2.5vh; transform: none; height: auto; padding: 0; gap: 2vw;
+    flex-direction: row; justify-content: space-between; align-items: flex-start; background: transparent; box-shadow: none; }
+  body.pix-on.camera #pixCaixa img { background: #fff; border-radius: 1.2vh; box-shadow: 0 .6vh 2.4vh rgba(0,0,0,.45); box-sizing: border-box; }
+  body.pix-on.camera #pixCaixa .pix-faixa { height: var(--pix-faixa-cam); max-width: 62vw; padding: .8vh; }
+  body.pix-on.camera #pixCaixa .pix-qr { flex: none; height: var(--pix-qr-cam); width: var(--pix-qr-cam); padding: 1.2vh; }
+  #texto { max-width: 100%; line-height: 1.22; color: #fff; text-align: center; transition: opacity var(--trans, .14s) ease; overflow-wrap: break-word; }
+  #texto sup { font-size: .5em; opacity: .75; margin-right: .15em; vertical-align: .6em; }
+  #texto .resp { font-weight: 700; }
+  #texto .entre { display: block; height: .45em; }
+  #texto .quem { font-weight: 700; color: var(--cor-quem, #ff5a4f); }
+  #texto .cruz { color: var(--cor-cruz, #c8102e); font-weight: 400; font-family: "Segoe UI Symbol", "Segoe UI", sans-serif; }
+  #texto .cruz.latina svg { height: .8em; width: auto; vertical-align: -.04em; filter: var(--sombra-cruz, none); }
+  #texto .vn { color: var(--cor-quem, #ff5a4f); font-weight: 700; margin-right: .12em; }
+  #texto .tit-sec { display: block; color: var(--cor-secao, #5aa9ff); font-weight: 700; font-size: .62em; margin-bottom: .35em;
+    text-align: center; text-align-last: center; }
+  font.m-vermelho { color: #c8102e; } font.m-dourado { color: #f2c14e; } font.m-azul { color: #5aa9ff; } font.m-verde { color: #5cc46a; }
+  font.m-roxo { color: #b57cf0; } font.m-branco { color: #fff; } font.m-preto { color: #111; }
+  big.m-g { font-size: 1.3em; } small.m-pq { font-size: .75em; }
+  /* título: um bloco centralizado (o justificado do telão não espalha as palavras dele) */
+  big.m-gg { font-size: 1.7em; line-height: 1.1; display: inline-block; max-width: 100%; text-align: center; text-align-last: center; }
+  /* Terço: a dezena de contas embaixo da Ave-Maria; a da vez acesa, as já rezadas cheias, as que faltam vazias */
+  #texto .contas { display: flex; justify-content: center; align-items: center; gap: .42em; margin-top: .55em; font-size: .62em; }
+  #texto .conta { width: .9em; height: .9em; border-radius: 50%; border: .12em solid currentColor; opacity: .45; box-sizing: border-box; flex: none; }
+  #texto .conta.feita { background: currentColor; opacity: .7; }
+  #texto .conta.agora { width: 1.35em; height: 1.35em; border: 0; opacity: 1; background: var(--cor-quem, #ff5a4f);
+    box-shadow: 0 0 .5em var(--cor-quem, #ff5a4f); }
+  #rodape { position: fixed; left: 5vw; right: 5vw; bottom: 3.5vh; text-align: center; font-size: 3.3vh; color: #fff; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity var(--trans, .14s) ease; }
+  #video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; display: none; }
+  #video.on { display: block; }
+  #aviso-som { position: fixed; bottom: 2vh; left: 50%; transform: translateX(-50%); background: rgba(160,30,30,.92); color: #fff; font: 15px "Segoe UI", sans-serif; padding: 8px 14px; border-radius: 8px; display: none; z-index: 6; }
+  #preto { position: fixed; inset: 0; background: #000; opacity: 0; transition: opacity .25s ease; pointer-events: none; z-index: 6; }
+  #preto.on { opacity: 1; }
+  #dica { position: fixed; top: 2vh; left: 50%; transform: translateX(-50%); background: rgba(20,22,26,.92); color: #eee; font: 15px "Segoe UI", sans-serif; padding: 10px 16px; border-radius: 8px; transition: opacity .6s; z-index: 5; text-align: center; }
+  #dica.fora { opacity: 0; pointer-events: none; }
+  body.preview #dica { display: none; }
+  /* Aviso na tela: faixa por cima de tudo (letra, vídeo e até a tela preta) */
+  #aviso { position: fixed; left: 0; right: 0; top: 0; z-index: 8; display: flex; align-items: center; justify-content: center; gap: 1.6vw;
+    padding: 2.2vh 4vw; background: rgba(176, 28, 28, .95); color: #fff; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700;
+    font-size: 5.2vh; line-height: 1.2; text-align: center; box-shadow: 0 .6vh 2.5vh rgba(0,0,0,.6);
+    transform: translateY(-110%); transition: transform .35s ease; }
+  #aviso.baixo { top: auto; bottom: 0; transform: translateY(110%); box-shadow: 0 -.6vh 2.5vh rgba(0,0,0,.6); }
+  #aviso.on { transform: none; }
+  #aviso .ic { font-size: 1.25em; }
+  /* Tela de Avisos paroquiais (item "Avisos"): título numa faixa colorida e cada aviso num cartão */
+  .canto { z-index: 2; }
+  #avisosTela { position: fixed; inset: 0; z-index: 1; display: none; flex-direction: column; align-items: center;
+    gap: 3.5vh; padding: 4.5vh 5vw 6vh; box-sizing: border-box; transition: opacity var(--trans, .14s) ease; }
+  body.avisos-on #avisosTela { display: flex; }
+  body.avisos-on #area, body.avisos-on #rodape, body.avisos-on #imgSlide, body.avisos-on #papel { display: none !important; }
+  body.camera.avisos-on #avisosTela.sem-fundo { background: rgba(0, 0, 0, .6) !important; }
+  .avt-cab { display: flex; align-items: center; gap: .45em; max-width: 100%; padding: .28em 1.1em; border-radius: 999px; flex: none;
+    background: var(--avt-cor); color: var(--avt-cor-txt); font-weight: 800; font-size: 8.5vh; line-height: 1.1; letter-spacing: .05em;
+    text-transform: uppercase; box-shadow: 0 .8vh 2.6vh rgba(0,0,0,.4); animation: avtEntra .5s ease both; white-space: nowrap; }
+  .avt-cab .avt-ic { font-size: 1.05em; }
+  .avt-lista { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; flex-direction: column; justify-content: center; gap: .55em;
+    font-size: 6vh; line-height: 1.22; }
+  .avt-item { position: relative; padding: .45em .8em .45em 1.1em; border-radius: .35em; text-align: left; overflow-wrap: break-word;
+    background: color-mix(in srgb, currentColor 10%, transparent); border-left: .32em solid var(--avt-cor); animation: avtEntra .5s ease both; }
+  .avt-item:nth-child(2) { animation-delay: .08s; } .avt-item:nth-child(3) { animation-delay: .16s; } .avt-item:nth-child(n+4) { animation-delay: .24s; }
+  .avt-pag { position: absolute; right: 2.5vw; bottom: 2vh; font-size: 2.6vh; opacity: .65; }
+  @keyframes avtEntra { from { opacity: 0; transform: translateY(1.2vh); } }
+  body.preview .avt-cab, body.preview .avt-item { animation: none; }
+  #aviso.pisca { animation: pisca .55s ease-in-out 4; }
+  /* miniatura (Ajustes / Apresentação): limite das margens pontilhado; área do texto tracejada */
+  #limites { position: fixed; z-index: 9; border: 1px dotted rgba(242,193,78,.9); pointer-events: none; box-sizing: border-box; }
+  body.mini #area { outline: 2px dashed #f2c14e; outline-offset: -1px; }
+  .ct-caixa { position: fixed; z-index: 9; border: 2px dashed rgba(90,169,255,.95); pointer-events: none; box-sizing: border-box; }
+  body.mini #rodape { opacity: .55; }
+  body.fundo-proprio #texto, body.fundo-proprio #rodape { color: #fff !important; text-shadow: 0 .25vh .9vh rgba(0,0,0,.95), 0 0 .3vh rgba(0,0,0,.8) !important; }
+  body.mudo #area, body.mudo #rodape, body.mudo #imgSlide, body.mudo #veu, body.mudo #papel, body.mudo #avisosTela { visibility: hidden !important; }
+  @keyframes pisca { 50% { background: rgba(255, 196, 0, .97); color: #1a1000; } }
+</style>
+</head>
+<body>
+<div id="fundo"></div>
+<div id="papel"></div>
+<video id="cam" autoplay muted playsinline></video>
+<img id="canto-se" class="canto" alt="">
+<img id="canto-sd" class="canto" alt="">
+<img id="canto-ie" class="canto" alt="">
+<img id="canto-id" class="canto" alt="">
+<!-- terço (1.6.15): Nossa Senhora à esquerda e o terço que se preenche à direita, no lugar das imagens de baixo -->
+<img id="terco-ie" class="canto" alt="">
+<img id="terco-id" class="canto" alt="">
+<img id="imgSlide" alt="">
+<div id="veu"></div>
+<div id="avisosTela"></div>
+<div id="pixCaixa"></div>
+<div id="qrAoVivo"></div>
+<div id="area"><div id="texto"></div></div>
+<div id="rodape"></div>
+<video id="video" playsinline preload="auto"></video>
+<div id="aviso-som">O navegador bloqueou o som: clique uma vez nesta janela.</div>
+<div id="preto"></div>
+<div id="aviso"><span class="ic"></span><span class="txt"></span></div>
+<div id="dica">Arraste esta janela para o telão e <b>clique duas vezes</b> para tela cheia.<br>As setas do teclado também funcionam aqui.</div>
+
+<script src="js/tercodesenho.js"></script>
+<script>
+'use strict';
+const PREVIEW = new URLSearchParams(location.search).has('preview');
+// Miniatura do telão nos Ajustes ('margens') e no editor de Apresentação ('layout'): o mesmo cálculo do telão, com o
+// limite das margens (pontilhado) e a área que o texto ocupou de fato (tracejado) por cima
+const MINI = new URLSearchParams(location.search).get('mini') || '';
+// (1.7.2) 'edicao': prévia das janelas de editar — igual ao telão, sem as linhas-guia das margens
+const GUIAS = !!MINI && MINI !== 'edicao';
+const alvo = PREVIEW ? window.parent : window.opener;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+if (PREVIEW) document.body.classList.add('preview');
+if (GUIAS) {
+  document.body.classList.add('mini');
+  const lim = document.createElement('div'); lim.id = 'limites'; document.body.appendChild(lim);
+}
+// No aplicativo, o programa já põe esta janela no telão (a dica de arrastar só aparece se houver um monitor só)
+if (window.chrome && window.chrome.webview) $('dica').innerHTML = 'Só há um monitor ligado: esta janela abriu aqui.<br>Ligue o telão e abra a projeção de novo, ou <b>clique duas vezes</b> para tela cheia.';
+
+let cfg = {}, slide = null, chaveAtual = '', timer = 0;
+
+// Capa do folheto: 1ª linha = título (vermelho); as outras em azul; a linha da edição ("Ano A – nº 48 – …" ou só a data) vai em cima, pequena
+function htmlCapa(s) {
+  const ehEdicao = l => /^Ano [ABC]\b|\b\d{1,2} de [a-zç]+ de \d{4}$/i.test(l);
+  const linhas = String(s.texto || '').split('\n').map(l => l.trim()).filter(Boolean);
+  const ed = linhas.filter(ehEdicao), resto = linhas.filter(l => !ehEdicao(l));
+  return (ed.length ? `<span class="capa-ed">${acabamento(esc(ed.join(' · ')))}</span>` : '') +
+    (resto[0] ? `<span class="capa-tit">${acabamento(esc(resto[0]))}</span>` : '') +
+    resto.slice(1).map(l => `<span class="capa-sub">${acabamento(esc(l))}</span>`).join('');
+}
+
+// Pix por cima (mensagem 'pix'): só imagens guardadas no programa (data:image/…)
+function pix(m) {
+  const ok = u => /^data:image\//.test(u || '');
+  const on = !!m.on && ok(m.qr);
+  document.body.classList.toggle('pix-on', on);
+  $('pixCaixa').innerHTML = on ? (ok(m.faixa) ? `<img class="pix-faixa" src="${m.faixa}" alt="Chave Pix">` : '') +
+    `<img class="pix-qr" src="${m.qr}" alt="QR code do Pix">` : '';
+  desenharImagem(); ajustar();
+}
+
+function htmlSlide(s) {
+  if (s.img && s.layout === 'capa') return htmlCapa(s);
+  if (s.versos) {
+    return acabamento(s.versos.map(v => (cfg.numerarVersos !== false ? `<sup>${esc(v.n)}</sup>` : '') + esc(v.t)).join(' '));
+  }
+  // A partir da linha que começa com "—" (resposta do povo), o resto do slide fica em negrito.
+  // Letra de quem fala no começo da linha (P., T., L., C., D. — vem do folheto): colorida; T. = povo (negrito), as outras não.
+  let povo = false;
+  const trocas = [];                       // linhas em que a fala muda (padre → povo ou povo → padre)
+  const linhas = esc(s.texto).split('\n').map((l, i) => {
+    const num = i === 0 && s.numerado ? /^\s*(\d+)\.\s+/.exec(l) : null;     // nº da prece / estrofe do salmo
+    if (num) return (cfg.mostrarRotulos === false ? '' : `<span class="quem">${num[1]}.</span> `) + l.slice(num[0].length);
+    const m = /^\s*([PTLCD])\.\s+/.exec(l);
+    const antes = povo;
+    let quem = '';
+    if (m) {
+      povo = m[1] === 'T';
+      if (cfg.mostrarRotulos !== false) quem = `<span class="quem">${m[1]}.</span> `;
+      l = l.slice(m[0].length);
+    } else if (/^\s*(—|R\.)/.test(l)) povo = true;
+    if (i > 0 && povo !== antes) trocas[i] = true;
+    return quem + (povo ? `<span class="resp">${l}</span>` : l);
+  });
+  // Espaço entre as falas: um respiro antes e depois da resposta do povo
+  const separar = cfg.espacoResposta !== false;
+  const html = acabamento(linhas.map((l, i) => i === 0 ? l : (separar && trocas[i] ? '<span class="entre"></span>' : '<br>') + l).join(''));
+  const contas = s.contas ? `<span class="contas">${Array.from({ length: +s.contas.total || 0 }, (_, k) =>
+    `<span class="conta ${k + 1 < s.contas.atual ? 'feita' : k + 1 === +s.contas.atual ? 'agora' : ''}"></span>`).join('')}</span>` : '';
+  // (1.7.6) nome da parte em cima do 1º slide dela, colorido como no folheto ("6. Primeira Leitura")
+  const tit = s.secaoTit ? `<span class="tit-sec">${acabamento(esc(s.secaoTit))}</span>` : '';
+  return tit + (s.refrao ? `<span class="resp">${html}</span>` : html) + contas;
+}
+
+// Negrito/itálico/sublinhado digitados como <b> <i> <u> (botões N I S na edição) e referências bíblicas sem quebrar:
+// "(Fl 4,6-9)" fica sempre inteira na mesma linha (espaço e hífen que não quebram).
+// Cor e tamanho (barrinha de formatação): <vermelho>…</vermelho> vira <font class="m-vermelho">, <g>/<gg> vira <big>, <pq> <small>
+// (1.8.0) Desenho da cruz: 'missal' = ✠ (letra); 'latina' = cruz latina fina, como a dos folhetos (desenhada, para
+// sair igual em qualquer fonte e nunca virar emoji). O texto continua com ✠; só o desenho no telão muda.
+let estiloCruz = 'latina';
+const CRUZ_LATINA = '<span class="cruz latina"><svg viewBox="0 0 10 16" aria-hidden="true"><path d="M4.1 0h1.8v4.3h4.1v1.8H5.9V16H4.1V6.1H0V4.3h4.1z" fill="currentColor"/></svg></span>';
+function acabamento(html) {
+  return html
+    .replace(/&lt;(\/?)(b|i|u)&gt;/gi, '<$1$2>')
+    .replace(/&lt;(vermelho|dourado|azul|verde|roxo|branco|preto)&gt;/gi, (_, c) => `<font class="m-${c.toLowerCase()}">`)
+    .replace(/&lt;\/(vermelho|dourado|azul|verde|roxo|branco|preto)&gt;/gi, '</font>')
+    .replace(/&lt;(gg|g)&gt;/gi, (_, t) => `<big class="m-${t.toLowerCase()}">`).replace(/&lt;\/(gg|g)&gt;/gi, '</big>')
+    .replace(/&lt;pq&gt;/gi, '<small class="m-pq">').replace(/&lt;\/pq&gt;/gi, '</small>')
+    // (1.7.8) a cruz ✠ do Missal na cor escolhida e o nº do versículo (sobrescrito) colorido, como no folheto
+    .replace(/✠/g, () => estiloCruz === 'latina' ? CRUZ_LATINA : '<span class="cruz">✠</span>')
+    // (1.8.0) o nº fica perto da palavra seguinte, como no folheto: o espaço depois dele sai (fica só uma folga pequena
+    // na margem do .vn, que não estica no texto justificado) e o "word joiner" não deixa a linha quebrar entre os dois
+    .replace(/([⁰¹²³⁴⁵⁶⁷⁸⁹]+[ᵃᵇᶜᵈᵉ]?)[   ]?/g, (_, n) => `<span class="vn">${n}</span>&#8288;`)
+    .replace(/\(([^()<>]{0,40}\d[^()<>]{0,40})\)/g, (_, r) => '(' + r.replace(/ /g, ' ').replace(/-/g, '‑') + ')');
+}
+
+// Com limite de linhas: a letra é calculada para caber exatamente N linhas de ~C caracteres.
+// Sem limite: começa no tamanho máximo e diminui até o texto caber.
+// Tamanho de partida da letra para uma área de texto (com limite de linhas: N linhas na altura). Texto sozinho numa área
+// estreitada pelos cantos: a letra diminui na mesma proporção da largura perdida (senão sobram poucas palavras por linha e
+// o justificado abre buracos); na largura normal, nada muda.
+function tamanhoLetra(larg, alt, soTexto) {
+  // (1.7.0) slides automáticos: começa grande (16% da altura) e o ajuste diminui até o texto ocupar a área das margens
+  if (cfg.slideAuto) return window.innerHeight * 0.16;
+  // slide "largo" (Ave-Maria do terço, 1.6.15): letra para ~6 linhas na altura da área, podendo passar do tamanho máximo
+  if (slide?.largo) return Math.min(alt / (6 * 1.22), window.innerHeight * 0.13);
+  const maxPx = (+cfg.fonteMax || 9) * window.innerHeight / 100;
+  if (!cfg.quebraAuto) return maxPx;
+  const L = +cfg.linhasPorSlide || 4;
+  let f = Math.min(maxPx, alt / (L * 1.22));
+  // área estreitada pelas imagens dos cantos: a letra diminui na proporção. A comparação é com a largura das MARGENS
+  // (Ajustes → Tamanho dos slides), não com a tela: margem maior não encolhe a letra à toa (1.6.5)
+  if (soTexto) { const u = areaUtil(); f = Math.min(f, maxPx * larg / (window.innerWidth * (u[2] - u[0]))); }
+  return f;
+}
+
+// ---------- Texto que contorna as imagens dos cantos (1.6.6) ----------
+// Cada imagem dos cantos que encosta na área das margens vira um quadrado (com folga); o texto ocupa a área inteira e
+// as linhas contornam os quadrados (shape-outside): as de cima ficam entre o brasão e a PASCOM, as do meio usam a largura
+// toda, as de baixo desviam só do padroeiro. Liga/desliga em Ajustes → Tamanho dos slides.
+let contorno = null, htmlAtual = '';
+const usaContorno = () => !!contorno && !slide?.img && !slide?.avisos && !document.body.classList.contains('camera') &&
+  !document.body.classList.contains('pix-on');
+
+function htmlFlutuantes(Ww, Hh) {
+  const esq = contorno.caixas.filter(c => c.lado === 'e'), dir = contorno.caixas.filter(c => c.lado === 'd');
+  const px = v => Math.max(0, Math.round(v)) + 'px';
+  let h = '';
+  if (esq.length) {
+    const tl = esq.find(c => c.alto), bl = esq.find(c => !c.alto);
+    const w = Math.max(...esq.map(c => c.r));
+    const p = ['0 0'];
+    if (tl) p.push(`${px(tl.r)} 0`, `${px(tl.r)} ${px(tl.b)}`, `0 ${px(tl.b)}`);
+    if (bl) p.push(`0 ${px(bl.t)}`, `${px(bl.r)} ${px(bl.t)}`, `${px(bl.r)} ${px(Hh)}`);
+    p.push(`0 ${px(Hh)}`);
+    h += `<span class="ct-f" style="float:left;width:${px(w)};height:${px(Hh)};shape-outside:polygon(${p.join(',')})"></span>`;
+  }
+  if (dir.length) {
+    const tr = dir.find(c => c.alto), br = dir.find(c => !c.alto);
+    const w = Math.max(...dir.map(c => Ww - c.l)), x0 = Ww - w;
+    const p = [`${px(w)} 0`];
+    if (tr) p.push(`${px(tr.l - x0)} 0`, `${px(tr.l - x0)} ${px(tr.b)}`, `${px(w)} ${px(tr.b)}`);
+    if (br) p.push(`${px(w)} ${px(br.t)}`, `${px(br.l - x0)} ${px(br.t)}`, `${px(br.l - x0)} ${px(Hh)}`);
+    p.push(`${px(w)} ${px(Hh)}`);
+    h += `<span class="ct-f" style="float:right;width:${px(w)};height:${px(Hh)};shape-outside:polygon(${p.join(',')})"></span>`;
+  }
+  return h;
+}
+
+function ajustarContorno() {
+  const texto = $('texto'), area = $('area');
+  const Ww = area.clientWidth, Hh = area.clientHeight;
+  area.style.alignItems = 'flex-start';
+  Object.assign(texto.style, { maxWidth: '100%', width: '100%' });
+  texto.innerHTML = htmlFlutuantes(Ww, Hh) + '<span class="ct-esp" style="display:block;height:0"></span>' + htmlAtual + '<span class="ct-fim"></span>';
+  const esp = texto.querySelector('.ct-esp'), fim = texto.querySelector('.ct-fim');
+  const topoArea = () => area.getBoundingClientRect().top;
+  const fundoTexto = () => fim.getBoundingClientRect().bottom - topoArea();
+  let f = tamanhoLetra(Ww, Hh, false);
+  const passo = Math.max(-6, Math.min(6, +(slide?.escala || 0)));
+  if (passo) f *= Math.pow(1.1, passo);
+  texto.style.fontSize = f + 'px';
+  while ((fundoTexto() > Hh || texto.scrollWidth > Ww + 1) && f > 4) { f *= 0.96; texto.style.fontSize = f + 'px'; }
+  // centraliza na altura: espaço em cima = metade do que sobra (o contorno pode mudar ao descer: confere de novo)
+  let e = Math.max(0, (Hh - fundoTexto()) / 2);
+  for (let k = 0; k < 8; k++) {
+    esp.style.height = e + 'px';
+    const sobra = fundoTexto() - Hh;
+    if (sobra <= 0 || e <= 0) break;
+    e = Math.max(0, e - sobra - 1);
+  }
+  if (fundoTexto() > Hh) esp.style.height = '0px';
+}
+
+// (1.7.0) Slides automáticos: o espaço entre as palavras. Com bastante palavra por linha, justifica (as duas margens retas,
+// ocupando a largura toda, em texto corrido como as leituras); com menos de 8 palavras por linha, centraliza
+function espacoAuto() {
+  const t = $('texto');
+  if (!cfg.slideAuto) return;
+  t.style.textAlign = 'justify'; t.style.textAlignLast = 'center';
+  const f = parseFloat(t.style.fontSize) || 16, lh = parseFloat(getComputedStyle(t).lineHeight) || f * 1.25;
+  const linhas = Math.max(1, Math.round(t.scrollHeight / lh));
+  const palavras = (t.innerText || '').split(/\s+/).filter(Boolean).length;
+  if (palavras / linhas < 8) t.style.textAlign = 'center';      // poucas palavras por linha: justificar abriria buracos
+}
+
+function ajustar() {  const texto = $('texto'), area = $('area');
+  if (usaContorno()) { ajustarContorno(); espacoAuto(); ajustarAvisos(); return; }
+  // sem contorno: desfaz o que o modo contorno mudou
+  if (texto.querySelector('.ct-f, .ct-esp')) texto.innerHTML = htmlAtual;
+  area.style.alignItems = ''; texto.style.width = '';
+  let f = (+cfg.fonteMax || 9) * window.innerHeight / 100;
+  if (cfg.quebraAuto && !cfg.slideAuto) {
+    const C = +cfg.caracteresPorLinha || 40;
+    f = tamanhoLetra(area.clientWidth, area.clientHeight, !slide?.img || slide.layout === 'fundo' || document.body.classList.contains('camera'));
+    texto.style.maxWidth = slide?.largo ? '100%' : `min(100%, ${(C * 0.55).toFixed(1)}em)`;   // largo: a área inteira
+  } else {
+    texto.style.maxWidth = '100%';
+    if (cfg.slideAuto) f = tamanhoLetra(area.clientWidth, area.clientHeight, true);
+  }
+  // A+ / A− deste slide (ideia do Hermínio): 10% por passo; maior que a área não fica (o laço abaixo diminui até caber)
+  const passo = Math.max(-6, Math.min(6, +(slide?.escala || 0)));
+  if (passo) f *= Math.pow(1.1, passo);
+  texto.style.fontSize = f + 'px';
+  while ((texto.scrollHeight > area.clientHeight || texto.scrollWidth > area.clientWidth) && f > 4) {
+    f *= 0.96;
+    texto.style.fontSize = f + 'px';
+  }
+  espacoAuto();
+  ajustarAvisos();
+}
+
+const LAYOUTS = ['esquerda', 'direita', 'acima', 'fundo', 'so', 'capa'];
+function desenharImagem() {
+  const lay = slide?.img ? slide.layout || 'esquerda' : '';
+  for (const l of LAYOUTS) document.body.classList.toggle('lay-' + l, l === lay);
+  const img = $('imgSlide');
+  if (lay) { if (img.getAttribute('src') !== slide.img) img.src = slide.img; }
+  else img.removeAttribute('src');
+  $('veu').style.opacity = lay === 'fundo' ? (+slide.escurecer || 0) / 100 : 0;
+  harmonizar(lay);
+}
+
+// Imagem + texto (abertura, homilia, apresentações): imagem um pouco menor e, junto com o texto, sem passar por cima
+// das imagens dos cantos (brasão, PASCOM, padroeiro). Para cada canto que invade, corta o lado que perde menos espaço.
+// Área útil do texto (Ajustes → Tamanho dos slides → margens, ideia do Hermínio): margem dos lados e de cima/baixo em % da tela.
+// O padrão (5% e 5%) é a área de sempre; embaixo fica ainda a faixa do rodapé. Letra, linhas e caracteres seguem esta área.
+function areaUtil() {
+  const mx = Math.min(30, Math.max(0, +(cfg.margemLados ?? 5))) / 100, my = Math.min(30, Math.max(0, +(cfg.margemTopo ?? 5))) / 100;
+  return [mx, my, 1 - mx, .93 - my];
+}
+const CAIXAS = {   // em fração da tela: [esquerda, topo, direita, base]
+  esquerda: { img: [.04, .05, .48, .88], area: [.51, .05, .96, .88] },
+  direita: { img: [.52, .05, .96, .88], area: [.04, .05, .49, .88] },
+  acima: { img: [.05, .04, .95, .56], area: [.05, .58, .95, .88] },
+  capa: { img: [.50, .04, .97, .96], area: [.04, .08, .48, .92] },
+};
+// Miniatura: os quadrados de cada imagem (o que o texto contorna), tracejados
+function desenharCaixasMini(base) {
+  if (!GUIAS) return;
+  document.querySelectorAll('.ct-caixa').forEach(e => e.remove());
+  if (!contorno || !base) return;
+  for (const c of contorno.caixas) {
+    const d = document.createElement('div'); d.className = 'ct-caixa';
+    Object.assign(d.style, { left: base[0] + c.l + 'px', top: base[1] + c.t + 'px', width: (c.r - c.l) + 'px', height: (c.b - c.t) + 'px' });
+    document.body.appendChild(d);
+  }
+}
+
+// (1.7.6) Onde a imagem do canto aparece de fato: sem a sobra do object-fit e sem a borda transparente do PNG (o padroeiro
+// recortado com muita margem empurrava o texto para longe — ideia do Thiago). O recorte de cada imagem é medido uma vez.
+const recortes = new Map();
+function recorteOpaco(img) {
+  const src = img.currentSrc || img.src;
+  if (recortes.has(src)) return recortes.get(src);
+  if (recortes.size > 40) recortes.clear();        // o terço muda de desenho a cada conta
+  let r = [0, 0, 1, 1];
+  try {
+    const k = Math.min(1, 240 / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, w, h);
+    const d = g.getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 24) {
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    if (x1 >= 0) r = [x0 / w, y0 / h, (x1 + 1) / w, (y1 + 1) / h];
+  } catch (_) {}                                   // imagem de outro endereço: fica a caixa inteira
+  recortes.set(src, r);
+  return r;
+}
+function rectVisivel(img) {
+  const b = img.getBoundingClientRect(), nw = img.naturalWidth, nh = img.naturalHeight;
+  if (!nw || !nh || !b.width || !b.height) return b;
+  const k = Math.min(b.width / nw, b.height / nh), cw = nw * k, ch = nh * k;
+  const pos = getComputedStyle(img).objectPosition.split(' ').map(v => /%$/.test(v) ? parseFloat(v) / 100 : null);
+  const ox = b.left + (b.width - cw) * (pos[0] ?? .5), oy = b.top + (b.height - ch) * (pos[1] ?? .5);
+  const [fx0, fy0, fx1, fy1] = recorteOpaco(img);
+  const left = ox + cw * fx0, top = oy + ch * fy0, right = ox + cw * fx1, bottom = oy + ch * fy1;
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+
+// (1.7.6) Texto sempre centralizado: cada quadrado ganha o seu espelho do outro lado (na mesma altura), juntando com o
+// que já houver naquele canto — as linhas encolhem igual dos dois lados e continuam no meio da tela
+function centralizarCaixas(caixas, Wb) {
+  for (const c of caixas.slice()) {
+    const outro = c.lado === 'e' ? 'd' : 'e', l = Wb - c.r, r = Wb - c.l;
+    const ja = caixas.find(x => x.lado === outro && x.alto === c.alto);
+    if (ja) { ja.l = Math.min(ja.l, l); ja.r = Math.max(ja.r, r); ja.t = Math.min(ja.t, c.t); ja.b = Math.max(ja.b, c.b); }
+    else caixas.push({ lado: outro, alto: c.alto, l, t: c.t, r, b: c.b });
+  }
+}
+
+function harmonizar(lay) {
+  const img = $('imgSlide'), area = $('area');
+  contorno = null; desenharCaixasMini(null);
+  const limpar = () => { for (const p of ['left', 'top', 'right', 'bottom', 'width', 'height']) { img.style[p] = ''; area.style[p] = ''; } };
+  if (document.body.classList.contains('camera') || lay === 'so') return limpar();
+  // Pix por cima (sem câmera): o cartão do Pix fica no alto e o texto desce para a faixa de baixo, menor
+  const pixOn = document.body.classList.contains('pix-on');
+  const topoTexto = (Math.min(80, Math.max(40, +cfg.pixCartao || 64)) + 5) / 100;     // logo abaixo do cartão do Pix
+  const cx = pixOn ? { area: [.04, topoTexto, .96, .975] }
+    : CAIXAS[lay] || { area: areaUtil() };     // texto comum (e imagem de fundo): também desvia dos cantos
+  const W = innerWidth, H = innerHeight, folga = H * .02;
+  const cantos = [...document.querySelectorAll('.canto.on')].filter(c => c.naturalWidth).map(rectVisivel);
+  const encaixar = (fr, encolher) => {
+    let [l, t, r, b] = [fr[0] * W, fr[1] * H, fr[2] * W, fr[3] * H];
+    if (encolher) { const dx = (r - l) * encolher, dy = (b - t) * encolher; l += dx; r -= dx; t += dy; b -= dy; }
+    const area0 = (r - l) * (b - t);
+    for (const c of cantos) {
+      if (c.right <= l || c.left >= r || c.bottom <= t || c.top >= b) continue;          // não encosta
+      const vert = c.top < H / 2 ? [l, c.bottom + folga, r, b] : [l, t, r, c.top - folga];
+      const horz = c.left < W / 2 ? [c.right + folga, t, r, b] : [l, t, c.left - folga, b];
+      const tam = q => Math.max(0, q[2] - q[0]) * Math.max(0, q[3] - q[1]);
+      const melhor = tam(vert) >= tam(horz) ? vert : horz;
+      if (tam(melhor) > area0 * .25) [l, t, r, b] = melhor;                              // nunca deixa sumir
+    }
+    return [l, t, r, b];
+  };
+  let al, at, ar, ab;
+  if (cx.img) {
+    const [il, it, ir, ib] = encaixar(cx.img, .05);
+    Object.assign(img.style, { left: il + 'px', top: it + 'px', width: (ir - il) + 'px', height: (ib - it) + 'px', right: 'auto', bottom: 'auto' });
+    [al, at, ar, ab] = encaixar(cx.area, 0);
+  } else {
+    // Texto sozinho: para os cantos de cima e os de baixo, desvia por cima/baixo OU pelos lados (margem igual dos dois lados,
+    // para continuar centralizado). Fica a combinação que deixa a letra maior (ver ajustar).
+    for (const p of ['left', 'top', 'right', 'bottom', 'width', 'height']) img.style[p] = '';
+    const base = cx.area.map((v, i) => v * (i % 2 ? H : W));
+    const bate = cantos.filter(c => !(c.right <= base[0] || c.left >= base[2] || c.bottom <= base[1] || c.top >= base[3]));
+    // (1.6.6) modo contorno: a área é a das margens inteira e cada imagem vira um quadrado que o texto contorna
+    if (cfg.contornarCantos !== false && !pixOn && !lay && bate.length) {
+      contorno = { caixas: bate.map(c => ({
+        lado: c.left + c.width / 2 < W / 2 ? 'e' : 'd', alto: c.top + c.height / 2 < H / 2,
+        l: Math.max(0, c.left - folga - base[0]), t: Math.max(0, c.top - folga - base[1]),
+        r: Math.min(base[2] - base[0], c.right + folga - base[0]), b: Math.min(base[3] - base[1], c.bottom + folga - base[1]) })) };
+      if (cfg.centralizarCantos !== false) centralizarCaixas(contorno.caixas, base[2] - base[0]);
+      Object.assign(area.style, { left: base[0] + 'px', top: base[1] + 'px', right: (W - base[2]) + 'px', bottom: (H - base[3]) + 'px' });
+      desenharCaixasMini(base);
+      if (MINI) { const u = areaUtil(), lim = $('limites'); if (lim) Object.assign(lim.style, { left: u[0] * 100 + '%', top: u[1] * 100 + '%', right: (1 - u[2]) * 100 + '%', bottom: (1 - u[3]) * 100 + '%' }); }
+      return;
+    }
+    const cima = bate.filter(c => c.top < H / 2), baixo = bate.filter(c => c.top >= H / 2);
+    const margem = cs => cs.reduce((m, c) => Math.max(m, c.left < W / 2 ? c.right + folga : W - c.left + folga), base[0]);
+    const opcoes = [];
+    for (const vCima of [true, false]) for (const vBaixo of [true, false]) {
+      const pelosLados = [...(vCima ? [] : cima), ...(vBaixo ? [] : baixo)];
+      const topo = vCima ? cima.reduce((t, c) => Math.max(t, c.bottom + folga), base[1]) : base[1];
+      const fundo = vBaixo ? baixo.reduce((b, c) => Math.min(b, c.top - folga), base[3]) : base[3];
+      const m = margem(pelosLados);
+      opcoes.push([m, topo, W - m, fundo]);                       // margem igual dos dois lados (continua centralizado)
+      // (1.6.5) ou encosta só do lado da imagem: com uma imagem só embaixo à direita (ex.: o padroeiro), o texto desce
+      // até a margem de baixo do lado livre, em vez de parar todo na altura da imagem
+      const esq = pelosLados.filter(c => c.left < W / 2).reduce((l, c) => Math.max(l, c.right + folga), base[0]);
+      const dir = pelosLados.filter(c => c.left >= W / 2).reduce((r, c) => Math.min(r, c.left - folga), base[2]);
+      if ((esq !== m || dir !== W - m) && cfg.centralizarCantos === false) opcoes.push([esq, topo, dir, fundo]);
+    }
+    const nota = q => (q[2] - q[0]) < W * .3 || (q[3] - q[1]) < H * .2 ? 0 : tamanhoLetra(q[2] - q[0], q[3] - q[1], true);
+    // a de letra maior; empate fica com a centralizada (vem antes na lista)
+    [al, at, ar, ab] = opcoes.map((q, i) => [q, nota(q), i]).sort((x, y) => (y[1] - x[1]) || (x[2] - y[2]))[0][0];
+  }
+  Object.assign(area.style, { left: al + 'px', top: at + 'px', right: (W - ar) + 'px', bottom: (H - ab) + 'px' });
+  if (GUIAS) {
+    const u = areaUtil(), lim = $('limites');
+    if (lim) Object.assign(lim.style, { left: u[0] * 100 + '%', top: u[1] * 100 + '%', right: (1 - u[2]) * 100 + '%', bottom: (1 - u[3]) * 100 + '%' });
+  }
+}
+// as imagens dos cantos chegam depois: refaz o encaixe quando carregam (e quando a janela muda de tamanho)
+document.querySelectorAll('.canto').forEach(c => c.addEventListener('load', () => { desenharImagem(); ajustar(); }));
+
+// Fundo próprio do item do roteiro (slide.fundo, 1.6.6): no lugar do fundo do tema, escurecido para a letra aparecer
+function aplicarFundo() {
+  const f = $('fundo');
+  const proprio = !!(slide?.fundo && /^data:image\//.test(slide.fundo));
+  if (proprio) {
+    const a = Math.min(.85, Math.max(0, (+slide.fundoEscurecer || 0) / 100));
+    f.style.backgroundImage = `linear-gradient(rgba(0,0,0,${a}), rgba(0,0,0,${a})), url("${slide.fundo}")`;
+  } else f.style.backgroundImage = cfg.fundoImagem ? `url("${cfg.fundoImagem}")` : 'none';
+  // fundo próprio (imagem escurecida): letra branca com sombra, mesmo num tema de fundo claro (Creme, Azul claro)
+  document.body.classList.toggle('fundo-proprio', proprio);
+}
+
+// ---------- Terço nos cantos (1.6.15) ----------
+// O desenho do terço (svgTerco, com os modelos e as contas) fica em js/tercodesenho.js
+
+function desenharTerco() {
+  const t = !!slide?.terco && cfg.tercoCantos !== false && !document.body.classList.contains('camera') && !GUIAS;
+  document.body.classList.toggle('terco', t);
+  const e = $('terco-ie'), d = $('terco-id');
+  e.classList.toggle('on', t); d.classList.toggle('on', t);
+  if (!t) { e.removeAttribute('src'); d.removeAttribute('src'); return; }
+  const img = /^data:image\//.test(cfg.tercoImagem || '') ? cfg.tercoImagem : 'img/nossa-senhora-terco.svg';
+  if (e.getAttribute('src') !== img) e.src = img;
+  const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgTerco(+slide.terco.feitas || 0, slide.terco.atual ?? -1,
+    { modelo: cfg.tercoModelo, contas: cfg.tercoContas, vez: cfg.corRotulo, linha: cfg.corTexto }));
+  if (d.getAttribute('src') !== url) d.src = url;
+}
+
+function desenhar() {  aplicarFundo();
+  desenharTerco();
+  desenharImagem();
+  desenharAvisos();
+  htmlAtual = slide && !slide.avisos ? htmlSlide(slide) : '';
+  $('texto').innerHTML = htmlAtual;
+  $('rodape').textContent = slide && !slide.avisos && cfg.rodape !== false ? (slide.rodape || '') : '';
+  ajustar();
+}
+
+// ---------- Tela de Avisos paroquiais ----------
+function desenharAvisos() {
+  const a = slide?.avisos, el = $('avisosTela');
+  document.body.classList.toggle('avisos-on', !!a);
+  if (!a) { el.innerHTML = ''; return; }
+  el.classList.toggle('sem-fundo', !a.fundo);
+  el.style.background = a.fundo || 'transparent';
+  el.style.color = a.corTexto || cfg.corTexto || '#fff';
+  el.style.fontWeight = cfg.negrito && !a.fundo ? 700 : 400;
+  el.style.setProperty('--avt-cor', a.corTitulo || '#c8102e');
+  el.style.setProperty('--avt-cor-txt', a.corTituloTexto || '#fff');
+  el.innerHTML = `<div class="avt-cab">${a.icone ? `<span class="avt-ic">${esc(a.icone)}</span>` : ''}<span>${esc(a.titulo)}</span></div>
+    <div class="avt-lista">${(a.itens || []).map(t => `<div class="avt-item">${acabamento(esc(t)).replace(/\n/g, '<br>')}</div>`).join('')}</div>
+    ${a.pag ? `<div class="avt-pag">${esc(a.pag)}</div>` : ''}`;
+  ajustarAvisos();
+}
+
+function ajustarAvisos() {
+  if (!document.body.classList.contains('avisos-on')) return;
+  const el = $('avisosTela'), cab = el.querySelector('.avt-cab'), lista = el.querySelector('.avt-lista');
+  const W = innerWidth, H = innerHeight, folga = H * .02;
+  // desvia das imagens dos cantos (brasão, logos, padroeiro): o título fica entre as de cima; a lista, ou sobe o fundo
+  // por cima das de baixo, ou estreita dos lados — o que deixar mais espaço
+  const rect = id => { const c = $(id); return c.classList.contains('on') && c.naturalWidth ? c.getBoundingClientRect() : null; };
+  const cima = ['canto-se', 'canto-sd'].map(rect).filter(Boolean), baixo = ['canto-ie', 'canto-id'].map(rect).filter(Boolean);
+  const ladoCima = cima.reduce((m, r) => Math.max(m, r.left < W / 2 ? r.right : W - r.left), 0);
+  const ladoBaixo = baixo.reduce((m, r) => Math.max(m, r.left < W / 2 ? r.right : W - r.left), 0);
+  const altBaixo = baixo.reduce((m, r) => Math.max(m, H - r.top), 0);
+  cab.style.maxWidth = ladoCima ? (W - 2 * (ladoCima + folga)) + 'px' : '';
+  const pb0 = H * .06, px0 = W * .05;
+  const porBaixo = W * (H - Math.max(pb0, altBaixo + folga)), peloLado = (W - 2 * Math.max(px0, ladoBaixo + folga)) * (H - pb0);
+  const subir = baixo.length && porBaixo >= peloLado;
+  el.style.paddingBottom = (subir ? Math.max(pb0, altBaixo + folga) : pb0) + 'px';
+  el.style.paddingLeft = el.style.paddingRight = (baixo.length && !subir ? Math.max(px0, ladoBaixo + folga) : px0) + 'px';
+  // título: diminui até caber na largura; avisos: diminuem até caber na altura
+  let ft = 8.5 * H / 100;
+  cab.style.fontSize = ft + 'px';
+  while (cab.scrollWidth > cab.clientWidth + 1 && ft > H * .03) { ft *= .95; cab.style.fontSize = ft + 'px'; }
+  let f = Math.min(6 * H / 100, (+cfg.fonteMax || 9) * H / 100 * .75);
+  lista.style.fontSize = f + 'px';
+  while ((lista.scrollHeight > lista.clientHeight + 1 || lista.scrollWidth > lista.clientWidth + 1) && f > 8) { f *= .95; lista.style.fontSize = f + 'px'; }
+}
+
+function mostrar(s, direto) {
+  const chave = JSON.stringify(s);
+  if (chave === chaveAtual) return;
+  chaveAtual = chave;
+  slide = s;
+  clearTimeout(timer);
+  const aparecer = () => { desenhar(); $('texto').style.opacity = 1; $('rodape').style.opacity = .8; $('imgSlide').style.opacity = 1; $('avisosTela').style.opacity = 1; };
+  if (MINI || direto || !tempoTransicao()) return aparecer();      // direto: a prévia enquanto edita (cada letra digitada)
+  // a imagem só pisca quando muda (entre slides do mesmo item ela fica parada)
+  const trocaImg = (s?.img || '') !== ($('imgSlide').getAttribute('src') || '');
+  $('texto').style.opacity = 0; $('rodape').style.opacity = 0; $('avisosTela').style.opacity = 0;
+  if (trocaImg) $('imgSlide').style.opacity = 0;
+  // some devagar, troca e aparece devagar (o tempo de cada metade vem de Ajustes → Transição)
+  timer = setTimeout(aparecer, tempoTransicao());
+}
+
+// (1.7.6) Transição entre slides, câmera e vídeo: rápida (como era até a 1.7.5), suave (padrão) ou lenta — ideia do Thiago
+const TRANSICOES = { rapida: 140, suave: 380, lenta: 650 };
+// (a prévia AO VIVO da tela de controle faz igual ao telão; as miniaturas dos Ajustes e a prévia de edição, não)
+const tempoTransicao = () => MINI ? 0 : TRANSICOES[cfg.transicao] ?? TRANSICOES.suave;
+// some devagar e depois faz o que falta (tirar a câmera, parar o vídeo)
+function sumirDevagar(el, depois) {
+  const t = tempoTransicao();
+  if (!t || getComputedStyle(el).display === 'none') return depois();
+  const vez = el._saida = {};
+  el.classList.add('saindo');
+  setTimeout(() => { if (el._saida !== vez) return; el._saida = null; el.classList.remove('saindo'); depois(); }, t);
+}
+// voltou antes de terminar de sumir (outro vídeo, a câmera de novo): cancela a saída
+const cancelarSaida = el => { el._saida = null; el.classList.remove('saindo'); };
+
+function aplicarConfig(c) {
+  cfg = c || {};
+  const raiz = document.documentElement.style, entre = (v, a, b, p) => Math.min(b, Math.max(a, +v || p));
+  raiz.setProperty('--trans', tempoTransicao() + 'ms');
+  raiz.setProperty('--pix-cartao', entre(cfg.pixCartao, 40, 80, 64) + 'vh');
+  raiz.setProperty('--pix-qr-cam', entre(cfg.pixQrCamera, 20, 55, 36) + 'vh');
+  raiz.setProperty('--pix-faixa-cam', entre(cfg.pixFaixaCamera, 6, 20, 11) + 'vh');
+  const t = $('texto');
+  document.body.style.fontFamily = cfg.fonte || '';
+  t.style.color = $('rodape').style.color = cfg.corTexto || '#fff';
+  // justificado: as linhas que quebram sozinhas ficam com as duas margens retas; a última linha de cada parágrafo e as
+  // linhas curtas (versos) não esticam — ficam à esquerda ou, no "justificado e centralizado", no centro
+  // (1.7.0) automático: justificado e centralizado (espacoAuto decide, slide a slide, se justifica ou centraliza)
+  const al = cfg.slideAuto ? 'justify-center' : cfg.alinhamento || 'center';
+  t.style.textAlign = al.startsWith('justify') ? 'justify' : al;
+  t.style.textAlignLast = al === 'justify-center' ? 'center' : al === 'justify' ? 'left' : 'auto';
+  t.style.textTransform = cfg.maiusculas ? 'uppercase' : 'none';
+  t.style.fontWeight = cfg.negrito ? 700 : 400;     // temas claros: letra preta em negrito
+  t.style.setProperty('--cor-quem', cfg.corRotulo || '#ff5a4f');
+  t.style.setProperty('--cor-secao', cfg.corSecao || '#5aa9ff');
+  t.style.setProperty('--cor-cruz', cfg.corCruz || '#c8102e');
+  estiloCruz = cfg.estiloCruz === 'missal' ? 'missal' : 'latina';
+  t.style.setProperty('--sombra-cruz', cfg.sombra ? 'drop-shadow(0 .3vh .6vh rgba(0,0,0,.85))' : 'none');
+  t.style.textShadow = cfg.sombra ? '0 .3vh .9vh rgba(0,0,0,.85), 0 0 .3vh rgba(0,0,0,.6)' : 'none';
+  $('fundo').style.backgroundColor = cfg.corFundo || '#000';
+  $('fundo').style.backgroundImage = cfg.fundoImagem ? `url("${cfg.fundoImagem}")` : 'none';
+  desenhar();
+}
+
+// ---------- Vídeo ----------
+const video = $('video');
+let videoId = null, urlVideo = null, ultimoStatus = 0;
+if (PREVIEW) video.muted = true;               // a prévia nunca tem som
+
+function status(forcar) {
+  const agora = Date.now();
+  if (!forcar && agora - ultimoStatus < 250) return;
+  ultimoStatus = agora;
+  if (alvo && alvo !== window) try {
+    alvo.postMessage({ app: 'lumen', tipo: 'midiaStatus', preview: PREVIEW, id: videoId, t: video.currentTime,
+      dur: video.duration || 0, pausado: video.paused, ativo: video.classList.contains('on') }, '*');
+  } catch (_) {}
+}
+['timeupdate', 'play', 'pause', 'loadedmetadata', 'seeked'].forEach(ev => video.addEventListener(ev, () => status(ev !== 'timeupdate')));
+video.addEventListener('ended', () => { if (!video.loop) sumirDevagar(video, () => { video.classList.remove('on'); status(true); }); });
+// Formato de imagem que o motor não decodifica (ex.: MPEG-4 Parte 2/"mp4v", Xvid): toca só o som. Avisa o operador.
+video.addEventListener('loadedmetadata', () => {
+  if (video.videoWidth || PREVIEW || !alvo || alvo === window) return;
+  try { alvo.postMessage({ app: 'lumen', tipo: 'midiaSemImagem', id: videoId }, '*'); } catch (_) {}
+});
+
+function tocarVideo() {
+  video.play().catch(() => {
+    if (PREVIEW) return;
+    // Sem clique nesta janela o Chrome pode bloquear o som: toca sem som e avisa
+    video.muted = true;
+    video.play().catch(() => {});
+    $('aviso-som').style.display = 'block';
+  });
+}
+document.addEventListener('click', () => {
+  if (!PREVIEW && video.muted) { video.muted = false; $('aviso-som').style.display = 'none'; }
+});
+
+function midia(m) {
+  if (m.acao === 'carregar' || m.acao === 'play') cancelarSaida(video);
+  if (m.acao === 'carregar') {
+    pararCam();                                   // vídeo no telão tira a câmera
+    if (m.id !== videoId) {
+      if (urlVideo && urlVideo.startsWith('blob:')) URL.revokeObjectURL(urlVideo);
+      urlVideo = m.blob ? URL.createObjectURL(m.blob) : m.url;   // url = arquivo da pasta de vídeos (servido pelo programa)
+      videoId = m.id;
+      video.src = urlVideo;
+    }
+    video.loop = !!m.loop;
+    if (!PREVIEW && m.volume != null) video.volume = m.volume;
+    if (m.t != null) video.currentTime = m.t;
+    video.classList.add('on');
+    if (m.tocar) tocarVideo(); else video.pause();
+  } else if (m.acao === 'play') { video.classList.add('on'); tocarVideo(); }
+  else if (m.acao === 'pause') video.pause();
+  else if (m.acao === 'seek') video.currentTime = m.t;
+  else if (m.acao === 'volume') { if (!PREVIEW) video.volume = m.v; }
+  else if (m.acao === 'loop') video.loop = !!m.on;
+  else if (m.acao === 'parar') sumirDevagar(video, () => { video.pause(); video.classList.remove('on'); status(true); });
+}
+
+// ---------- Câmera ao vivo ----------
+let camStream = null;
+async function camera(m) {
+  const b = document.body;
+  if (m.acao === 'letra') { b.classList.toggle('com-letra', !!m.on); b.classList.toggle('sem-letra', !m.on); ajustar(); return; }
+  if (m.acao !== 'mostrar') return camStream ? sumirDevagar($('cam'), pararCam) : pararCam();     // tirar a câmera: some devagar
+  cancelarSaida($('cam'));
+  pararCam();
+  try {
+    let lista = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+    if (lista.length && !lista[0].label) {
+      try { const s = await Promise.race([navigator.mediaDevices.getUserMedia({ video: true }), new Promise((_, f) => setTimeout(() => f(new Error('tempo')), 6000))]); s.getTracks().forEach(t => t.stop()); } catch (_) {}
+      lista = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+    }
+    const d = lista.find(x => x.label === m.rotulo) || lista.find(x => x.deviceId === m.dispositivo);
+    if (!d) throw new Error(`"${m.rotulo}" não encontrada (o NDI Webcam está aberto?)`);
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: d.deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    $('cam').srcObject = camStream;
+    b.classList.add('camera');
+    b.classList.toggle('com-letra', !!m.letra); b.classList.toggle('sem-letra', !m.letra);
+    desenharImagem(); ajustar();
+  } catch (e) {
+    if (alvo && alvo !== window) try { alvo.postMessage({ app: 'lumen', tipo: 'cameraStatus', preview: PREVIEW, erro: e.message }, '*'); } catch (_) {}
+  }
+}
+function pararCam() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  $('cam').srcObject = null;
+  document.body.classList.remove('camera', 'com-letra', 'sem-letra');
+  desenharImagem(); ajustar();
+}
+
+// ---------- Aviso (placa de carro, criança…) ----------
+let avisoN = 0;
+function aviso(a) {
+  const el = $('aviso');
+  if (!a) { el.classList.remove('on', 'pisca'); return; }
+  const novo = a.n !== avisoN;
+  avisoN = a.n;
+  el.querySelector('.ic').textContent = a.icone || '📢';
+  el.querySelector('.txt').innerHTML = acabamento(esc(a.texto));    // negrito/itálico/sublinhado (N I S) aparecem formatados
+  el.classList.toggle('baixo', a.pos === 'baixo');
+  // textos longos: diminui a letra até caber em no máximo 3 linhas
+  el.style.fontSize = '';
+  el.classList.add('on');
+  let f = 5.2;
+  while (el.offsetHeight > window.innerHeight * 0.3 && f > 2.4) { f -= 0.3; el.style.fontSize = f + 'vh'; }
+  if (novo) { el.classList.remove('pisca'); void el.offsetWidth; el.classList.add('pisca'); }
+}
+
+window.addEventListener('message', e => {
+  const m = e.data;
+  if (!m || m.app !== 'lumen') return;
+  if (m.tipo === 'config') aplicarConfig(m.config);
+  // 🔇 Mudo: só o fundo do tema (sem texto, imagem do slide, avisos nem rodapé); os slides continuam chegando, escondidos
+  else if (m.tipo === 'mudo') document.body.classList.toggle('mudo', !!m.on);
+  else if (m.tipo === 'layout') {
+    // imagens nos cantos (brasão, logo, padroeiro…); tam = % da altura da tela
+    for (const c of ['se', 'sd', 'ie', 'id']) {
+      const el = $('canto-' + c), x = m.cantos?.[c];
+      el.classList.toggle('on', !!x);
+      if (x) { if (el.src !== x.src) el.src = x.src; el.style.height = x.tam + 'vh'; }
+      else el.removeAttribute('src');
+    }
+    desenharImagem(); ajustar();
+  }
+  else if (m.tipo === 'midia') midia(m);
+  else if (m.tipo === 'slide') {
+    // projetar texto tira o vídeo da tela
+    if (video.classList.contains('on')) sumirDevagar(video, () => { video.pause(); video.classList.remove('on'); status(true); });
+    mostrar(m.slide, m.direto);
+  }
+  else if (m.tipo === 'preto') $('preto').classList.toggle('on', !!m.on);
+  else if (m.tipo === 'aviso') aviso(m.aviso);
+  else if (m.tipo === 'camera') camera(m);
+  else if (m.tipo === 'pix') pix(m);
+  else if (m.tipo === 'qrAoVivo') {       // 🌐 acompanhar pela internet: QR code + código do dia (só imagem gerada no programa)
+    const el = $('qrAoVivo'), on = !!m.on && /^data:image\//.test(m.qr || '');
+    el.classList.toggle('on', on);
+    el.innerHTML = on ? `<img src="${m.qr}" alt=""><div><div class="av-t">📱 Acompanhe<br>no celular</div><div class="av-l">${esc(m.link || '')}</div><div class="av-c">${esc(m.codigo || '')}</div></div>` : '';
+  }
+  else if (m.tipo === 'posicionar') {
+    try { window.moveTo(m.x, m.y); window.resizeTo(m.w, m.h); } catch (_) { /* o usuário arrasta manualmente */ }
+  }
+});
+
+window.addEventListener('resize', () => { desenharImagem(); ajustar(); });
+// miniatura: a página dos Ajustes pode estar fechada (tamanho zero) quando chegam os dados; ao aparecer, refaz tudo
+if (MINI) new ResizeObserver(() => { if (innerWidth > 0) { desenharImagem(); ajustar(); } }).observe(document.documentElement);
+
+// Avisa o painel que esta janela está pronta (e continua avisando, caso o painel seja recarregado)
+function ola(primeiro) {
+  if (alvo && alvo !== window) try { alvo.postMessage({ app: 'lumen', tipo: 'ola', preview: PREVIEW, mini: MINI, primeiro }, '*'); } catch (_) {}
+}
+ola(true);
+
+if (!PREVIEW) {
+  setInterval(() => ola(false), 2000);
+  setTimeout(() => $('dica').classList.add('fora'), 7000);
+
+  document.addEventListener('dblclick', () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => {});
+  });
+
+  // Teclas pressionadas aqui controlam o painel também
+  window.addEventListener('keydown', e => {
+    if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' ', 'b', 'B', 'm', 'M', 'l', 'L', 'c', 'C', 'Escape'].includes(e.key)) {
+      if (e.key !== 'Escape' || !document.fullscreenElement) e.preventDefault();
+      ola(false);
+      if (alvo) alvo.postMessage({ app: 'lumen', tipo: 'tecla', key: e.key }, '*');
+    }
+  });
+
+  // Mostra o cursor só enquanto o mouse se mexe
+  let tc = 0;
+  document.addEventListener('mousemove', () => {
+    document.body.classList.add('mostra-cursor');
+    clearTimeout(tc);
+    tc = setTimeout(() => document.body.classList.remove('mostra-cursor'), 1500);
+  });
+}
+</script>
+</body>
+</html>
