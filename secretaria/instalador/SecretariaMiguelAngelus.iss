@@ -1,4 +1,4 @@
-; Instalador da Secretaria MiguelAngelus (Inno Setup 6).
+﻿; Instalador da Secretaria MiguelAngelus (Inno Setup 6).
 ; Gerar tudo assinado: powershell -ExecutionPolicy Bypass -File secretaria\instalador\gerar_secretaria.ps1
 ;
 ; - Programa separado do MiguelAngelus (outro AppId): os dois podem ficar instalados no mesmo computador.
@@ -6,7 +6,7 @@
 ; - Os dados (agenda e avisos) ficam em %LOCALAPPDATA%\SecretariaMiguelAngelus e NÃO são apagados ao desinstalar.
 
 #define Nome "Secretaria MiguelAngelus"
-#define Versao "1.0.0"
+#define Versao "1.1.0"
 #define Editor "Paróquia São José Operário — PASCOM"
 #define Exe "SecretariaMiguelAngelus.exe"
 
