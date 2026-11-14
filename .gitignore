@@ -1,0 +1,7 @@
+bin/
+obj/
+MiguelAngelus App/
+Secretaria MiguelAngelus App/
+*.json
+*.dat
+*.exe
