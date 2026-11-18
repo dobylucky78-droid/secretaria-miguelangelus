@@ -60,4 +60,4 @@ certificado de assinatura de código e do `signtool`, que não estão no reposit
 
 ## Licença
 
-MIT — veja [LICENSE](LICENSE).
+MIT — veja [LICENSE](LICENSE). As bibliotecas PDF.js (`lumen/lib/pdfjs`, da Mozilla) e jsQR (`lumen/lib/jsqr`, de Cosmo Wolfe e colaboradores, lê o QR code do Pix para mostrar o recebedor) estão sob a licença Apache 2.0.
