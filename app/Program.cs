@@ -284,6 +284,9 @@ namespace MiguelAngelus
                     await Web.EnsureCoreWebView2Async(Program.Ambiente);
                     Configurar();
                     Web.CoreWebView2.WebMessageReceived += AoReceberMensagem;
+                    // (1.9.4) prévia de vídeo/áudio que está só na nuvem: toca aos pedaços, sem gravar no computador
+                    Web.CoreWebView2.AddWebResourceRequestedFilter("https://" + HostNuvem + "/*", CoreWebView2WebResourceContext.All);
+                    Web.CoreWebView2.WebResourceRequested += AoPedirNuvem;
                     Web.CoreWebView2.Navigate($"https://{Program.Host}/{Program.PaginaInicial}");
                 }
                 catch (Exception ex) { Program.Erro("iniciar o " + Program.NomeApp, ex); Close(); }
@@ -444,6 +447,8 @@ namespace MiguelAngelus
         string modoSync = "pasta";      // "pasta" (Google Drive para computador, OneDrive…) ou "google" (API do Drive)
         GoogleDrive google;
         GoogleDrive Google => google ?? (google = new GoogleDrive(cliente));
+        GoogleAgenda agendaG;   // (protótipo, Secretaria) agenda compartilhada da secretaria, numa conta própria
+        GoogleAgenda AgendaG { get { if (agendaG == null) agendaG = new GoogleAgenda(cliente); agendaG.UsarClienteSeFaltar(Google.ClienteId, Google.ClienteSegredo); return agendaG; } }
 
         async void Arquivo(System.Collections.Generic.Dictionary<string, object> m)
         {
@@ -473,6 +478,25 @@ namespace MiguelAngelus
                     case "googleDesconectar":
                         Google.Desconectar();
                         Responder(id, new { ok = true }); return;
+                    // ----- (protótipo) agenda da secretaria numa conta do Google própria -----
+                    case "agendaStatus":
+                        Responder(id, new { ok = true, temCliente = AgendaG.TemCliente, conectado = AgendaG.Conectado, email = AgendaG.Email }); return;
+                    case "agendaCarregarCliente":
+                        using (var d = new OpenFileDialog { Title = "Arquivo JSON do ID do cliente (Google Cloud → Clientes → Fazer download do JSON)", Filter = "Arquivo do Google (*.json)|*.json" })
+                        {
+                            if (d.ShowDialog(this) != DialogResult.OK) { Responder(id, new { ok = false, erro = "cancelado" }); return; }
+                            AgendaG.DefinirCliente(File.ReadAllText(d.FileName));
+                        }
+                        Responder(id, new { ok = true, temCliente = AgendaG.TemCliente }); return;
+                    case "agendaConectar":
+                        await AgendaG.Conectar();
+                        Activate();
+                        Responder(id, new { ok = true, email = AgendaG.Email }); return;
+                    case "agendaDesconectar":
+                        AgendaG.Desconectar();
+                        Responder(id, new { ok = true }); return;
+                    case "agendaApi":
+                        Responder(id, new { ok = true, dados = await AgendaG.Chamar(Convert.ToString(m["metodo"]), Convert.ToString(m["caminho"]), m.TryGetValue("corpo", out var cp) ? cp : null) }); return;
                     // ----- pastas de vídeos e áudios (independe da sincronização) -----
                     case "midiaEscolherPasta":
                         var deVideo = Convert.ToString(m["tipoMidia"]) != "audio";
@@ -546,6 +570,14 @@ namespace MiguelAngelus
                             catch { }
                         }
                         Responder(id, new { ok = true, pasta = achada }); return;
+                    case "midiaPastaPadrao":   // (1.9.4) quem não tem Holyrics: Documentos\MiguelAngelus\Vídeos|Áudios, para baixar da nuvem
+                    {
+                        var deAudio = Convert.ToString(m["tipoMidia"]) == "audio";
+                        var padrao = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "MiguelAngelus", deAudio ? "Áudios" : "Vídeos");
+                        Directory.CreateDirectory(padrao);
+                        var novo = Program.MapearMidia(deAudio ? Program.HostAudios : Program.HostVideos, padrao);
+                        Responder(id, new { ok = true, pasta = padrao, recarregar = novo }); return;
+                    }
                     case "midiaSubir":     // arquivo da pasta de vídeos/áudios → nuvem (em pedaços, com progresso)
                     {
                         var origem = CaminhoMidia(m);
@@ -714,6 +746,49 @@ namespace MiguelAngelus
             }
             catch (Exception ex) { r = new { ok = false, erro = ex.Message }; }
             Responder(id, r);
+        }
+
+        // ----- (1.9.4) prévia direto da nuvem -----
+        // https://nuvem.miguelangelus.example/pastas/<chave>.bin?t=video/mp4 → o pedaço pedido (Range) do arquivo da nuvem.
+        // Só arquivos de mídia das pastas (pastas/video-….bin, pastas/audio-….bin); pedaços de até 2 MB (o player pede o resto).
+        internal const string HostNuvem = "nuvem.miguelangelus.example";
+        static readonly System.Text.RegularExpressions.Regex CaminhoPreviaNuvem = new System.Text.RegularExpressions.Regex(@"^pastas/(video|audio)-[0-9a-f]{16}\.bin$");
+        static readonly string[] TiposPrevia = { "video/mp4", "video/webm", "video/quicktime", "video/x-matroska", "video/ogg", "audio/mpeg", "audio/mp4", "audio/aac", "audio/wav", "audio/ogg", "audio/opus", "audio/flac" };
+        async void AoPedirNuvem(object sender, CoreWebView2WebResourceRequestedEventArgs e)
+        {
+            CoreWebView2Deferral adiar = null;
+            try
+            {
+                var u = new Uri(e.Request.Uri);
+                var cam = Uri.UnescapeDataString(u.AbsolutePath.TrimStart('/'));
+                if (!CaminhoPreviaNuvem.IsMatch(cam)) { e.Response = Program.Ambiente.CreateWebResourceResponse(null, 404, "Not Found", ""); return; }
+                var mt = System.Text.RegularExpressions.Regex.Match(u.Query, @"[?&]t=([^&]+)");
+                var pedido = mt.Success ? Uri.UnescapeDataString(mt.Groups[1].Value) : "";
+                var mime = TiposPrevia.Contains(pedido) ? pedido : "application/octet-stream";
+                long ini = 0; long? ate = null;
+                var rh = e.Request.Headers.Contains("Range") ? e.Request.Headers.GetHeader("Range") : null;
+                var mr = rh != null ? System.Text.RegularExpressions.Regex.Match(rh, @"bytes=(\d+)-(\d*)") : null;
+                if (mr != null && mr.Success) { ini = long.Parse(mr.Groups[1].Value); if (mr.Groups[2].Value != "") ate = long.Parse(mr.Groups[2].Value); }
+                const int MAX = 2 * 1024 * 1024;
+                var tam = (int)Math.Min(MAX, ate.HasValue ? ate.Value - ini + 1 : MAX);
+                adiar = e.GetDeferral();
+                var doGoogle = modoSync == "google" ? await Google.LerBinario(cam, ini, tam) : null;
+                var dados = LerPedacoNuvem(cam, ini, tam, out var total, doGoogle);
+                if (dados.Length == 0 && total > 0)
+                {
+                    e.Response = Program.Ambiente.CreateWebResourceResponse(null, 416, "Range Not Satisfiable", "Content-Range: bytes */" + total);
+                    return;
+                }
+                var cab = "Content-Type: " + mime + "\r\nAccept-Ranges: bytes\r\nContent-Length: " + dados.Length +
+                          "\r\nContent-Range: bytes " + ini + "-" + (ini + dados.Length - 1) + "/" + total + "\r\nCache-Control: no-store";
+                e.Response = Program.Ambiente.CreateWebResourceResponse(new MemoryStream(dados), 206, "Partial Content", cab);
+            }
+            catch (Exception ex)
+            {
+                try { e.Response = Program.Ambiente.CreateWebResourceResponse(null, 502, "Bad Gateway", ""); } catch { }
+                Debug.WriteLine("prévia da nuvem: " + ex.Message);
+            }
+            finally { adiar?.Complete(); }
         }
 
         // Caminho de um arquivo DENTRO da pasta de vídeos/áudios escolhida (nunca fora dela)

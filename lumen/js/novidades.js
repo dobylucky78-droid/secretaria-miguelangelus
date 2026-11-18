@@ -5,6 +5,34 @@
  * A versão mais nova fica em cima. Ao gerar uma versão nova, acrescente a entrada dela aqui.
  */
 const NOVIDADES = [
+  { versao: '1.9.6', data: '2026-11-18', itens: [
+    '💝 Campanhas de arrecadação no telão: novo item "💝 Campanhas" no roteiro (entra logo depois dos Avisos). Cada campanha vira um slide com a arte feita no Canva, quanto já foi arrecadado (percentual, barra e, se a campanha deixar, os valores) e o QR code do Pix da campanha com a chave, passando sozinhos como no "Apresentar eventos". As campanhas são feitas e atualizadas na Secretaria MiguelAngelus e chegam pela nuvem; aqui só se mostra. Com "Todas as campanhas abertas" marcado, a nova entra e a pausada ou encerrada sai sozinha; a encerrada pode virar um slide de agradecimento, se a Secretaria marcar. O botão "💝 Campanhas" só aparece quando há alguma campanha na nuvem.',
+    '🎨 Eventos e campanhas não se confundem no telão: o evento tem a faixa azul "🎉 EVENTO" e o QR com moldura azul e "📅 SALVE NA AGENDA"; a campanha tem fundo vinho, faixa dourada "💝 CAMPANHA" e o QR com moldura dourada e "💠 DOE PELO PIX". A meta da campanha aparece em barra, termômetro, círculo, tijolos ou coração (a Secretaria escolhe).',
+    '🎬 Vídeo de boas-vindas de cada igreja: em Agenda → Paróquia e comunidades, ao editar a matriz ou a capela, escolha o vídeo e marque "Começar os roteiros novos de Missa desta igreja com este vídeo". Todo roteiro de Missa criado daqui para frente para aquela igreja (pela Agenda, Liturgia do dia ou folheto) já nasce com o vídeo como 1º item. Os roteiros que já existem não mudam.',
+    '➕ "Pôr nos outros roteiros" no "🎉 Apresentar eventos" e no "💝 Campanhas": os botões "do dia" e "da semana" (domingo a sábado) põem uma cópia do item nos roteiros já criados, logo depois do vídeo de boas-vindas (ou como 1º item). Roteiro que já tem um item igual fica como está.',
+  ] },
+  { versao: '1.9.5', data: '2026-11-17', itens: [
+    '🙏 Eventos de vários dias no mesmo horário (novena, tríduo, semana missionária): marque "Todos os dias, no mesmo horário" e o QR vira um compromisso por dia na agenda do celular (ex.: novena de 15 a 23/12, 19h30 às 21h → 9 compromissos), em vez de um bloco só de 9 dias. O slide mostra "Todos os dias, de … a … · 19h30 às 21h". Uma dica no formulário explica como preencher cada caso.',
+    '🎉 "Apresentar eventos" no roteiro: nova opção "Todos os eventos por vir" — a apresentação pega sozinha os eventos cadastrados que ainda não passaram (o evento novo entra, o que passou sai). O mesmo item serve em todos os roteiros sem precisar marcar nada.',
+    '🎉 Um item "Apresentar eventos" novo já vem com a última configuração usada: segundos de cada slide, "Recomeçar do início", música e "Todos os eventos por vir".',
+  ] },
+  { versao: '1.9.4', data: '2026-11-17', itens: [
+    '☁ Vídeos e áudios na nuvem da paróquia, em Vídeos e Áudios (com a sincronização ligada): "☁ Na nuvem, faltam aqui" mostra as mesmas subpastas de quem enviou, e o que você baixa vai para a mesma subpasta deste computador, então os roteiros acham o arquivo.',
+    '▶ Prévia direto da nuvem: clique num vídeo ou áudio que ainda não está neste computador e ele toca ali mesmo, sem baixar (só aqui, não vai ao telão).',
+    '☑ Marcar: caixinhas nos arquivos e nas pastas. Marque o que quiser e clique em "⬇ Baixar" ou "☁↑ Enviar"; os arquivos vão numa fila, um por vez, enquanto você continua usando o programa ("■ Parar a fila" interrompe). Quem não tem a pasta do Holyrics ganha a pasta Documentos\\MiguelAngelus\\Vídeos (ou Áudios) no primeiro download.',
+    '✝ Liturgia do dia nas Missas de semana: o nome do santo no card do roteiro aparecia todo em minúsculas ("São leão magno, papa e doutor da igreja"). Agora fica "São Leão Magno, papa e doutor da Igreja", e os roteiros já criados são corrigidos sozinhos.',
+  ] },
+  { versao: '1.9.3', data: '2026-11-15', itens: [
+    '🎸 "Montar a letra a partir da cifra" reconhece mais formatos de acorde do Cifra Club: G7/4, D7/9, Eb6/9, Bm7b5, N.C., as marcas de repetição (2x), x2, bis e as linhas "Intro: G D Em C". Antes, um acorde desses fazia a linha de acordes inteira ir para a letra. A causa mais comum era invisível: ao copiar do Cifra Club, algumas linhas vêm com um caractere sem largura no começo, e agora ele é ignorado. Também saem o "Capotraste…" do cabeçalho e os acordes entre colchetes no meio da letra ("[G]Santo").',
+  ] },
+  { versao: '1.9.2', data: '2026-11-15', itens: [
+    '🤫 Novo momento "Momento de silêncio para oração pessoal" (no Inserir → Momento, em Rito da Comunhão). Ele nunca leva número, e a Oração depois da Comunhão continua com o slide de título dela.',
+    '🤫 Em Ajustes, ao lado do "1º slide de cada parte com o nome dela", a chave "Momento de silêncio … depois do canto de comunhão, em todos os roteiros": cada roteiro aberto ganha esse momento logo depois do canto de comunhão. Se tirar de um roteiro, ele não volta; desligar a chave tira os que entraram sozinhos.',
+  ] },
+  { versao: '1.9.1', data: '2026-11-15', itens: [
+    '🏷 Slide de título de cada parte: agora mostra só o nome da parte (ex.: "Santo"), sem o nome do canto embaixo, que confundia quem estava no telão. Para voltar a mostrar o canto (ou a referência do Salmo), desmarque "só o nome (sem o do canto)" em Ajustes, ao lado de "1º slide de cada parte com o nome dela". A linha que você escreve num item Momento continua aparecendo.',
+    '📱 Celular dos músicos: a tela não apaga mais enquanto a página do MiguelAngelus está aberta, também nos celulares Android que abrem pelo endereço da rede da igreja.',
+  ] },
   { versao: '1.9.0', data: '2026-11-14', itens: [
     '🎉 Aba Eventos (Alt+0): os eventos da paróquia (festas, retiros, cursos) com cartaz e QR code. Clique num evento para projetar: o cartaz fica à esquerda e o QR à direita; quem aponta a câmera do celular recebe "Adicionar à agenda", sem precisar de internet. Dá para criar e editar aqui ou na Secretaria MiguelAngelus: os eventos vão e voltam pela nuvem (só os eventos: os dados da secretaria não vêm para cá).',
     '🎉 "Apresentar eventos" no Adicionar do roteiro: marque quais eventos entram, quantos segundos cada um fica no telão e se recomeça do início ao terminar. Clique no primeiro slide e os outros passam sozinhos. A apresentação espera com o telão congelado e para se você projetar outra coisa ou usar Limpar.',

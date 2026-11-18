@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -8,7 +8,7 @@
 <script>try { if (localStorage.getItem('lumen.temaApp') === 'claro') document.documentElement.dataset.temaApp = 'claro'; } catch (_) {}
   // (Secretaria MiguelAngelus 1.0) o mesmo programa aberto no modo Secretaria: só Agenda e Avisos (index.html?app=secretaria)
   const SECRETARIA = new URLSearchParams(location.search).get('app') === 'secretaria';
-  const VERSAO_SECRETARIA = '1.1.0';   // versão da Secretaria (a do .iss e do .csproj precisam bater)
+  const VERSAO_SECRETARIA = '1.3.0';   // versão da Secretaria (a do .iss e do .csproj precisam bater)
   if (SECRETARIA) { document.documentElement.classList.add('app-secretaria'); document.title = 'Secretaria MiguelAngelus'; }</script>
 <link rel="icon" type="image/svg+xml" href="img/icone.svg">
 </head>
@@ -25,7 +25,7 @@
     </div>
     <div class="splash-info">
       <div class="splash-gratis"><b>Gratuito · uso livre</b></div>
-      <div data-versao>Versão 1.9.0</div>
+      <div data-versao>Versão 1.9.6</div>
       <div>© 2026</div>
       <div><b>PASCOM</b></div>
       <div><b>São José Operário Ilha</b></div>
@@ -158,8 +158,8 @@
     <img src="img/secretaria.svg" alt="">
     <div>
       <h1><span class="dourado">Miguel</span>Angelus <span class="marca-sec">Secretaria</span></h1>
-      <p class="sutil">Agenda e avisos da paróquia. O que for feito aqui vai pela nuvem para o MiguelAngelus:
-        as celebrações aparecem nos cards e roteiros, e os avisos entram sozinhos na tela de Avisos das Missas.</p>
+      <p class="sutil">Agenda, avisos, marcações, intenções e eventos da paróquia. Pela nuvem, o MiguelAngelus recebe a Agenda, os avisos
+        e os eventos; as marcações e as intenções ficam só na Secretaria.</p>
     </div>
   </div>
   <div id="secNuvem" class="sec-nuvem"></div>
@@ -176,10 +176,14 @@
       <span>Folha para ler no ambão (ou PDF) e imagens para o Holyrics.</span></button>
     <button type="button" data-sec="marcacoes" class="sec-local"><span class="ic">📒</span><b>Agenda de marcações</b>
       <span>Batizados, casamentos, 15 anos, 7º dia, crisma, 1ª comunhão… por igreja. Só entre as Secretarias.</span></button>
+    <button type="button" data-sec="agendaG" class="sec-local" hidden><!-- aparece só depois de ligar em Ajustes → 📆 Agenda da secretaria --><span class="ic">📆</span><b>Agenda da secretaria</b>
+      <span>A agenda do Google que a secretaria já usa, numa conta própria. Ver é livre; para mexer, cada pessoa entra com a sua senha. (protótipo)</span></button>
     <button type="button" data-sec="intencoes" class="sec-local"><span class="ic">🕯</span><b>Intenções de Missa</b>
       <span>As intenções de cada Missa, a folha para ler e o relatório das ofertas. Só entre as Secretarias.</span></button>
     <button type="button" data-sec="eventos"><span class="ic">🎉</span><b>Eventos com QR code</b>
       <span>Retiro, festa, curso… com cartaz e um QR code que põe o evento na agenda do celular.</span></button>
+    <button type="button" data-sec="campanhas"><span class="ic">💝</span><b>Campanhas de arrecadação</b>
+      <span>Reforma, festa, obra social… com o Pix da campanha, a meta e quanto já foi arrecadado, para o telão.</span></button>
     <button type="button" data-sec="nuvem"><span class="ic">☁</span><b>Nuvem da paróquia</b>
       <span>Conectar ao Google Drive da paróquia (o mesmo do MiguelAngelus) e sincronizar.</span></button>
   </div>
@@ -344,11 +348,14 @@
         <button id="btnPastaMidia" class="primario" data-so="video audio" title="A pasta deste computador onde ficam os arquivos (ex.: E:\Backup Holyrics\media\video). As subpastas viram pastas aqui.">📁 Escolher pasta…</button>
         <button id="btnRelerPasta" data-so="video audio" title="Ler a pasta de novo (arquivos novos ou apagados)">⟳</button>
         <button id="btnAddMidia" data-so="video audio" title="Guardar um arquivo dentro do MiguelAngelus (fora da pasta)">＋ Importar arquivo</button>
+        <button id="btnMarcarMidia" data-so="video audio" hidden title="Marcar arquivos e pastas para baixar da nuvem ou enviar para a nuvem (vão numa fila, um por vez)">☑ Marcar</button>
         <span data-so="apresentacao"><button type="button" class="btn-nuvem" data-nuvem hidden title="Buscar agora na nuvem o que os outros computadores mudaram (e mandar o que mudou aqui)">☁ Atualizar</button></span>
         <button id="btnNovaApres" class="primario" data-so="apresentacao" title="Slides personalizados com imagem e texto — ou importe um PDF do PowerPoint/Canva">＋ Apresentação</button>
         <button id="btnNovaCamera" class="primario" data-so="camera" title="Câmera ao vivo no telão (câmeras NDI pelo NDI Webcam, ou webcam comum)">＋ Câmera</button>
       </div>
       <div id="pastaMidiaInfo" class="sutil pequeno" data-so="video audio"></div>
+      <div id="barraMarcados" class="barra-marcados" hidden></div>
+      <div id="filaMidia" class="fila-midia" hidden></div>
       <input type="file" id="arqMidia" accept="video/*,audio/*,.mkv,.mov" multiple hidden>
       <input type="file" id="arqApImagens" accept="image/*" multiple hidden>
       <input type="file" id="arqApImagem" accept="image/*" hidden>
@@ -432,6 +439,7 @@
         <button data-add="imagem" title="Imagem (banner, flyer, cartaz…): só a imagem, ou com texto. Escolha o arquivo, cole (Ctrl+V) ou arraste para a janela">🖼 Imagem</button>
         <button data-add="avisos" title="Tela de avisos paroquiais: título chamativo e os avisos programados para a data">Avisos</button>
         <button data-add="eventos" title="Apresentar eventos: os eventos marcados (aba 🎉 Eventos), cada um com o cartaz e o QR code, passando sozinhos no telão">🎉 Apresentar eventos</button>
+        <button data-add="campanhas" title="Campanhas de arrecadação (feitas na Secretaria MiguelAngelus): a arte, o Pix e quanto já foi arrecadado, passando sozinhas no telão. Entra depois dos Avisos">💝 Campanhas</button>
         <button data-add="midia" title="Vídeo, áudio, apresentação ou câmera">Mídia</button>
       </div>
     </section>
@@ -554,6 +562,10 @@
           <div class="linha">
             <label class="check" title="Cada parte do roteiro (Entrada, Ato Penitencial, Coleta, Salmo…) começa com um slide só com o nome dela — ideia do Hermínio"><input type="checkbox" data-cfg="slideSecao"> 1º slide de cada parte com o nome dela</label>
             <label class="check" title="Ex.: 3. Ato Penitencial — na ordem do roteiro"><input type="checkbox" data-cfg="numerarSecoes"> com número</label>
+            <label class="check" title="Ligado: o slide de título mostra só o nome da parte (ex.: Santo). Desligado: mostra também o nome do canto ou a referência do Salmo embaixo. A linha que você escreve num item Momento sempre aparece."><input type="checkbox" data-cfg="secaoSoNome"> só o nome (sem o do canto)</label>
+          </div>
+          <div class="linha">
+            <label class="check" title="Cada roteiro aberto ganha, logo depois do canto de comunhão, o item Momento &quot;Momento de silêncio para oração pessoal&quot; (sem número). Se tirar de um roteiro, não volta. Desligar tira os que entraram sozinhos."><input type="checkbox" data-cfg="silencioComunhao"> <b>Momento de silêncio</b> para oração pessoal depois do canto de comunhão, em todos os roteiros</label>
           </div>
           <div class="linha">
             <label class="check" title="Em vez de um slide só com o nome, o nome da parte vai em cima do texto, no 1º slide dela, colorido como no folheto — ideia do Thiago"><input type="checkbox" data-cfg="secaoJunto"> Nome da parte <b>junto do texto</b>, colorido</label>
@@ -824,6 +836,11 @@
               <input id="parLocPadroeiro" placeholder="Ex.: São José Operário"></label>
             <label class="campo par-pad-dia">Dia <input id="parLocPadDia" placeholder="dd/mm" maxlength="5"></label>
             <label class="campo par-pad-cor">Cor <select id="parLocPadCor"><option value="branco">Branco</option><option value="vermelho">Vermelho (mártir)</option></select></label>
+            <div id="parLocBVLinha" class="bv-linha">
+              <label class="campo" title="Vídeo (da aba Vídeos) que abre as Missas desta igreja">🎬 Vídeo de boas-vindas <select id="parLocBV"></select></label>
+              <label class="check pequeno" title="Só os roteiros criados daqui para frente (pela Agenda, Liturgia do dia ou folheto). Os que já existem não mudam."><input type="checkbox" id="parLocBVAuto">
+                Começar os roteiros novos de Missa desta igreja com este vídeo (1º item)</label>
+            </div>
             <button id="btnParLocal" class="primario">Adicionar</button>
             <button id="btnParLocalCancelar" hidden>Cancelar edição</button>
           </div>
@@ -1160,9 +1177,9 @@
     <p class="sutil"><b>Miguel</b> + <b>Angelus</b> ("anjo", em latim): uma homenagem ao Miguel, que idealizou e criou
       esse projeto, e a <b>São Miguel Arcanjo</b>, cuja festa foi na semana em que o programa nasceu. 😇</p>
     <div class="creditos">
-      <div class="credito"><div class="foto">M</div>
+      <div class="credito"><img class="foto" src="img/foto-miguel.webp" alt="Miguel">
         <div><span class="sutil pequeno">Criado por</span><b>Miguel Aurelio Dutra Martins</b></div></div>
-      <div class="credito"><div class="foto">M</div>
+      <div class="credito"><img class="foto" src="img/foto-marcio.webp" alt="Marcio">
         <div><span class="sutil pequeno">Desenvolvido por</span><b>Marcio Aurelio Rios Martins</b></div></div>
     </div>
     <div class="sobre-brasoes">
@@ -1183,7 +1200,7 @@
       <a href="mailto:contato.miguelangelus@gmail.com" target="_blank" rel="noopener" class="mail" title="E-mail do MiguelAngelus: dúvidas, sugestões e outras paróquias">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 6.5 12 13l8.5-6.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>contato.miguelangelus@gmail.com</a>
     </div>
-    <p class="sutil pequeno" id="versaoApp">Versão 1.9.0</p>
+    <p class="sutil pequeno" id="versaoApp">Versão 1.9.6</p>
     <div class="linha"><span class="espaco"></span><button value="ok" class="primario">OK</button></div>
   </form>
 </dialog>
@@ -1554,7 +1571,10 @@
 <script src="js/menus.js"></script>
 <script src="js/secretaria.js"></script>
 <script src="js/secretariacadastros.js"></script>
+<script src="js/secretariaagendag.js"></script>
 <script src="js/eventos.js"></script>
+<script src="js/campanhas.js"></script>
+<script src="js/boasvindas.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

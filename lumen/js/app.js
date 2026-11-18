@@ -36,7 +36,7 @@ const CONFIG_PADRAO = {
   espacoResposta: true,                          // espaço entre as falas: a resposta do povo fica separada
   salmoCorrido: true,                            // salmo: versos de cada estrofe em texto corrido (não quebra a cada vírgula)
   // ideias do Hermínio (1.6.5): 1º slide de cada parte do roteiro com o nome dela; área útil do slide (margens, % da tela)
-  slideSecao: true, numerarSecoes: false, margemLados: 5, margemTopo: 5,
+  slideSecao: true, numerarSecoes: false, secaoSoNome: true, silencioComunhao: false, margemLados: 5, margemTopo: 5,
   contornarCantos: true,                         // (1.6.6) o texto contorna o quadrado de cada imagem dos cantos
   // ideias do Thiago (1.7.6): transição suave; o nome da parte junto do texto, colorido; o texto continua centralizado
   // ao desviar das imagens dos cantos
@@ -590,17 +590,51 @@ const MOMENTOS_MISSA = [
   ['Liturgia da Palavra', ['Liturgia da Palavra', 'Primeira Leitura', 'Salmo Responsorial', 'Segunda Leitura', 'Aclamação ao Evangelho',
     'Evangelho', 'Homilia', 'Profissão de Fé', 'Oração dos Fiéis']],
   ['Liturgia Eucarística', ['Liturgia Eucarística', 'Apresentação das Oferendas', 'Oração sobre as Oferendas', 'Oração Eucarística']],
-  ['Rito da Comunhão', ['Rito da Comunhão', 'Pai-Nosso', 'Saudação da Paz', 'Cordeiro de Deus', 'Comunhão', 'Ação de Graças', 'Oração depois da Comunhão']],
+  ['Rito da Comunhão', ['Rito da Comunhão', 'Pai-Nosso', 'Saudação da Paz', 'Cordeiro de Deus', 'Comunhão', 'Momento de silêncio para oração pessoal', 'Ação de Graças', 'Oração depois da Comunhão']],
   ['Ritos Finais', ['Avisos', 'Ritos Finais', 'Bênção Final', 'Despedida', 'Canto Final']],
 ];
 const nomesMomentos = () => MOMENTOS_MISSA.flatMap(g => g[1]);
+
+// (1.9.2) "Momento de silêncio para oração pessoal": um momento à parte — nunca leva número e não "engole" o título da
+// parte seguinte (a Oração depois da Comunhão continua com o slide de título dela). Com a chave dos Ajustes
+// (silencioComunhao), entra sozinho em cada roteiro aberto, logo depois do canto de comunhão (uma vez por roteiro:
+// se a equipe tirar, não volta).
+const MOMENTO_SILENCIO = 'Momento de silêncio para oração pessoal';
+const ehSilencio = i => i?.tipo === 'momento' && semAcento((i.titulo || '').trim()).toLowerCase() === semAcento(MOMENTO_SILENCIO).toLowerCase();
+
+function silencioNoRoteiro(r) {
+  if (!S.config.silencioComunhao || !r?.itens || r.silencioFeito) return false;
+  const itens = r.itens;
+  if (itens.some(i => ehSilencio(i) || i.auto === 'silencio')) { r.silencioFeito = true; return true; }
+  let pos = -1;
+  itens.forEach((i, k) => { if (i.tipo === 'canto' && i.momento === 'Comunhão') pos = k; });
+  if (pos < 0) return false;                         // ainda sem canto de comunhão: entra quando ele vier
+  itens.splice(pos + 1, 0, { id: uid(), tipo: 'momento', titulo: MOMENTO_SILENCIO, sub: '', auto: 'silencio' });
+  r.silencioFeito = true;
+  if (r === S.roteiro && S.atual?.rIdx >= 0) S.atual.rIdx = itens.indexOf(S.atual.item);
+  return true;
+}
+
+// desligou a chave: tira dos roteiros os que entraram sozinhos (e não foram mexidos); ligou: põe no roteiro aberto
+function aposMudarSilencio() {
+  if (S.config.silencioComunhao) { if (silencioNoRoteiro(S.roteiro)) { salvarRoteiro(); renderRoteiroLista(); } return; }
+  for (const r of S.roteiros) {
+    const antes = r.itens.length;
+    r.itens = r.itens.filter(i => !(i.auto === 'silencio' && ehSilencio(i) && !(i.sub || '').trim()));
+    if (r.itens.length === antes && !r.silencioFeito) continue;
+    delete r.silencioFeito;
+    if (r === S.roteiro) { if (S.atual?.rIdx >= 0) { const k = r.itens.indexOf(S.atual.item); if (k < 0) S.atual = null; else S.atual.rIdx = k; } salvarRoteiro(); }
+    else { r.atualizado = Date.now(); DB.salvar('roteiros', r); }
+  }
+  renderRoteiroLista(); renderSlides();
+}
 
 // Item que continua o anterior não ganha slide de título: o marcado (semSecao) e o Pai-Nosso logo depois do
 // "Rito da Comunhão" do folheto (que termina chamando o Pai-Nosso) e o "Eis o Cordeiro" logo depois do Cordeiro
 function continuaAnterior(item, itens) {
   if (item.semSecao) return true;
   const ant = itens[itens.indexOf(item) - 1];
-  if (ant?.tipo === 'momento' && item.tipo !== 'momento' && (ant.titulo || '').trim()) return true;     // o slide do momento já é o título
+  if (ant?.tipo === 'momento' && item.tipo !== 'momento' && (ant.titulo || '').trim() && !ehSilencio(ant)) return true;     // o slide do momento já é o título (o de silêncio não)
   if (item.tipo !== 'ordinario') return false;
   if (!ant) return false;
   if (item.parte === 'pai-nosso') return (ant.tipo === 'texto' && /rito da comunhao/.test(semAcento(ant.titulo || ''))) || (ant.tipo === 'ordinario' && ant.parte === 'rito-comunhao');
@@ -609,7 +643,7 @@ function continuaAnterior(item, itens) {
 }
 
 // partes que o folheto não numera: comentários, antífonas e as intenções
-const semNumero = i => i.intencoes || i.antifona || (i.tipo === 'texto' && /^(coment[aá]rio|ant[ií]fona)/i.test(i.titulo || ''));
+const semNumero = i => i.intencoes || i.antifona || ehSilencio(i) || (i.tipo === 'texto' && /^(coment[aá]rio|ant[ií]fona)/i.test(i.titulo || ''));
 function slideDaSecao(item) {
   const momento = item.tipo === 'momento';      // o Momento é o próprio slide de título: sai mesmo sem "slide com o nome da parte"
   const noRoteiro = !!S.roteiro?.itens.includes(item);
@@ -617,7 +651,7 @@ function slideDaSecao(item) {
   const nome = nomeDaSecao(item);
   if (!nome || !nome[0]) return null;
   let titulo = tirarMarcas(nome[0]);
-  if (S.config.numerarSecoes && noRoteiro) {
+  if (S.config.numerarSecoes && noRoteiro && !ehSilencio(item)) {
     const itens = S.roteiro.itens;
     // o Momento leva o número que o folheto dá à parte que vem logo depois dele
     const prox = momento ? itens[itens.indexOf(item) + 1] : null;
@@ -634,7 +668,10 @@ function slideDaSecao(item) {
       titulo = `${n}. ${titulo}`;
     }
   }
-  return { texto: `<gg>${titulo}</gg>` + (nome[1] ? `\n${tirarMarcas(nome[1])}` : ''), rodape: '', secao: true, secaoNome: titulo };
+  // (1.9.1, Hermínio se confundiu com o nome do canto no Santo) "só o nome": sem a 2ª linha (canto, referência do Salmo);
+  // a linha escrita à mão num item Momento continua
+  const sub = nome[1] && (momento || S.config.secaoSoNome === false) ? `\n${tirarMarcas(nome[1])}` : '';
+  return { texto: `<gg>${titulo}</gg>` + sub, rodape: '', secao: true, secaoNome: titulo };
 }
 
 // Refrão no início e depois de cada estrofe (sem refrão: só as estrofes).
@@ -713,6 +750,8 @@ function gerarSlidesBase(item) {
       return slidesEvento(item);          // (1.9) eventos.js: cartaz + QR
     case 'eventos':
       return slidesShowEventos(item);     // (1.9) eventos.js: os eventos marcados, um slide cada, passando sozinhos
+    case 'campanhas':
+      return slidesCampanhas(item);       // (1.9.6) campanhas.js: arte + andamento + QR do Pix, passando sozinhos
     case 'imagem': {
       // Slide híbrido: a mesma imagem em todos os slides do item; linha em branco separa os textos
       if (!item.imagem) return dividir(item.texto).map(t => ({ texto: t, rodape: item.titulo || '' }));
@@ -1603,6 +1642,9 @@ function renderCabecalho() {
     case 'eventos':
       h = htmlCabShowEventos(it);                   // (1.9) eventos.js
       break;
+    case 'campanhas':
+      h = htmlCabCampanhas(it);                     // (1.9.6) campanhas.js
+      break;
     case 'prefacio':
     case 'eucaristica': {
       const pref = it.tipo === 'prefacio', id = pref ? it.prefId : it.oeId;
@@ -1629,7 +1671,7 @@ function renderCabecalho() {
     }
   }
   if (noRoteiro && it.partituraId) h += htmlPartituraDoItem(it);
-  if (noRoteiro && !['imagem', 'midia', 'avisos', 'evento', 'eventos'].includes(it.tipo)) h += htmlFundoItem(it);
+  if (noRoteiro && !['imagem', 'midia', 'avisos', 'evento', 'eventos', 'campanhas'].includes(it.tipo)) h += htmlFundoItem(it);
   el.innerHTML = h;
   atualizarStatusRef();
 }
@@ -1679,12 +1721,14 @@ function resumoItem(it) {
     }
     case 'evento': return resumoEvento(it);      // (1.9) eventos.js
     case 'eventos': return resumoShowEventos(it);
+    case 'campanhas': return resumoCampanhas(it);   // (1.9.6) campanhas.js
     case 'prefacio': return { rot: 'Prefácio', tit: nomeEuc(it.prefId), vazio: !temTexto(it.prefId) };
     case 'eucaristica': return { rot: 'Or. Eucarística', tit: nomeEuc(it.oeId), vazio: !temTexto(it.oeId) };
     case 'midia': {
       const m = midiaDe(it);
       if (m?.tipo === 'apresentacao') return { rot: 'Apresentação', tit: m.nome, vazio: !m.slides.length };
       if (m?.tipo === 'camera') return { rot: 'Câmera', tit: m.nome, vazio: false };
+      if (it.boasVindas) return { rot: 'Boas-vindas', tit: m ? m.nome : 'vídeo de boas-vindas (não encontrado)', vazio: !m };   // (1.9.6)
       return { rot: m?.tipo === 'audio' ? 'Áudio' : m ? 'Vídeo' : 'Mídia', tit: m ? m.nome : 'escolher vídeo ou áudio…', vazio: !m };
     }
   }
@@ -1698,6 +1742,7 @@ function renderRoteiroCab() {
 
 function renderRoteiroLista() {
   const el = $('#roteiroItens');
+  if (silencioNoRoteiro(S.roteiro)) salvarRoteiro();   // (1.9.2) momento de silêncio depois do canto de comunhão, se ligado
   const itens = S.roteiro.itens;
   const bl = $('#btnLetrasRoteiro'); if (bl) bl.hidden = !itensSemLetras(S.roteiro).length;    // roteiro antigo, sem P./T.
   if (!itens.length) {
@@ -1793,7 +1838,12 @@ function novoItem(tipo) {
     // (1.9) evento da aba 🎉 Eventos: já vem com o próximo (dá para trocar no cabeçalho)
     case 'evento': return { ...base, eventoId: eventosPorVir()[0]?.id || '' };
     // (1.9) "Apresentar eventos": os eventos por vir já marcados; 10 s cada; recomeça do início ao terminar
-    case 'eventos': return { ...base, titulo: 'Apresentar eventos', eventoIds: eventosPorVir().map(e => e.id), segundos: 10, repetir: true };
+    // (1.9.5) o item novo vem com a última configuração usada (segundos, recomeçar, som, todos por vir)
+    case 'eventos': { const p = S.config.showEventosPadrao || {};
+      return { ...base, titulo: 'Apresentar eventos', eventoIds: eventosPorVir().map(e => e.id), segundos: p.segundos ?? 10, repetir: p.repetir ?? true,
+        ...(p.audioId ? { audioId: p.audioId } : {}), ...(p.todosPorVir ? { todosPorVir: true } : {}) }; }
+    // (1.9.6) 💝 Campanhas: todas as abertas (atualiza sozinho), 12 s cada, recomeça do início
+    case 'campanhas': return { ...base, titulo: 'Campanhas', todasAtivas: true, campanhaIds: [], segundos: 12, repetir: true };
   }
 }
 
@@ -1887,7 +1937,9 @@ function renderCantos() {
 function organizarColado(bruto) {
   const norm = s => semAcento(s).replace(/[^a-z0-9]+/g, ' ').trim();
   const acorde = /^[A-G][#b]?(?:m|M|maj|min|sus|dim|aug|add|°|º)?\d*(?:\([^)]*\))?(?:\/[A-G][#b]?)?$/;
-  const ehCifra = t => { const p = t.split(/\s+/); return p.every(x => acorde.test(x) || /^[|\-–.x:]+$/i.test(x)); };
+  // (1.9.3) a mesma regra do "Montar a letra a partir da cifra" (cifras.js), que conhece mais formatos de acorde
+  const ehCifra = t => typeof ehLinhaDeAcordes === 'function' ? ehLinhaDeAcordes(t)
+    : t.split(/\s+/).every(x => acorde.test(x) || /^[|\-–.x:]+$/i.test(x));
   let autor = '';
   const linhas = [];
   for (const l of (bruto || '').replace(/\r/g, '').split('\n')) {
@@ -2586,7 +2638,7 @@ async function distribuirFolheto(modo) {
   for (const o of marcadas) {
     let r = roteiroDaCelebracao(o);
     if (r) {
-      r.itens = comAvisos(pacote.itens.map(i => ({ ...structuredClone(i), id: uid() })));
+      r.itens = manterBoasVindas(r.itens, comAvisos(pacote.itens.map(i => ({ ...structuredClone(i), id: uid() }))));   // (1.9.6) o vídeo de boas-vindas fica
       r.atualizado = Date.now();
       substituidos++;
     } else {
@@ -2678,8 +2730,9 @@ function ligarAjustes() {
       salvarConfig();
       if (k === 'temaApp') return aplicarTemaApp();     // só o aplicativo; o telão não muda
       if (k === 'textoAltar') return atualizarAltarNoAr();
+      if (k === 'silencioComunhao') return aposMudarSilencio();
       enviarConfigTelao(); renderTemasRapidos(); desenharPreviaMargens();
-      if (['versosPorSlide', 'numerarVersos', 'quebraAuto', 'linhasPorSlide', 'caracteresPorLinha', 'quebraCantos', 'salmoCorrido', 'slideSecao', 'numerarSecoes',
+      if (['versosPorSlide', 'numerarVersos', 'quebraAuto', 'linhasPorSlide', 'caracteresPorLinha', 'quebraCantos', 'salmoCorrido', 'slideSecao', 'numerarSecoes', 'secaoSoNome',
         'secaoJunto', 'cruz', 'versosFolheto', 'slideAuto', 'margemLados', 'margemTopo', 'maiusculas'].includes(k)) atualizarSlides();
     });
   }
@@ -2825,10 +2878,18 @@ function ligarEventos() {
     if (campo === 'cantoId' || campo === 'momento') { BuscaCanto.item = null; BuscaCanto.termo = ''; }      // escolheu: a busca limpa
     if (it.tipo === 'terco') aoMudarTerco(it, campo);
     if (campo === 'usarFundo' || campo === 'fundoEscurecer') { if (campo === 'fundoEscurecer') it[campo] = +it[campo]; return aposMudarFundoItem(); }
+    // (1.9.5) "Apresentar eventos": lembra a configuração para o próximo item; "todos por vir" redesenha as caixinhas
+    if (it.tipo === 'eventos' && ['segundos', 'repetir', 'audioId', 'todosPorVir'].includes(campo)) {
+      S.config.showEventosPadrao = { segundos: segundosShow(it), repetir: !!it.repetir, audioId: it.audioId || '', todosPorVir: !!it.todosPorVir };
+      salvarConfig();
+      if (campo === 'todosPorVir') { if (!it.todosPorVir) it.eventoIds = eventosPorVir().map(x => x.id); if (S.atual.rIdx >= 0) { salvarRoteiro(); renderRoteiroLista(); } atualizarSlides(); return renderCabecalho(); }
+    }
+    // (1.9.6) 💝 Campanhas: ao desligar "todas as abertas", ficam marcadas as que estavam aparecendo
+    if (it.tipo === 'campanhas' && campo === 'todasAtivas' && !it.todasAtivas) it.campanhaIds = Camp.lista.filter(campanhaNoTelao).map(c => c.id);
     if (S.atual.rIdx >= 0) { salvarRoteiro(); renderRoteiroLista(); }
     if (it.tipo === 'terco' && e.target.type === 'checkbox') { atualizarSlides(); return renderCabecalho(); }
     atualizarSlides();
-    if (e.target.tagName === 'SELECT' || (it.tipo === 'eventos' && campo === 'repetir')) renderCabecalho();   // (1.9) a nota 🔁 do grupo muda
+    if (e.target.tagName === 'SELECT' || (ehShow(it) && ['repetir', 'todasAtivas'].includes(campo))) renderCabecalho();   // (1.9) a nota 🔁 do grupo muda
     else if (campo === 'ref') atualizarStatusRef();
   });
   $('#itemCab').addEventListener('click', e => {
@@ -3036,7 +3097,9 @@ function ligarEventos() {
   for (const b of $$('[data-add]')) b.addEventListener('click', () => {
     if (b.dataset.add === 'terco') return adicionarTercoAoRoteiro();
     const it = novoItem(b.dataset.add);
-    const pos = adicionarAoRoteiro(it);
+    // (1.9.6) 💝 Campanhas entra logo depois dos Avisos (se o roteiro tiver)
+    const kAv = it.tipo === 'campanhas' ? S.roteiro.itens.findIndex(x => x.tipo === 'avisos') : -1;
+    const pos = kAv >= 0 ? (S.roteiro.itens.splice(kAv + 1, 0, it), salvarRoteiro(), kAv + 1) : adicionarAoRoteiro(it);
     abrirItem(it, pos);
     $(it.intencoes || it.antifona ? '#itemCab textarea' : '#itemCab input:not([type=checkbox]), #itemCab select, #itemCab textarea')?.focus();
   });
@@ -3253,6 +3316,14 @@ async function iniciar() {
   S.cantos = await DB.todos('cantos');
   await carregarPartituras();           // partituras.js (1.8.6)
   S.roteiros = await DB.todos('roteiros');
+  // (1.9.4) roteiros da Liturgia do dia guardados com o santo em minúsculas ("São leão magno, papa…"): conserta uma vez
+  for (const r of S.roteiros) {
+    const t = r.tituloLiturgico, novo = t && typeof nomeLiturgico === 'function' ? nomeLiturgico(t) : t;
+    if (!t || novo === t) continue;
+    r.tituloLiturgico = novo;
+    if (r.nome && r.nome.endsWith('— ' + t)) r.nome = r.nome.slice(0, -t.length) + novo;
+    try { await DB.salvar('roteiros', r); } catch (e) { console.warn('nome litúrgico', e); }
+  }
   Midia.lista = await DB.todos('midias');
   statusAbertura('Carregando orações, Agenda e Bíblia…');
   await carregarOracoes();
@@ -3282,6 +3353,7 @@ async function iniciar() {
   ligarApresentacoes();
   renderMidias();
   if (!SECRETARIA) await iniciarEventosMA();     // (1.9) aba 🎉 Eventos (eventos.js)
+  if (!SECRETARIA) ligarBoasVindas();            // (1.9.6) vídeo de boas-vindas e "pôr nos outros roteiros" (boasvindas.js)
   ligarOracoes();
   ligarEditorOrdinario();
   renderOracoes();
