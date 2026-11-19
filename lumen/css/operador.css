@@ -1248,6 +1248,18 @@ html.app-secretaria .splash-gratis { color: #9a6a00; }
 .sec-int { font-size: 12px; white-space: nowrap; background: var(--painel2); border-radius: 10px; padding: 1px 7px; }
 dialog.dlg-sec-largo { width: min(1100px, 96vw); }
 .dlg-sec .sec-privado { margin: -4px 0 6px; }
+/* (Secretaria 1.5.0) situação da chave "Intenções no MiguelAngelus" */
+.in-telao-aviso { margin: 0 0 6px; padding: 6px 10px; border-radius: 8px; border-left: 4px solid var(--borda, #888); background: var(--painel2); }
+.in-telao-aviso.ligado { border-left-color: #3fa66b; }
+/* (Secretaria 1.5.0) histórico da campanha e dados de uma pessoa (LGPD) */
+.cp-hist { margin: 4px 0 8px; }
+.cp-hist summary { cursor: pointer; font-size: .9em; }
+.cp-hist #cpfHistLista { max-height: 180px; overflow: auto; margin-top: 4px; }
+.lg-lista { max-height: 46vh; overflow: auto; background: var(--painel2); border-radius: 8px; padding: 6px 10px; margin: 6px 0; min-height: 60px; }
+.lg-grupo-tit { font-weight: 700; margin: 6px 0 2px; }
+.lg-item { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; border-bottom: 1px solid var(--borda, #333); }
+.lg-item small { display: block; }
+.lg-item mark { background: #e8c35a55; color: inherit; border-radius: 3px; }
 .sec-filtros { flex-wrap: wrap; gap: 6px; }
 .sec-visoes, .sec-nav { display: inline-flex; }
 .sec-visoes button, .sec-nav button { border-radius: 0; padding: 5px 11px; }
@@ -1335,6 +1347,18 @@ html[data-tema-app="claro"] .t-evento, html[data-tema-app="claro"] .t-eventos { 
 #roteiroItens .it.loop-ini { border-top: 1px dashed #3fb6a8; }
 #roteiroItens .it.loop-fim { border-bottom: 1px dashed #3fb6a8; }
 #roteiroItens .it .loop-ic { font-size: 12px; margin-right: 2px; }
+/* (1.9.10) conjunto desligado (passagem manual): a linha que envolve os itens fica cinza */
+#roteiroItens .it.loop-g.loop-off { box-shadow: inset 4px 0 0 #7d8590; }
+#roteiroItens .it.loop-ini.loop-off { border-top-color: #7d8590; }
+#roteiroItens .it.loop-fim.loop-off { border-bottom-color: #7d8590; }
+/* item tirado do conjunto com Ctrl+clique: risquinho cinza tracejado */
+#roteiroItens .it.loop-fora { box-shadow: inset 4px 0 0 transparent; border-left: 2px dashed #7d8590; }
+/* chavinha do conjunto (aparece com as setas ao passar o mouse) */
+#roteiroItens .loop-chave { width: 30px; padding: 0 3px; display: inline-flex; align-items: center; }
+#roteiroItens .loop-chave i { position: relative; width: 22px; height: 12px; border-radius: 6px; background: #7d8590; transition: background .15s; }
+#roteiroItens .loop-chave i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: #fff; transition: left .15s; }
+#roteiroItens .loop-chave.on i { background: #3fb6a8; }
+#roteiroItens .loop-chave.on i::after { left: 12px; }
 #plGrupo:empty { display: none; }
 #evPrevia img { width: 384px; height: 216px; }
 /* (1.9.6) 💝 Campanhas de arrecadação (Secretaria) e o item "Campanhas" do roteiro */
