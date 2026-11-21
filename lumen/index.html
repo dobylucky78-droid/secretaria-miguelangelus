@@ -8,8 +8,8 @@
 <script>try { if (localStorage.getItem('lumen.temaApp') === 'claro') document.documentElement.dataset.temaApp = 'claro'; } catch (_) {}
   // (Secretaria MiguelAngelus 1.0) o mesmo programa aberto no modo Secretaria: só Agenda e Avisos (index.html?app=secretaria)
   const SECRETARIA = new URLSearchParams(location.search).get('app') === 'secretaria';
-  const VERSAO_SECRETARIA = '1.5.0';   // versão da Secretaria (a do .iss e do .csproj precisam bater)
-  if (SECRETARIA) { document.documentElement.classList.add('app-secretaria'); document.title = 'Secretaria MiguelAngelus'; }</script>
+  const VERSAO_SECRETARIA = '1.5.1';   // versão da Secretaria (a do .iss e do .csproj precisam bater)
+  if (SECRETARIA) { document.documentElement.classList.add('app-secretaria'); document.title = 'Secretaria MiguelAngelus ' + VERSAO_SECRETARIA; }</script>
 <link rel="icon" type="image/svg+xml" href="img/icone.svg">
 </head>
 <body>
@@ -25,7 +25,7 @@
     </div>
     <div class="splash-info">
       <div class="splash-gratis"><b>Gratuito · uso livre</b></div>
-      <div data-versao>Versão 1.9.11</div>
+      <div data-versao>Versão 1.9.17</div>
       <div>© 2026</div>
       <div><b>PASCOM</b></div>
       <div><b>São José Operário Ilha</b></div>
@@ -33,7 +33,11 @@
     <div class="splash-status"><span class="splash-pontos"><i></i><i></i><i></i></span><span id="splashStatus">Carregando…</span></div>
   </div>
 </div>
-<script>if (SECRETARIA) {
+<script src="js/novidades.js"></script>
+<script>
+// (1.9.16) a versão da abertura vem das Novidades (antes era escrita à mão e ficou parada na 1.9.11)
+if (!SECRETARIA && typeof NOVIDADES !== 'undefined' && NOVIDADES[0]?.versao) document.querySelector('.splash [data-versao]').textContent = 'Versão ' + NOVIDADES[0].versao;
+if (SECRETARIA) {
   // mesmo cartão da família (como o do Cast), em amarelo: "MiguelAngelus" igual aos outros e "Secretaria" estilizado
   document.querySelector('.splash-marca img').src = 'img/secretaria.svg';
   document.querySelector('.splash-nome').innerHTML = '<b>Miguel</b>Angelus <span class="marca-sec">Secretaria</span>';
@@ -133,6 +137,8 @@
     </div>
     <div class="menu"><button class="menu-titulo">Ajuda</button>
       <div class="menu-itens">
+        <button data-menu="pergunte" data-assist-rot="pergunte">❓ Pergunte ao Miguel…</button>
+        <button data-menu="dica" data-assist-rot="dica" title="A cola do coroinha: prefácio e Oração Eucarística do roteiro, com a página do Missal">💡 Dica do Miguel…</button>
         <button data-menu="manual">📘 Manual do MiguelAngelus <span class="atalho">F1</span></button>
         <button data-menu="manualAparencia">🎨 Manual da aparência dos slides</button>
         <button data-menu="atalhos">Atalhos do teclado…</button>
@@ -207,6 +213,17 @@
     <button data-aba="cameras" title="Câmeras ao vivo no telão (Alt+8)"><span class="ic">📷</span>Câmeras</button>
     <button data-aba="calendario" title="Calendário litúrgico: consultar qualquer data (Alt+9)"><span class="ic">📆</span>Calendário</button>
     <button data-aba="eventos" title="Eventos da paróquia com QR code para a agenda do celular (Alt+0)"><span class="ic">🎉</span>Eventos</button>
+    <!-- (1.9.17) o assistente (Miguel ou Mariana, em Agenda → Paróquia) no pé da faixa: Dica e Pergunte -->
+    <div class="assist-trilho">
+      <button type="button" id="btnAssistTrilho" class="assist-trilho-btn" title="Dica sobre a liturgia do dia e perguntas sobre o MiguelAngelus" aria-haspopup="menu" aria-expanded="false">
+        <img class="assist-icone" alt=""><span data-assist-rot="nome">Miguel</span></button>
+      <div id="assistMenu" class="assist-menu" role="menu" hidden>
+        <button type="button" role="menuitem" data-assist-menu="dica"><b data-assist-rot="dica">💡 Dica do Miguel…</b>
+          <small>A liturgia do dia: prefácio, Oração Eucarística e onde pôr os fitilhos do Missal</small></button>
+        <button type="button" role="menuitem" data-assist-menu="pergunte"><b data-assist-rot="pergunte">❓ Pergunte ao Miguel…</b>
+          <small>Uma dúvida sobre o MiguelAngelus: a resposta vem do Manual</small></button>
+      </div>
+    </div>
   </nav>
 
   <!-- ============ MÓDULO aberto ============ -->
@@ -591,6 +608,10 @@
             <label class="campo">Cor <input type="color" data-cfg="corRotulo"></label>
           </div>
           <label class="check" title="Um pequeno espaço antes e depois da linha do povo (T.), separando a resposta do que o padre diz"><input type="checkbox" data-cfg="espacoResposta"> Espaço entre as falas (separa a resposta do povo)</label>
+          <div class="linha">
+            <label class="check" title="A resposta do povo (linha do T., do — ou do R. e o refrão do salmo) aparece em outra cor, além do negrito. Ajuda quando se projeta na parede ou o telão é fraco."><input type="checkbox" data-cfg="corResposta"> Resposta do povo em outra cor</label>
+            <label class="campo">Cor <input type="color" data-cfg="corRespostaCor"></label>
+          </div>
           <label class="check" title="Junta os versos de cada estrofe do salmo num parágrafo, em vez de uma linha por verso como no folheto"><input type="checkbox" data-cfg="salmoCorrido"> Salmo em texto corrido (não quebra a linha a cada verso)</label>
           <p class="sutil pequeno">As imagens dos cantos da tela (brasão, padroeiro…) ficam em <b>Agenda → Paróquia</b>, para cada comunidade.</p>
 
@@ -820,6 +841,14 @@
             <label class="campo">Site / e-mail / Instagram <input data-par="contato"></label>
           </div>
           <label class="campo">Pároco <input data-par="paroco" placeholder="Ex.: Pe. …"></label>
+          <div class="assist-escolha">
+            <img id="parAssistIcone" src="img/assistente-miguel.svg" alt="">
+            <label class="campo">Assistente do programa (💡 dicas e ❓ perguntas)
+              <select data-par="assistente">
+                <option value="">Miguel, o anjinho do MiguelAngelus</option>
+                <option value="mariana">Mariana, a Expert em Liturgia</option>
+              </select></label>
+          </div>
           <p class="sutil pequeno">Salvo automaticamente enquanto você digita.</p>
           <div class="separador">Apresentação no telão</div>
           <p class="sutil pequeno">Imagens nos cantos da tela (brasão, logo da PASCOM, padroeiro…). A padrão vale para todas as
@@ -1178,6 +1207,28 @@
   </form>
 </dialog>
 
+<!-- ============ Assistente (1.9.15): 💡 Dica (cola do coroinha) e ❓ Pergunte (busca no Manual) ============ -->
+<dialog id="dlgDica" class="dlg-assist">
+  <form method="dialog" class="form">
+    <div class="assist-cab"><img class="assist-icone" alt=""><div><h2 data-assist-rot="dica">Dica do Miguel</h2>
+      <div class="sutil" id="dicaRoteiro"></div></div></div>
+    <div id="dicaCorpo"></div>
+    <div class="linha"><button type="button" id="btnDicaImprimir">🖨 Imprimir a cola</button><button type="button" id="btnDicaCatalogo">✝ Abrir o catálogo</button>
+      <span class="espaco"></span><button value="ok" class="primario">Fechar</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlgPergunte" class="dlg-assist">
+  <form method="dialog" class="form">
+    <div class="assist-cab"><img class="assist-icone" alt=""><div><h2 data-assist-rot="pergunte">Pergunte ao Miguel</h2>
+      <div class="sutil">Escreva a sua dúvida com as suas palavras. A resposta vem do Manual do MiguelAngelus.</div></div></div>
+    <input type="search" id="pergTermo" placeholder="Ex.: como importar o folheto? o vídeo ficou sem som…" autocomplete="off">
+    <div id="pergCorpo" class="perg-corpo"></div>
+    <div class="linha"><button type="button" id="btnPergFaq">📋 Perguntas frequentes</button><button type="button" id="btnPergManual">📘 Abrir o Manual inteiro</button>
+      <span class="espaco"></span><button value="ok" class="primario">Fechar</button></div>
+  </form>
+</dialog>
+
 <!-- ============ Sobre ============ -->
 <dialog id="dlgSobre">
   <form method="dialog" class="form sobre">
@@ -1192,6 +1243,9 @@
       <div class="credito"><img class="foto" src="img/foto-marcio.webp" alt="Marcio">
         <div><span class="sutil pequeno">Desenvolvido por</span><b>Marcio Aurelio Rios Martins</b></div></div>
     </div>
+    <p class="sutil">Os assistentes do programa são uma homenagem ao <b>Miguel</b>, coroinha da <b>Paróquia São José Operário</b>,
+      e à <b>Mariana</b>, acólita da <b>Paróquia Coração Eucarístico de Jesus e Santa Marina</b>. Os dois contribuíram para o MiguelAngelus trazer as
+      referências das Orações Eucarísticas e dos prefácios, para ajudar quem serve no presbitério. 🙏</p>
     <div class="sobre-brasoes">
       <figure><img src="img/brasao-paroquia.webp" alt="Brasão da Paróquia São José Operário"><figcaption>Paróquia São José Operário (RJ)</figcaption></figure>
     </div>
@@ -1433,7 +1487,7 @@
     <div id="litResumo" class="lit-resumo"></div>
     <div class="linha">
       <label class="campo">Data <input type="date" id="litData"></label>
-      <label class="check"><input type="checkbox" id="litOE2"> Incluir a Oração Eucarística II com o prefácio próprio</label>
+      <label class="check"><input type="checkbox" id="litOE2"> Incluir a Oração Eucarística com o prefácio do dia <span class="sutil">(II nos dias de semana, III nos domingos e solenidades)</span></label>
     </div>
     <div class="separador">Celebrações deste dia (Agenda)</div>
     <div id="litCelebracoes" class="dist-lista"></div>
@@ -1446,12 +1500,41 @@
   </form>
 </dialog>
 
+<!-- ============ (1.9.14) Páginas do Missal: tabela para preencher ============ -->
+<dialog id="dlgMissal">
+  <form method="dialog" class="form">
+    <h2>📖 Páginas do Missal</h2>
+    <p class="sutil pequeno">Preencha a página de cada oração e de cada prefácio no Missal da sua paróquia. Em "Quando usar", escreva uma nota curta
+      com as suas palavras (não copie a rubrica). Pode deixar em branco o que não souber. As páginas aparecem no catálogo, no roteiro e na impressão.</p>
+    <div class="linha missal-topo">
+      <label>Edição do Missal <input id="msEdicao" list="eucEdicoes2" size="40"></label>
+      <datalist id="eucEdicoes2"></datalist>
+      <input type="search" id="msBusca" placeholder="Buscar…">
+      <label class="chk"><input type="checkbox" id="msFaltando"> só os sem página</label>
+      <span class="espaco"></span><span id="msConta" class="sutil pequeno"></span>
+    </div>
+    <div class="missal-tab-caixa"><table class="missal-tab"><thead><tr><th>Oração / Prefácio</th><th>Página</th><th>Quando usar</th></tr></thead><tbody id="msCorpo"></tbody></table></div>
+    <div class="linha">
+      <button type="button" id="msExportar" title="Salva um arquivo .json com as páginas e notas, para mandar a outra paróquia ou à equipe do MiguelAngelus">⬇ Exportar para enviar</button>
+      <button type="button" id="msImportar" title="Traz páginas de um arquivo .json exportado por outro MiguelAngelus">⬆ Importar…</button>
+      <span class="espaco"></span>
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="salvar" class="primario">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- ============ Texto de oração eucarística / prefácio ============ -->
 <dialog id="dlgTextoEuc">
   <form id="formTextoEuc" method="dialog" class="form">
     <h2 id="eucTitulo">Texto</h2>
     <p id="eucOrigem" class="sutil pequeno"></p>
-    <textarea name="texto" rows="20" placeholder="Cole aqui o texto do Missal.&#10;&#10;Linha em branco separa os slides.&#10;— Linha começando com travessão é resposta do povo (fica em negrito)."></textarea>
+    <div class="linha euc-missal">
+      <label>Página no Missal <input name="pag" size="6" maxlength="12" placeholder="ex.: 412"></label>
+      <label class="cresce">Quando usar <input name="uso" maxlength="240" placeholder="ex.: domingos do Advento até 16 de dezembro (com as nossas palavras)"></label>
+    </div>
+    <p id="eucEdicaoInfo" class="sutil pequeno"></p>
+    <textarea name="texto" rows="18" placeholder="Cole aqui o texto do Missal.&#10;&#10;Linha em branco separa os slides.&#10;— Linha começando com travessão é resposta do povo (fica em negrito)."></textarea>
     <p class="sutil pequeno">Use o texto oficial do Missal Romano (CNBB). No prefácio, cole a partir de "Na verdade, é digno e justo…" até antes do Santo;
       na oração, a partir de depois do Santo até o "Amém" final.</p>
     <div class="linha">
@@ -1549,7 +1632,9 @@
 <script src="js/apresentacao.js"></script>
 <script src="js/temas.js"></script>
 <script src="js/roteiros.js"></script>
+<script src="js/missal-paginas.js"></script>
 <script src="js/eucaristia.js"></script>
+<script src="js/assistente.js"></script>
 <script src="js/liturgiadia.js"></script>
 <script src="js/avisos.js"></script>
 <script src="js/avisosparoquiais.js"></script>
@@ -1566,7 +1651,6 @@
 <script src="js/folhetosonline.js"></script>
 <script src="js/sincronia.js"></script>
 <script src="js/atualizacao.js"></script>
-<script src="js/novidades.js"></script>
 <script src="js/pixleitor.js"></script>
 <script src="js/pix.js"></script>
 <script src="js/formatacao.js"></script>

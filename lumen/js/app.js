@@ -34,6 +34,7 @@ const CONFIG_PADRAO = {
   atualizarAuto: true, versaoIgnorada: '',          // atualização automática (atualizacao.js)
   mostrarRotulos: true, corRotulo: '#ff5a4f',     // letra de quem fala (P., T., L.) colorida no telão
   espacoResposta: true,                          // espaço entre as falas: a resposta do povo fica separada
+  corResposta: false, corRespostaCor: '#ffd166', // (1.9.16, ideia do Luciano) resposta do povo (T., —, R., refrão) em outra cor
   salmoCorrido: true,                            // salmo: versos de cada estrofe em texto corrido (não quebra a cada vírgula)
   // ideias do Hermínio (1.6.5): 1º slide de cada parte do roteiro com o nome dela; área útil do slide (margens, % da tela)
   slideSecao: true, numerarSecoes: false, secaoSoNome: true, silencioComunhao: false, margemLados: 5, margemTopo: 5,
@@ -1676,11 +1677,12 @@ function renderCabecalho() {
     case 'prefacio':
     case 'eucaristica': {
       const pref = it.tipo === 'prefacio', id = pref ? it.prefId : it.oeId;
+      const mi = missalDe(id), pagTag = mi.pag || mi.uso ? `<span class="tag euc-pag" title="${esc([mi.pag ? 'Página no ' + edicaoMissal() : '', mi.uso ? 'Quando usar: ' + mi.uso : ''].filter(Boolean).join('\n'))}">📖 ${mi.pag ? 'p. ' + esc(mi.pag) : 'uso'}</span>` : '';
       h = noRoteiro
         ? `<div class="cab-linha"><span class="tag t-oracao">${pref ? 'Prefácio' : 'Or. Eucarística'}</span>
-             <select data-campo="${pref ? 'prefId' : 'oeId'}">${opcoesEuc(pref ? 'pref' : 'oe', id)}</select>
-             <button data-cmd="editarEuc">✎ Texto</button><button data-cmd="catalogoEuc" title="Escolher a combinação no catálogo">Catálogo…</button></div>`
-        : `<div class="cab-linha"><span class="tag t-oracao">${pref ? 'Prefácio' : 'Or. Eucarística'}</span><h2>${esc(nomeEuc(id))}</h2>
+             <select data-campo="${pref ? 'prefId' : 'oeId'}">${opcoesEuc(pref ? 'pref' : 'oe', id)}</select>${pagTag}
+             <button data-cmd="editarEuc">✎ Texto</button><button data-cmd="catalogoEuc" title="Escolher a combinação no catálogo">Catálogo…</button><button data-cmd="dicaAssist" title="A cola do coroinha: prefácio e oração com a página do Missal">💡</button></div>`
+        : `<div class="cab-linha"><span class="tag t-oracao">${pref ? 'Prefácio' : 'Or. Eucarística'}</span><h2>${esc(nomeEuc(id))}</h2>${pagTag}
              <span class="espaco"></span><button data-cmd="editarEuc">✎ Texto</button><button data-cmd="catalogoEuc">Voltar ao catálogo</button></div>`;
       break;
     }
@@ -2619,8 +2621,10 @@ async function importarFolheto(arquivo, dica = {}) {
       data: dataPdf || dica.data || '',          // "… — 27 de setembro de 2026" → "2026-09-27"
       itens: comHomilia([...itemAbertura(r), ...cantos.itens]), aviso: r.aviso, cantos,
       tituloLiturgico: r.tituloLiturgico,            // ex.: "Assunção da Bem-aventurada Virgem Maria — Solenidade"
-      msgEuc: capturarEucaristia(r.eucaristia),   // guarda a oração eucarística e o prefácio do dia no catálogo
+      msgEuc: capturarEucaristia(r.eucaristia, r.tituloLiturgico),   // guarda a oração eucarística e o prefácio do dia no catálogo
     };
+    // (1.9.17) páginas do Missal que o folheto de SP traz (só onde a paróquia ainda não tem página)
+    try { pacote.msgEuc += guardarPaginasDoFolheto(r.missal, pacote.data, r.tituloLiturgico); } catch (err) { console.warn('páginas do Missal do folheto', err); }
     // (1.9.11) faltando 2 ou mais partes principais, ao terminar (concluirFolheto) oferece mandar para avaliação
     const faltam = partesQueFaltam(r.itens);
     if (faltam.length >= 2) pacote.avaliar = { arquivo, dica, problema: `O roteiro foi montado, mas faltaram partes importantes: ${faltam.join(', ')}. ` +
@@ -2651,7 +2655,7 @@ async function lerFolhetosEmLote(arquivos) {
       novos.push(...c.cantosNovos);
       existentes += c.existentes;
       const antes = new Set(Object.keys(Euc.dados.textos));
-      capturarEucaristia(r.eucaristia);
+      capturarEucaristia(r.eucaristia, r.tituloLiturgico);
       orações.push(...Object.keys(Euc.dados.textos).filter(id => !antes.has(id)).map(nomeEuc));
     } catch (err) {
       falhas.push(`${arquivos[i].name} (${err.message})`);
@@ -2695,13 +2699,18 @@ function concluirFolheto(pacote, msg) {
   if (c.cantosNovos.length) abrirNomeacao(c.cantosNovos);
 }
 
-// Celebrações que usam o folheto de um dia: as do próprio dia e, se for domingo, as de sábado à tarde/noite (vigília)
+// Celebrações que usam o folheto de um dia: as do próprio dia e, se for domingo, as de sábado (a Missa de sábado à
+// tarde/noite vale pelo domingo e usa a liturgia dele). (1.9.16, pedido do Luciano) Antes só entravam as de sábado a
+// partir das 16h; agora entram todas as do sábado: de 14h em diante vêm marcadas (vigília), as de antes aparecem
+// desmarcadas, para quem quiser usar o folheto do domingo nelas.
+const HORA_VIGILIA = '14:00';
 function celebracoesDoFolheto(iso) {
   const d = deIso(iso);
   const lista = ocorrencias(d).filter(o => !o.cancelada).map(o => ({ ...o, vigilia: false }));
   if (d.getDay() === 0) {
     const sab = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
-    lista.unshift(...ocorrencias(sab).filter(o => !o.cancelada && o.hora >= '16:00').map(o => ({ ...o, vigilia: true })));
+    lista.unshift(...ocorrencias(sab).filter(o => !o.cancelada)
+      .map(o => ({ ...o, vigilia: o.hora >= HORA_VIGILIA, sabadoCedo: o.hora < HORA_VIGILIA })));
   }
   return lista;
 }
@@ -2727,7 +2736,7 @@ function renderDistribuicao() {
   $('#distAviso').textContent = passado ? 'Este folheto é de uma data que já passou. Se for reaproveitá-lo, escolha a data da Missa acima.' : '';
   $('#distLista').innerHTML = !candidatas.length ? '<p class="sutil">Nenhuma celebração na Agenda nesta data. Use "Só um roteiro".</p>' : candidatas.map((o, i) => {
     const existente = roteiroDaCelebracao(o);
-    const marcado = ehMissa(o.tipo) && !existente;
+    const marcado = ehMissa(o.tipo) && !existente && !o.sabadoCedo;
     const loc = localDe(o.localId);
     const dia = deIso(o.iso);
     return `<label class="dist-item">
@@ -2735,7 +2744,8 @@ function renderDistribuicao() {
       <span class="dist-quando">${DIAS_CURTOS[dia.getDay()]} ${o.hora}</span>
       ${loc ? `<span class="card-ponto" style="background:${loc.cor}"></span>` : ''}
       <span class="dist-txt">${esc(o.texto)}</span>
-      ${o.vigilia ? '<span class="tag">vigília</span>' : ''}
+      ${o.vigilia ? '<span class="tag" title="Missa de sábado à tarde/noite: vale pelo domingo e usa a liturgia dele">vigília (vale pelo domingo)</span>' : ''}
+      ${o.sabadoCedo ? '<span class="tag" title="Missa de sábado antes das 14h: em geral é do sábado, não do domingo. Marque se ela usa este folheto.">sábado, mais cedo</span>' : ''}
       ${o.tipo !== 'Missa' ? `<span class="tag">${esc(o.tipo)}</span>` : ''}
       ${existente ? '<span class="dist-existe">já tem roteiro — não será criado de novo; marque só se quiser substituir os itens</span>' : ''}
     </label>`;
@@ -2768,6 +2778,7 @@ async function distribuirFolheto(modo) {
       r = await criarRoteiroDaCelebracao(o, pacote.itens);
       criados++;
     }
+    if (o.vigilia) r.vigilia = true; else delete r.vigilia;   // (1.9.16) sábado à tarde/noite: regras e Dica pela liturgia do domingo
     marcarCelebracaoDoFolheto(r, pacote);
     await DB.salvar('roteiros', r);
     primeiro ||= r;
@@ -2997,6 +3008,11 @@ function ligarEventos() {
       if (S.atual.rIdx >= 0) { salvarRoteiro(); renderRoteiroLista(); }
       atualizarSlides(); return renderCabecalho();
     }
+    // (1.9.13) prefácio / oração eucarística: confere com as regras do dia e com o outro item (eucaristia.js)
+    if ((campo === 'prefId' || campo === 'oeId') && typeof validarTrocaEuc === 'function' && !validarTrocaEuc(it, campo, e.target.value)) {
+      e.target.value = it[campo] || '';
+      return;
+    }
     it[campo] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     if (campo === 'cantoId' || campo === 'momento') { BuscaCanto.item = null; BuscaCanto.termo = ''; }      // escolheu: a busca limpa
     if (it.tipo === 'terco') aoMudarTerco(it, campo);
@@ -3046,6 +3062,8 @@ function ligarEventos() {
       abrirEditorCanto(null, it.momento, c => { it.cantoId = c.id; if (S.atual.rIdx >= 0) salvarRoteiro(); });
     } else if (cmd === 'editarEuc') {
       abrirEditorEuc(it.tipo === 'prefacio' ? it.prefId : it.oeId);
+    } else if (cmd === 'dicaAssist') {
+      abrirDica();
     } else if (cmd === 'catalogoEuc') {
       mostrarAba('missa');
       mostrarEucaristia(true);
@@ -3505,6 +3523,7 @@ async function iniciar() {
   ligarRoteiros();
   renderPreparacao();
   ligarEucaristia();
+  ligarAssistente();
   ligarLiturgiaDoDia();
   ligarCalendarioLit();
   ligarTransmissao();
@@ -3542,6 +3561,11 @@ async function iniciar() {
   const versaoApp = (typeof NOVIDADES !== 'undefined' && NOVIDADES[0]?.versao) || '1.8.7';
   $('#versaoApp').textContent = `Versão ${versaoApp} · ` + (NO_APP ? 'aplicativo para Windows' : 'no navegador');
   document.querySelectorAll('[data-versao]').forEach(e => e.textContent = 'Versão ' + versaoApp);
+  // (1.9.15) versão na barra da janela e ao lado do nome, como no Cast (a Secretaria tem a marca e o título dela)
+  if (!SECRETARIA) {
+    document.title = `MiguelAngelus ${versaoApp} — Projeção para a Missa`;
+    $('.marca')?.insertAdjacentHTML('beforeend', ` <span class="marca-versao">versão ${esc(versaoApp)}</span>`);
+  }
   // pede armazenamento permanente (o navegador não apaga os dados para liberar espaço)
   try { navigator.storage?.persist?.(); } catch (_) {}
   enviarConfigTelao(); renderTemasRapidos();

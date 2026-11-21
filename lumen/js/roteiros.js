@@ -34,7 +34,15 @@ function infoRoteiro(r) {
   const isoChave = /^\d{4}-\d{2}-\d{2}\|/.test(r.celebracao || '') ? r.celebracao.slice(0, 10) : '';
   const iso = r.data || oc?.iso || isoChave || dataDoTexto(r.nome);
   const horaNome = (r.nome.match(/\b([01]\d|2[0-3]):[0-5]\d\b/) || [''])[0];
-  return { data: iso ? deIso(iso) : null, iso, hora: r.hora || oc?.hora || horaNome,
+  const data = iso ? deIso(iso) : null;
+  // (1.9.16) Missa de sábado à tarde/noite feita com o folheto do domingo (vigília): a liturgia é a do domingo
+  //   (1.9.17) roteiros antigos (sem r.vigilia): sábado à tarde/noite montado com um folheto (título litúrgico do folheto
+  //   na data do próprio roteiro) — o folheto distribuído no sábado à tarde é o do domingo (ex.: "Cristo Rei — Solenidade")
+  const hora = r.hora || oc?.hora || horaNome;
+  const vigilia = r.vigilia || (r.vigilia !== false && r.liturgiaDe === iso && !!r.tituloLiturgico
+    && (/domingo/i.test(r.tituloLiturgico) || (hora || '') >= (typeof HORA_VIGILIA === 'string' ? HORA_VIGILIA : '14:00')));
+  const dataLit = data && vigilia && data.getDay() === 6 ? new Date(data.getFullYear(), data.getMonth(), data.getDate() + 1) : data;
+  return { data, dataLit, iso, hora,
     localId: r.localId || oc?.localId || localPorTexto(r.nome), cancelada: !!oc?.cancelada };
 }
 
@@ -48,7 +56,7 @@ function mostrarCards(sim) {
 // Celebração e cor do card, em ordem de prioridade: cor escolhida à mão › o que veio do folheto/Paulus
 // (só se o roteiro ainda está na data daquele folheto) › calendário litúrgico.
 function liturgiaDoRoteiro(r, inf = infoRoteiro(r)) {
-  const lit = inf.data ? Liturgia.info(inf.data, localDe(inf.localId)?.padroeiro) : null;   // dia do padroeiro = solenidade
+  const lit = inf.dataLit ? Liturgia.info(inf.dataLit, localDe(inf.localId)?.padroeiro) : null;   // dia do padroeiro = solenidade
   const doFolheto = r.liturgiaDe && r.liturgiaDe === inf.iso;
   const titulo = (doFolheto && r.tituloLiturgico && nomeLiturgico(r.tituloLiturgico)) ||(lit?.santo ? `${lit.titulo} (${lit.santo.toLowerCase()})` : lit?.titulo) || '';
   const cor = r.corManual || (doFolheto && r.cor) || lit?.cor || '';
