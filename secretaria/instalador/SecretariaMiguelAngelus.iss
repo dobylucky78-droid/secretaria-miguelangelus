@@ -6,7 +6,7 @@
 ; - Os dados (agenda e avisos) ficam em %LOCALAPPDATA%\SecretariaMiguelAngelus e NÃO são apagados ao desinstalar.
 
 #define Nome "Secretaria MiguelAngelus"
-#define Versao "1.5.1"
+#define Versao "1.5.2"
 #define Editor "Paróquia São José Operário — PASCOM"
 #define Exe "SecretariaMiguelAngelus.exe"
 
