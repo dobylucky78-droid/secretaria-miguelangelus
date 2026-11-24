@@ -11,6 +11,12 @@
 // VERSAO_SECRETARIA fica no <head> do index.html (o splash usa antes deste arquivo carregar)
 
 const NOVIDADES_SECRETARIA = [
+  { versao: '1.7.0', data: '2026-11-24', itens: [
+    '🌐 Portal das pastorais (ideia do Luciano, da Paróquia Coração Eucarístico de Jesus e Santa Marina; em teste): uma página na internet, na conta Google da paróquia, onde cada coordenação entra com nome e senha e escreve a escala da sua pastoral. A secretaria aprova quem pode entrar e o que chega do portal passa por uma prévia, para aplicar ou descartar.',
+    '🧭 A Secretaria cria o portal sozinha: em 📋 Escalas → 🌐 Portal, clique em "🌐 Criar o portal da paróquia". Ela cria o projeto na conta Google da paróquia, põe o código, publica e abre o portal para você clicar em Permitir. Depois é só copiar o link e mandar para as coordenações.',
+    '⬆ Atualizar o portal: quando sair uma versão nova do portal, o botão aparece na aba, e a Secretaria atualiza o código sem mudar o link.',
+    '⛪ O portal tem a cara da Secretaria MiguelAngelus, com o nome e o brasão da paróquia no alto. Os dados ficam numa pasta do Drive da paróquia, que só o portal enxerga.',
+  ] },
   { versao: '1.6.0', data: '2026-11-23', itens: [
     '📋 Escalas (pedido do Luciano, da Paróquia Coração Eucarístico de Jesus e Santa Marina): coordenação de liturgia, ministros, liturgia, músicos, projeção, coroinhas, acólitos… A escala do mês sai numa folha para imprimir, por igreja.',
     '👥 Equipes e agenda: cada equipe tem nome, função e membros, e se programa igual às celebrações recorrentes: em quais Missas da Agenda serve, toda semana ou só na 1ª, 2ª, 3ª, 4ª ou última semana do mês. Aparecem as próximas datas e o aviso quando duas equipes da mesma função caem na mesma Missa.',

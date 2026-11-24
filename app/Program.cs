@@ -449,6 +449,8 @@ namespace MiguelAngelus
         GoogleDrive Google => google ?? (google = new GoogleDrive(cliente));
         GoogleAgenda agendaG;   // (protótipo, Secretaria) agenda compartilhada da secretaria, numa conta própria
         GoogleAgenda AgendaG { get { if (agendaG == null) agendaG = new GoogleAgenda(cliente); agendaG.UsarClienteSeFaltar(Google.ClienteId, Google.ClienteSegredo); return agendaG; } }
+        GooglePortal portalG;   // (Secretaria) cria e atualiza o portal das pastorais (Apps Script) na conta da paróquia
+        GooglePortal PortalG { get { if (portalG == null) portalG = new GooglePortal(cliente); portalG.UsarCliente(Google.ClienteId, Google.ClienteSegredo); return portalG; } }
 
         async void Arquivo(System.Collections.Generic.Dictionary<string, object> m)
         {
@@ -497,6 +499,18 @@ namespace MiguelAngelus
                         Responder(id, new { ok = true }); return;
                     case "agendaApi":
                         Responder(id, new { ok = true, dados = await AgendaG.Chamar(Convert.ToString(m["metodo"]), Convert.ToString(m["caminho"]), m.TryGetValue("corpo", out var cp) ? cp : null) }); return;
+                    // ----- (Secretaria) portal das pastorais: criar/atualizar o projeto do Apps Script na conta da paróquia -----
+                    case "portalStatus":
+                        Responder(id, new { ok = true, temCliente = PortalG.TemCliente, conectado = PortalG.Conectado, email = PortalG.Email }); return;
+                    case "portalConectar":
+                        await PortalG.Conectar();
+                        Activate();
+                        Responder(id, new { ok = true, email = PortalG.Email }); return;
+                    case "portalDesconectar":
+                        PortalG.Desconectar();
+                        Responder(id, new { ok = true }); return;
+                    case "portalApi":
+                        Responder(id, new { ok = true, dados = await PortalG.Chamar(Convert.ToString(m["metodo"]), Convert.ToString(m["caminho"]), m.TryGetValue("corpo", out var cpp) ? cpp : null) }); return;
                     // ----- pastas de vídeos e áudios (independe da sincronização) -----
                     case "midiaEscolherPasta":
                         var deVideo = Convert.ToString(m["tipoMidia"]) != "audio";

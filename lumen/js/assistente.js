@@ -53,7 +53,53 @@ async function atualizarAssistente() {
 function itensDaDica() {
   const r = S.roteiro, regra = regraDoRoteiro(r || null);
   const itPref = r?.itens.find(i => i.tipo === 'prefacio'), itOE = r?.itens.find(i => i.tipo === 'eucaristica');
-  return { r, regra, prefId: itPref?.prefId || null, oeId: itOE?.oeId || null };
+  let prefId = itPref?.prefId || null, oeId = itOE?.oeId || null;
+  // (1.9.21) roteiro montado do folheto: a oração vem como TEXTO (diálogo + prefácio + Santo + oração), sem os itens do
+  // ✝ catálogo. A oração sai do título; o prefácio, do texto que o folheto guardou no catálogo (ou da própria oração)
+  if (r && (!prefId || !oeId)) {
+    const tx = r.itens.find(i => i.tipo === 'texto' && /ora[çc][ãa]o eucar[íi]stica/i.test(i.titulo || ''));
+    if (tx) {
+      // o prefácio pode vir num bloco à parte ("Diálogo e Prefácio"), antes do Santo
+      const txPref = r.itens.filter(i => i.tipo === 'texto' && /pref[aá]cio/i.test(i.titulo || ''));
+      const daTx = idsDoTextoDeOE(tx, regra, txPref);
+      oeId = oeId || daTx.oeId; prefId = prefId || daTx.prefId;
+    }
+  }
+  return { r, regra, prefId, oeId };
+}
+
+// "Oração Eucarística III (…)" + o texto corrido do folheto → { oeId, prefId } do catálogo (null no que não achar)
+const _normTx = s => semAcento(String(s || '')).toLowerCase().replace(/(^|\n)\s*[ptlcd]\.\s/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+function idsDoTextoDeOE(tx, regra, outros = []) {
+  if (typeof listaOEs !== 'function') return { oeId: null, prefId: null };
+  const nomeTit = String(tx.titulo || '').replace(/\s*\([^)]*\)/g, '').trim();
+  const oe = listaOEs().find(o => [o.nome, o.nome.split(' — ')[0]].some(n => normEuc(n) === normEuc(nomeTit))) || null;
+  let prefId = null;
+  if (oe && oe.pref === 'fixo' && oe.proprio) prefId = oe.proprio;     // prefácio próprio que não se troca
+  else {
+    // o prefácio cujo texto guardado está no roteiro. O começo ("Na verdade, é digno e justo…") é igual em quase todos:
+    // conta trechos de 10 palavras do meio e do fim; ganha quem casar mais (empate: o do dia, que vem primeiro)
+    const corpo = [tx, ...outros].map(i => _normTx(i.texto)).join(' ');
+    const pontos = id => {
+      const t = Euc.dados.textos[id]?.texto;
+      if (!t) return 0;
+      const pal = _normTx(t).split(' '), n = pal.length;
+      if (n < 30) return 0;
+      return [0.35, 0.55, 0.75, 0.9].filter(f => {
+        const k = Math.min(n - 10, Math.floor(n * f));
+        return corpo.includes(pal.slice(k, k + 10).join(' '));
+      }).length;
+    };
+    const candidatos = [...new Set([...(regra?.prefs || []), ...listaPrefacios(true).map(p => p.id)])];
+    let melhor = 0;
+    for (const id of candidatos) { const p = pontos(id); if (p > melhor) { melhor = p; prefId = id; } }
+    if (melhor < 2) prefId = null;
+    // sem texto que case: dia com um prefácio só (Páscoa, Pentecostes…) é ele
+    if (!prefId && regra?.modo === 'rigido' && regra.prefs?.length === 1) prefId = regra.prefs[0];
+    // Reconciliação: o próprio dela, se nada mais casou
+    if (!prefId && oe?.pref === 'fixo-flex' && oe.proprio) prefId = oe.proprio;
+  }
+  return { oeId: oe?.id || null, prefId };
 }
 
 function cartaoDica(rotulo, id, extra = '') {
@@ -74,6 +120,46 @@ const opcoesBencao = () => [['simples', 'Bênção final simples', 'mr-bencao'],
   ...BENCAOS_SOLENES.map(b => [b.id, b.nome, b.id]), ['povo', 'Oração sobre o povo (anote o número/página)', 'mr-povo']];
 const bencaoFim = k => opcoesBencao().find(o => o[0] === k) || (k === 'solene' ? ['solene', 'Bênção solene', 'mr-solenes'] : opcoesBencao()[0]);
 const nFitilhos = () => Math.max(1, Math.min(12, +Euc.dados.nFitilhos || 6));
+
+// (1.9.22, pedido do Luciano) Bênção que veio no texto do folheto ("Bênção Final e Despedida") → a opção da lista acima.
+// Nada dos textos fica no programa: só algumas palavras que marcam cada bênção solene do Missal. Sem invocações com
+// "Amém" antes da bênção trinitária é a bênção simples (''). A ordem importa (defuntos antes da Páscoa e do Espírito Santo).
+const SINAIS_BENCAO = [
+  ['ben-advento', /\badvento\b|cuja vinda credes|vier de novo/],
+  ['ben-natal', /encarna[cç][aã]o|nasc(eu|imento)|anjos? anunci|dissipou as trevas/],
+  ['ben-inicio-ano', /\bano novo\b|novo ano|\bneste ano\b|fonte e origem de toda b[eê]n[cç][aã]o/],
+  ['ben-epifania', /\bmagos\b|\bestrela\b|das trevas (a|para) (sua|a) luz/],
+  ['ben-paixao', /paix[aã]o|humildade do seu filho/],
+  ['ben-defuntos', /aos que morreram|defunt|falecid|\bmortos\b/],
+  ['ben-ascensao', /subiu aos c[eé]us|\bascens|subindo aos c[eé]us/],
+  ['ben-espirito', /pentecost|l[ií]nguas de fogo|iluminou (o|os) (esp[ií]rito|cora[cç])/],
+  ['ben-pascoa', /ressurrei[cç][aã]o|p[aá]scoa|pascal|ressuscit/],
+  ['ben-bvm', /virgem|m[aã]e de deus/],
+  ['ben-pedro-paulo', /pedro[^.]{0,80}paulo|paulo[^.]{0,80}pedro/],
+  ['ben-apostolos', /ap[oó]stol/],
+  ['ben-todos-santos', /exulta[cç][aã]o dos santos|intercessores|todos os santos/],
+  ['ben-dedicacao', /dedica[cç][aã]o|\btemplo\b|casa de ora[cç][aã]o/],
+  ['ben-tc-1', /vos (abencoe|aben[cç]oe) e vos guarde/],
+  ['ben-tc-2', /paz de deus,? que supera todo/],
+  ['ben-tc-3', /sabedoria da salva[cç][aã]o/],
+  ['ben-tc-4', /deus de toda consola[cç][aã]o/],
+  ['ben-tc-5', /afaste de v[oó]s toda adversidade/],
+  ['ben-tc-6', /toda b[eê]n[cç][aã]o celeste/],
+];
+function bencaoDoFolheto(r) {
+  const it = r?.itens?.find(i => i.tipo === 'texto' && /b[eê]n[cç][aã]o/i.test(i.titulo || ''));
+  if (!it?.texto) return '';
+  const t = String(it.texto).toLowerCase().replace(/\s+/g, ' ');
+  if (/inclinai-vos para receber/.test(t)) return 'povo';
+  // o que vem antes de "E a bênção de Deus todo-poderoso…" (sem ela, até "ide em paz")
+  const fim = t.search(/(e )?a b[eê]n[cç][aã]o de deus todo-poderoso|aben[cç]oe-vos deus todo-poderoso|ide em paz/);
+  const antes = fim > 0 ? t.slice(0, fim) : t;
+  // TC II é uma frase só; as outras solenes têm três invocações, cada uma com "Amém"
+  for (const [id, rx] of SINAIS_BENCAO) if (rx.test(antes)) return id;
+  return '';
+}
+// a bênção do roteiro: a escolhida (fitilhos/item) ou, se ninguém escolheu, a que veio no folheto
+const bencaoDoRoteiro = r => r?.fitilhos?.bencao || bencaoDoFolheto(r) || '';
 // ⚠ só enquanto valer a página que veio com o programa marcada "A conferir" (a paróquia corrigiu ou confirmou: some)
 const aConferir = id => {
   const pad = MISSAL_PADRAO.itens[id] || {}, meu = itensDaEdicao(edicaoMissal())[id] || {};
@@ -130,7 +216,7 @@ function linhasFitilhos() {
   }
   L.push({ parte: 'Oração Eucarística', pag: oeId ? pp(oeId).pag : '', det: oeId ? nomeEuc(oeId) : 'Escolha no roteiro (✝ catálogo)', falta: '—' });
   L.push({ parte: 'Rito da Comunhão', pag: pp('mr-comunhao').pag, det: 'Pai-Nosso e ritos da comunhão', conf: aConferir('mr-comunhao') });
-  const [kB, nomeB, idB] = bencaoFim(f.bencao);
+  const [kB, nomeB, idB] = bencaoFim(bencaoDoRoteiro(r));
   L.push({ parte: 'Bênção final', pag: f.bencaoPag || pp(idB).pag, det: nomeB.replace(/ \(anote.*\)$/, '') + (['povo', 'solene'].includes(kB) && !f.bencaoPag ? ' (começo da seção; anote a página exata abaixo)' : ''),
     falta: 'anote a página ↓', conf: !f.bencaoPag && aConferir(idB) });
   let n = 0;
@@ -153,8 +239,8 @@ function formFitilhos() {
   return `<div class="fita-form">
     ${ops.length > 1 ? `<label>Missa de <select id="fitMissa" ${dis}>${ops.map(o => `<option value="${esc(o.v)}" ${o === op ? 'selected' : ''}>${esc(o.nome)}</option>`).join('')}</select></label>` : ''}
     <label title="Vazio = a página da tabela 📖 (Missa do dia). Digite só para trocar neste roteiro.">Missa do dia: p. <input id="fitDia" value="${esc(f.dia || '')}" size="5" maxlength="12" inputmode="numeric" placeholder="${esc(op?.id ? missalDe(op.id).pag : '')}" ${dis}></label>
-    <label>Bênção final <select id="fitBencao" ${dis}>${opcoesBencao().map(([k, nome, id]) => `<option value="${k}" ${bencaoFim(f.bencao)[0] === k ? 'selected' : ''}>${esc(nome)}${missalDe(id).pag ? ' · p. ' + esc(missalDe(id).pag) : ''}</option>`).join('')}</select></label>
-    <label>p. <input id="fitBencaoPag" value="${esc(f.bencaoPag || '')}" size="5" maxlength="12" inputmode="numeric" placeholder="${esc(missalDe(bencaoFim(f.bencao)[2]).pag)}" ${dis}></label>
+    <label>Bênção final <select id="fitBencao" ${dis}>${opcoesBencao().map(([k, nome, id]) => `<option value="${k}" ${bencaoFim(bencaoDoRoteiro(r))[0] === k ? 'selected' : ''}>${esc(nome)}${missalDe(id).pag ? ' · p. ' + esc(missalDe(id).pag) : ''}</option>`).join('')}</select></label>
+    <label>p. <input id="fitBencaoPag" value="${esc(f.bencaoPag || '')}" size="5" maxlength="12" inputmode="numeric" placeholder="${esc(missalDe(bencaoFim(bencaoDoRoteiro(r))[2]).pag)}" ${dis}></label>
     <label title="Quantas fitas (marcadores) o Missal da sua paróquia tem">Fitilhos do Missal <input id="fitN" type="number" min="1" max="12" value="${nFitilhos()}"></label>
   </div>${r ? '' : '<p class="sutil pequeno">Abra um roteiro para guardar a página da Missa do dia e a bênção.</p>'}`;
 }
@@ -165,7 +251,8 @@ function ligarFormFitilhos() {
     if (!r) return;
     const ops = opcoesMissaDia(litCompleta(r)), m = $('#fitMissa')?.value;
     const f = { missa: m && m !== ops[0]?.v ? m : '', dia: $('#fitDia').value.trim(), bencao: $('#fitBencao').value, bencaoPag: $('#fitBencaoPag').value.trim() };
-    if (f.bencao === 'simples') delete f.bencao;
+    // "simples" só fica guardada quando o folheto trouxe outra (para a escolha da pessoa valer)
+    if (f.bencao === 'simples' && !bencaoDoFolheto(r)) delete f.bencao;
     for (const k of Object.keys(f)) if (!f[k]) delete f[k];
     if (Object.keys(f).length) r.fitilhos = f; else delete r.fitilhos;
     salvarRoteiro(); re();

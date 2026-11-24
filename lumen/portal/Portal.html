@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal das pastorais</title>
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/dobylucky78-droid/secretaria-miguelangelus/main/secretaria/marca/icone-256.png">
+<style>
+  /* identidade da Secretaria MiguelAngelus: escuro com dourado (claro quando o celular está no modo claro) */
+  :root { --fundo:#121418; --cartao:#1b1e24; --campo:#0e1013; --texto:#e7e9ec; --sutil:#98a1ab; --linha:#2f343d; --cor:#d4a93a; --cor2:#f0c75e; --cor-txt:#1a1300;
+    --ok:#57b36f; --aviso:#2e2716; --aviso-borda:#8a7330; --mudado:#2c2615; --topo:#1b1e24; color-scheme: dark; }
+  @media (prefers-color-scheme: light) {
+    :root { --fundo:#f5f3ee; --cartao:#fff; --campo:#fbfaf7; --texto:#22252b; --sutil:#646b75; --linha:#e0dcd2; --cor:#b8860b; --cor2:#d4a93a; --cor-txt:#fff;
+      --ok:#2e7d4f; --aviso:#fff4d6; --aviso-borda:#e7c76b; --mudado:#fdf6e3; --topo:#1b1e24; color-scheme: light; }
+  }  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--texto); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--topo); color: #e7e9ec; border-bottom: 3px solid #d4a93a; }
+  header .dentro { max-width: 760px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+  header .logo { width: 46px; height: 46px; flex: none; border-radius: 11px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+  header .tit { flex: 1; min-width: 0; }
+  header h1 { margin: 0; font-size: 1.12rem; line-height: 1.2; font-weight: 700; white-space: nowrap; }
+  header h1 .dourado { color: #ffd95a; }
+  .marca-sec { position: relative; display: inline-block; font-style: italic; font-weight: 900; color: #ffcf33; padding: 0 .12em; margin-left: 2px; z-index: 0; }
+  .marca-sec::after { content: ""; position: absolute; left: .02em; right: .04em; bottom: .04em; height: .26em; z-index: -1; border-radius: .12em;
+    background: linear-gradient(90deg, rgba(245,158,11,.75), rgba(255,207,51,.35)); transform: skewX(-18deg); }
+  header .sub { margin: 2px 0 0; font-size: .86rem; color: #c3c9d0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  header .sub b { color: #e7e9ec; font-weight: 600; }
+  header .brasao { height: 52px; max-width: 110px; object-fit: contain; flex: none; }
+  @media (max-width: 380px) { header h1 { font-size: 1rem; } header .logo { width: 40px; height: 40px; } header .brasao { height: 44px; } }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  .cartao { background: var(--cartao); border: 1px solid var(--linha); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  h2 { font-size: 1.1rem; margin: 0 0 10px; }
+  label { display: block; margin: 0 0 12px; font-size: .92rem; color: var(--sutil); }
+  label > input, label > select, label > textarea { display: block; width: 100%; margin-top: 4px; font: inherit; color: var(--texto); background: var(--campo);
+    border: 1px solid var(--linha); border-radius: 8px; padding: 10px; }
+  textarea { min-height: 8em; resize: vertical; }
+  .chk { display: flex; gap: 8px; align-items: flex-start; color: var(--texto); }
+  .chk input { margin-top: 4px; }
+  button { font: inherit; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+  button.primario { background: var(--cor); border-color: var(--cor); color: var(--cor-txt); font-weight: 700; }
+  button:disabled { opacity: .55; cursor: default; }
+  .link { background: none; border: none; color: var(--cor); padding: 6px 0; text-decoration: underline; }
+  .linha { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .linha > label { flex: 1 1 180px; }
+  .espaco { flex: 1; }
+  .sutil { color: var(--sutil); }
+  .pequeno { font-size: .85rem; }
+  .msg { padding: 10px 12px; border-radius: 8px; margin: 0 0 12px; background: var(--aviso); border: 1px solid var(--aviso-borda); }
+  .msg.ok { background: transparent; border-color: var(--ok); color: var(--ok); }
+  .lgpd { font-size: .85rem; color: var(--sutil); border-left: 3px solid var(--linha); padding-left: 10px; margin: 0 0 12px; }
+  .missa { border-top: 1px solid var(--linha); padding: 10px 0; }
+  .missa:first-child { border-top: 0; }
+  .missa .quando { font-weight: 600; }
+  .missa .onde { color: var(--sutil); font-size: .9rem; }
+  .missa input { width: 100%; margin-top: 6px; font: inherit; color: var(--texto); background: var(--campo); border: 1px solid var(--linha); border-radius: 8px; padding: 9px; }
+  .missa.mudada input { background: var(--mudado); border-color: var(--cor2); }
+  .missa .estado { font-size: .8rem; margin-top: 4px; color: var(--sutil); }
+  .missa .estado b { color: var(--cor); }
+  .rodape { position: sticky; bottom: 0; background: var(--fundo); padding: 10px 0; border-top: 1px solid var(--linha); display: flex; gap: 10px; align-items: center; }
+  .abas { display: flex; gap: 6px; margin: 0 0 12px; }
+  .abas button.ativo { background: var(--cor); border-color: var(--cor); color: var(--cor-txt); }
+  .oculto { display: none !important; }
+  .carregando { opacity: .6; pointer-events: none; }
+</style>
+</head>
+<body>
+<header><div class="dentro"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="logo" aria-hidden="true"><defs><linearGradient id="fundo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd84d"/><stop offset="1" stop-color="#f0a000"/></linearGradient><radialGradient id="brilho" cx="0.5" cy="0.36" r="0.5"><stop offset="0" stop-color="#fffbe6" stop-opacity=".75"/><stop offset="1" stop-color="#fffbe6" stop-opacity="0"/></radialGradient><linearGradient id="asa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#fde9e2"/></linearGradient><linearGradient id="capa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0473a"/><stop offset="1" stop-color="#a82a20"/></linearGradient><linearGradient id="tunica" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f95ec"/><stop offset="1" stop-color="#2d6cc4"/></linearGradient><clipPath id="moldura"><rect width="512" height="512" rx="112"/></clipPath></defs><g clip-path="url(#moldura)"><rect width="512" height="512" fill="url(#fundo)"/><circle cx="256" cy="200" r="240" fill="url(#brilho)"/><g stroke="#fff3b0" stroke-width="10" stroke-linecap="round" opacity=".55" fill="none"><path d="M70 120 l40 26"/><path d="M48 196 l46 8"/><path d="M442 120 l-40 26"/><path d="M464 196 l-46 8"/></g><g stroke="#d9a7a0" stroke-width="5" stroke-linejoin="round" fill="url(#asa)"><path d="M206 262 C150 214 92 212 52 250 C66 258 76 268 80 280 C62 290 54 304 54 320 C78 312 96 314 108 324 C98 340 98 356 104 370 C128 350 150 340 176 338 C188 316 200 292 212 276 Z"/><path d="M306 262 C362 214 420 212 460 250 C446 258 436 268 432 280 C450 290 458 304 458 320 C434 312 416 314 404 324 C414 340 414 356 408 370 C384 350 362 340 336 338 C324 316 312 292 300 276 Z"/></g><g stroke="#d9a7a0" stroke-width="4" stroke-linecap="round" fill="none"><path d="M90 262 C124 266 156 280 186 300"/><path d="M92 306 C124 306 152 316 180 328"/><path d="M422 262 C388 266 356 280 326 300"/><path d="M420 306 C388 306 360 316 332 328"/></g><path d="M188 250 L128 530 L384 530 L324 250 Z" fill="url(#capa)"/><path d="M200 252 Q256 232 312 252 L352 530 L160 530 Z" fill="url(#tunica)"/><path d="M226 246 Q256 272 286 246" fill="none" stroke="#ffd95a" stroke-width="7" stroke-linecap="round"/><rect x="178" y="438" width="156" height="18" rx="6" fill="#f2b632"/><path d="M204 262 C176 292 168 336 186 368" fill="none" stroke="#2d6cc4" stroke-width="30" stroke-linecap="round"/><path d="M308 262 C336 292 344 336 326 368" fill="none" stroke="#2d6cc4" stroke-width="30" stroke-linecap="round"/><g transform="rotate(-5 256 350)"><rect x="180" y="290" width="152" height="132" rx="14" fill="#7a3b12"/><rect x="186" y="296" width="140" height="120" rx="10" fill="#ffffff"/><path d="M186 306 a10 10 0 0 1 10 -10 h120 a10 10 0 0 1 10 10 v24 h-140 z" fill="#c8102e"/><g fill="#7a3b12"><rect x="210" y="282" width="10" height="26" rx="5"/><rect x="292" y="282" width="10" height="26" rx="5"/></g><g fill="#c9d6ea"><rect x="198" y="342" width="22" height="16" rx="3"/><rect x="226" y="342" width="22" height="16" rx="3"/><rect x="254" y="342" width="22" height="16" rx="3"/><rect x="282" y="342" width="22" height="16" rx="3"/><rect x="198" y="364" width="22" height="16" rx="3"/><rect x="226" y="364" width="22" height="16" rx="3"/><rect x="282" y="364" width="22" height="16" rx="3"/><rect x="198" y="386" width="22" height="16" rx="3"/><rect x="226" y="386" width="22" height="16" rx="3"/><rect x="254" y="386" width="22" height="16" rx="3"/></g><rect x="254" y="364" width="22" height="16" rx="3" fill="#f0a000"/><path d="M259 372 l5 5 9 -10" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g><circle cx="186" cy="372" r="16" fill="#f6c9a0"/><circle cx="326" cy="364" r="16" fill="#f6c9a0"/><rect x="240" y="226" width="32" height="28" rx="10" fill="#e9b88c"/><circle cx="256" cy="186" r="60" fill="#f6c9a0"/><circle cx="197" cy="194" r="11" fill="#f0bd92"/><circle cx="315" cy="194" r="11" fill="#f0bd92"/><path d="M196 188 C188 146 214 118 256 118 C298 118 324 146 316 188 C308 172 298 162 286 158 C280 170 262 172 250 162 C240 172 222 172 214 160 C204 166 198 176 196 188 Z" fill="#8a5a2b"/><g fill="#8a5a2b"><circle cx="206" cy="150" r="16"/><circle cx="230" cy="130" r="18"/><circle cx="258" cy="122" r="18"/><circle cx="286" cy="130" r="18"/><circle cx="306" cy="150" r="16"/></g><ellipse cx="234" cy="194" rx="8" ry="10" fill="#2b1d16"/><ellipse cx="278" cy="194" rx="8" ry="10" fill="#2b1d16"/><circle cx="237" cy="190" r="3" fill="#fff"/><circle cx="281" cy="190" r="3" fill="#fff"/><circle cx="218" cy="214" r="10" fill="#f28b8b" opacity=".45"/><circle cx="294" cy="214" r="10" fill="#f28b8b" opacity=".45"/><path d="M238 220 Q256 238 274 220" fill="none" stroke="#7a3b2e" stroke-width="5" stroke-linecap="round"/><ellipse cx="256" cy="96" rx="66" ry="17" fill="none" stroke="#a86b00" stroke-width="16"/><ellipse cx="256" cy="96" rx="66" ry="17" fill="none" stroke="#fff3b8" stroke-width="9"/><circle cx="420" cy="420" r="52" fill="#ffffff"/><circle cx="420" cy="420" r="44" fill="#1f4f8f"/><g fill="#ffffff"><path d="M394 408 h12 l30 -18 v60 l-30 -18 h-12 a6 6 0 0 1 -6 -6 v-12 a6 6 0 0 1 6 -6 z"/><path d="M402 434 h12 l6 22 h-12 z"/></g><g stroke="#ffffff" stroke-width="5" stroke-linecap="round" fill="none"><path d="M446 406 q8 14 0 28"/></g></g></svg>
+  <div class="tit"><h1><span class="dourado">Miguel</span>Angelus <span class="marca-sec">Secretaria</span></h1>
+    <p class="sub">Portal das pastorais<span id="hParoquia"></span></p></div>
+  <img id="hBrasao" class="brasao" alt="" hidden></div></header>
+<main id="raiz">
+  <p class="sutil">Carregando…</p>
+</main>
+
+<script>
+'use strict';
+// ------------------------------------------------------------ conversa com o Apps Script
+function chamar(acao, dados) {
+  return new Promise((ok, falha) => google.script.run
+    .withSuccessHandler(r => r && r.ok ? ok(r) : falha(r || { erro: 'Sem resposta.' }))
+    .withFailureHandler(e => falha({ erro: 'Sem conexão com o portal. Tente de novo.' }))
+    .api(acao, dados || {}));
+}
+const guardar = {
+  ler(k) { try { return localStorage.getItem('portal.' + k) || ''; } catch (_) { return ''; } },
+  por(k, v) { try { v ? localStorage.setItem('portal.' + k, v) : localStorage.removeItem('portal.' + k); } catch (_) {} },
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const dataCurta = iso => { const [a, m, d] = iso.split('-').map(Number), dt = new Date(a, m - 1, d); return `${DIAS[dt.getDay()]} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`; };
+const nomeMes = mes => { const [a, m] = mes.split('-').map(Number); return `${MESES[m - 1]} de ${a}`; };
+const quando = iso => { try { const d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); } catch (_) { return iso; } };
+
+const S = { token: guardar.ler('token'), info: null, eu: null, meses: [], mes: '', funcao: '', escala: null, aba: 'escala', mudancas: {} };
+
+function mostrarParoquia(nome, brasao) {
+  if (nome) { $('#hParoquia').innerHTML = ' · <b>' + esc(nome) + '</b>'; document.title = 'Portal das pastorais · ' + nome; }
+  if (brasao && /^data:image\/(png|jpeg|webp);base64,/.test(brasao)) { $('#hBrasao').src = brasao; $('#hBrasao').hidden = false; }
+}
+function msg(texto, ok) { return texto ? `<p class="msg${ok ? ' ok' : ''}">${esc(texto)}</p>` : ''; }
+function ocupado(sim) { $('#raiz').classList.toggle('carregando', !!sim); }
+function erroDe(e) { if (e && e.sair) { S.token = ''; guardar.por('token', ''); } return (e && e.erro) || 'Não deu certo.'; }
+
+// ------------------------------------------------------------ telas sem login
+function telaEntrar(aviso, ok) {
+  $('#raiz').innerHTML = `<div class="cartao">
+    <h2>Entrar</h2>${msg(aviso, ok)}
+    <form id="fEntrar">
+      <label>E-mail <input name="email" type="email" autocomplete="username" required value="${esc(guardar.ler('email'))}"></label>
+      <label>Senha <input name="senha" type="password" autocomplete="current-password" required></label>
+      <div class="linha"><button class="primario">Entrar</button><span class="espaco"></span>
+        <button type="button" class="link" id="bPedir">Pedir acesso</button></div>
+      <p class="pequeno sutil">Esqueceu a senha? Peça à secretaria da paróquia para criar uma senha provisória.</p>
+    </form></div>`;
+  $('#bPedir').onclick = () => telaCadastro();
+  $('#fEntrar').onsubmit = async ev => {
+    ev.preventDefault();
+    const f = ev.target, email = f.email.value.trim();
+    ocupado(true);
+    try {
+      const r = await chamar('entrar', { email, senha: f.senha.value });
+      S.token = r.token; guardar.por('token', r.token); guardar.por('email', email);
+      await iniciarSessao();
+    } catch (e) { telaEntrar(erroDe(e)); }
+    finally { ocupado(false); }
+  };
+}
+
+function telaCadastro(aviso) {
+  const fs = (S.info && S.info.funcoes) || [];
+  $('#raiz').innerHTML = `<div class="cartao">
+    <h2>Pedir acesso</h2>${msg(aviso)}
+    <p class="pequeno sutil">Para a coordenação de uma pastoral ou serviço cadastrar a própria escala. A secretaria confere e libera o acesso.</p>
+    <form id="fCad">
+      <label>Seu nome <input name="nome" autocomplete="name" required maxlength="80"></label>
+      <label>E-mail <input name="email" type="email" autocomplete="email" required maxlength="120"></label>
+      <div class="linha">
+        <label>Senha (8 ou mais) <input name="senha" type="password" autocomplete="new-password" required minlength="8"></label>
+        <label>Repita a senha <input name="senha2" type="password" autocomplete="new-password" required minlength="8"></label>
+      </div>
+      <label>Qual pastoral ou serviço?
+        <select name="funcao"><option value="">—</option>${fs.map(f => `<option>${esc(f.nome)}</option>`).join('')}<option>Outra (escreva no recado)</option></select></label>
+      <label>Recado para a secretaria (opcional) <input name="recado" maxlength="300" placeholder="Ex.: coordeno os ministros da Missa das 10h"></label>
+      <p class="lgpd">🔒 Guardamos só o seu <b>nome</b> e <b>e-mail</b>, no Google Drive da paróquia, para o seu acesso ao portal.
+        A senha não fica guardada como você digitou. Nas escalas vão só nomes. Para apagar o seu cadastro, peça à secretaria.</p>
+      <label class="chk"><input type="checkbox" name="aceite" required> Li o aviso acima e concordo.</label>
+      <div class="linha"><button class="primario">Enviar pedido</button><span class="espaco"></span><button type="button" class="link" id="bVoltar">Já tenho acesso</button></div>
+    </form></div>`;
+  $('#bVoltar').onclick = () => telaEntrar();
+  $('#fCad').onsubmit = async ev => {
+    ev.preventDefault();
+    const f = ev.target;
+    if (f.senha.value !== f.senha2.value) return telaCadastroErro(f, 'As duas senhas não são iguais.');
+    ocupado(true);
+    try {
+      const r = await chamar('cadastrar', { nome: f.nome.value, email: f.email.value, senha: f.senha.value, funcao: f.funcao.value, recado: f.recado.value, aceite: f.aceite.checked });
+      guardar.por('email', f.email.value.trim());
+      telaEntrar(r.msg, true);
+    } catch (e) { telaCadastroErro(f, erroDe(e)); }
+    finally { ocupado(false); }
+  };
+}
+function telaCadastroErro(f, texto) {
+  f.querySelector('.msg')?.remove();
+  f.insertAdjacentHTML('afterbegin', msg(texto));
+  f.scrollIntoView();
+}
+
+function telaTrocarSenha(obrigatoria, aviso) {
+  $('#raiz').innerHTML = `<div class="cartao">
+    <h2>Trocar a senha</h2>${msg(aviso || (obrigatoria ? 'Você entrou com uma senha provisória. Escolha a sua senha agora.' : ''))}
+    <form id="fSenha">
+      <label>Senha atual ${obrigatoria ? '(a provisória)' : ''} <input name="atual" type="password" autocomplete="current-password" required></label>
+      <div class="linha">
+        <label>Nova senha (8 ou mais) <input name="nova" type="password" autocomplete="new-password" required minlength="8"></label>
+        <label>Repita <input name="nova2" type="password" autocomplete="new-password" required minlength="8"></label>
+      </div>
+      <div class="linha"><button class="primario">Trocar</button>${obrigatoria ? '' : '<span class="espaco"></span><button type="button" id="bCancelar">Cancelar</button>'}</div>
+    </form></div>`;
+  if (!obrigatoria) $('#bCancelar').onclick = () => telaPrincipal();
+  $('#fSenha').onsubmit = async ev => {
+    ev.preventDefault();
+    const f = ev.target;
+    if (f.nova.value !== f.nova2.value) return telaTrocarSenha(obrigatoria, 'As duas senhas novas não são iguais.');
+    ocupado(true);
+    try { await chamar('trocarSenha', { token: S.token, atual: f.atual.value, nova: f.nova.value }); S.eu.trocarSenha = false; telaPrincipal('Senha trocada.', true); }
+    catch (e) { if (e && e.sair) return telaEntrar(erroDe(e)); telaTrocarSenha(obrigatoria, erroDe(e)); }
+    finally { ocupado(false); }
+  };
+}
+
+// ------------------------------------------------------------ com login
+async function iniciarSessao() {
+  const r = await chamar('eu', { token: S.token });
+  S.eu = r.eu; S.meses = r.meses || [];
+  mostrarParoquia(r.paroquia);
+  if (!S.funcao || !S.eu.funcoes.some(f => f.id === S.funcao)) S.funcao = (S.eu.funcoes[0] || {}).id || '';
+  const hoje = new Date().toISOString().slice(0, 7);
+  if (!S.mes || !S.meses.includes(S.mes)) S.mes = S.meses.find(m => m >= hoje) || S.meses[S.meses.length - 1] || '';
+  if (S.eu.trocarSenha) return telaTrocarSenha(true);
+  await carregarEscala();
+  telaPrincipal();
+}
+
+async function carregarEscala() {
+  S.escala = null; S.mudancas = {};
+  if (!S.funcao || !S.mes) return;
+  S.filtro = guardar.ler('filtro.' + S.funcao);
+  try { S.escala = await chamar('escala', { token: S.token, mes: S.mes, funcao: S.funcao }); }
+  catch (e) { if (e && e.sair) throw e; S.escala = { erro: erroDe(e) }; }
+}
+
+function telaPrincipal(aviso, ok) {
+  const eu = S.eu, fs = eu.funcoes;
+  let corpo;
+  if (!fs.length) corpo = `<div class="cartao">${msg('A secretaria ainda não deu nenhuma pastoral ou função para você.')}</div>`;
+  else if (!S.meses.length) corpo = `<div class="cartao">${msg('A secretaria ainda não mandou as Missas de nenhum mês.')}</div>`;
+  else corpo = `<div class="cartao">
+      <div class="linha">
+        ${fs.length > 1 ? `<label>Pastoral / função <select id="sFuncao">${fs.map(f => `<option value="${esc(f.id)}"${f.id === S.funcao ? ' selected' : ''}>${esc(f.nome)}</option>`).join('')}</select></label>` : `<p style="margin:0 0 12px"><b>${esc(fs[0].nome)}</b></p>`}
+        <label>Mês <select id="sMes">${S.meses.map(m => `<option value="${m}"${m === S.mes ? ' selected' : ''}>${nomeMes(m)}</option>`).join('')}</select></label>
+      </div>
+      <div class="abas"><button type="button" data-aba="escala" class="${S.aba === 'escala' ? 'ativo' : ''}">📅 Escala</button><button type="button" data-aba="nomes" class="${S.aba === 'nomes' ? 'ativo' : ''}">🙋 Nomes</button></div>
+      ${msg(aviso, ok)}
+      <div id="conteudo">${S.aba === 'escala' ? htmlEscala() : htmlNomes()}</div>
+    </div>`;
+  $('#raiz').innerHTML = `<div class="linha" style="margin-bottom:10px"><span>Olá, <b>${esc(eu.nome.split(' ')[0])}</b></span><span class="espaco"></span>
+      <button type="button" class="link" id="bSenha">Trocar senha</button><button type="button" class="link" id="bSair">Sair</button></div>` + corpo;
+  $('#bSair').onclick = async () => { try { await chamar('sair', { token: S.token }); } catch (_) {} S.token = ''; guardar.por('token', ''); telaEntrar('Você saiu.', true); };
+  $('#bSenha').onclick = () => telaTrocarSenha(false);
+  const trocar = async () => {
+    if (Object.keys(S.mudancas).length && !confirm('Há mudanças não salvas. Sair sem salvar?')) return telaPrincipal();
+    ocupado(true);
+    try { await carregarEscala(); telaPrincipal(); } catch (e) { telaEntrar(erroDe(e)); } finally { ocupado(false); }
+  };
+  if ($('#sFuncao')) $('#sFuncao').onchange = e => { S.funcao = e.target.value; trocar(); };
+  if ($('#sMes')) $('#sMes').onchange = e => { S.mes = e.target.value; trocar(); };
+  document.querySelectorAll('[data-aba]').forEach(b => b.onclick = () => { S.aba = b.dataset.aba; telaPrincipal(); });
+  ligarEscala();
+}
+
+const menores = f => f && (f.menores || /coroinha|acolit|acólit/i.test(f.nome || ''));
+const explica = (txt, equipes) => String(txt || '').split(',').map(s => s.trim()).filter(Boolean)
+  .map(n => { const e = equipes.find(q => q.nome.toLowerCase() === n.toLowerCase()); return e && e.membros ? `${e.nome} (${e.membros})` : n; }).join(', ');
+
+// "só a minha Missa": cada coordenação costuma cuidar de um horário (dia da semana + hora + igreja)
+const DIAS_LONGOS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const diaSem = iso => { const [a, m, d] = iso.split('-').map(Number); return new Date(a, m - 1, d).getDay(); };
+const vaga = l => `${diaSem(l.iso)}|${l.hora}|${l.texto}`;
+function vagasDoMes(linhas) {
+  const m = new Map();
+  for (const l of linhas) if (!m.has(vaga(l))) m.set(vaga(l), { k: vaga(l), d: diaSem(l.iso), hora: l.hora, texto: l.texto });
+  return [...m.values()].sort((a, b) => a.d - b.d || a.hora.localeCompare(b.hora) || a.texto.localeCompare(b.texto));
+}
+
+function htmlEscala() {
+  const e = S.escala;
+  if (!e) return '';
+  if (e.erro) return msg(e.erro);
+  const vagas = vagasDoMes(e.linhas);
+  if (S.filtro && !vagas.some(v => v.k === S.filtro)) S.filtro = '';
+  const filtro = `<label>Mostrar <select id="sFiltro"><option value="">Todas as Missas do mês (${e.linhas.length})</option>${vagas.map(v =>
+    `<option value="${esc(v.k)}"${v.k === S.filtro ? ' selected' : ''}>Só ${DIAS_LONGOS[v.d]} ${esc(v.hora)} · ${esc(v.texto)}</option>`).join('')}</select></label>`;
+  const linhas = e.linhas.map((l, i) => {
+    if (S.filtro && vaga(l) !== S.filtro) return '';
+    const vale = l.portal ? l.portal.valor : l.base, mudou = S.mudancas[l.chave] !== undefined;
+    const estado = l.portal
+      ? `<b>Mudado</b> por ${esc(l.portal.porNome)} em ${esc(quando(l.portal.em))} · esperando a secretaria${l.base ? ` · na escala: ${esc(explica(l.base, e.equipes))}` : ''}`
+      : l.base ? `Na escala da secretaria: ${esc(explica(l.base, e.equipes))}` : 'Ninguém escalado ainda';
+    return `<div class="missa${l.portal || mudou ? ' mudada' : ''}" data-i="${i}">
+      <div class="quando">${dataCurta(l.iso)} · ${esc(l.hora)}</div><div class="onde">${esc(l.texto)}</div>
+      <input data-chave="${esc(l.chave)}" list="dlNomes" value="${esc(mudou ? S.mudancas[l.chave] : vale)}" placeholder="Nomes ou equipe, separados por vírgula" maxlength="200">
+      <div class="estado">${estado}</div></div>`;
+  }).join('');
+  const n = Object.keys(S.mudancas).length;
+  return `<p class="pequeno sutil">Escreva os nomes (ou o nome da equipe) de cada Missa, separados por vírgula. <b>—</b> = ninguém.
+      ${menores(e.funcao) ? '<br>👦 <b>Menores de idade:</b> só o primeiro nome e a inicial do sobrenome (ex.: Ana S.).' : ''}
+      ${e.equipes.length ? `<br>Equipes: ${e.equipes.map(q => `<b>${esc(q.nome)}</b>${q.membros ? ` (${esc(q.membros)})` : ''}`).join('; ')}` : ''}</p>
+    ${filtro}
+    <datalist id="dlNomes">${e.equipes.map(q => `<option value="${esc(q.nome)}">`).join('')}${e.pessoas.map(p => `<option value="${esc(p)}">`).join('')}</datalist>
+    ${linhas || '<p class="sutil">Nenhuma Missa neste mês.</p>'}
+    <div class="rodape"><span class="pequeno sutil" id="nMud">${n ? `${n} mudança${n > 1 ? 's' : ''} sem salvar` : 'Tudo salvo'}</span><span class="espaco"></span>
+      <button type="button" id="bDesfazer"${n ? '' : ' disabled'}>Desfazer</button><button type="button" class="primario" id="bSalvar"${n ? '' : ' disabled'}>Salvar</button></div>`;
+}
+
+function htmlNomes() {
+  const e = S.escala;
+  if (!e || e.erro) return msg(e && e.erro);
+  const daSec = e.pessoas.filter(p => !e.extras.includes(p));
+  return `<p class="pequeno sutil">Nomes que aparecem como sugestão ao escrever a escala. Os da secretaria vêm do cadastro dela;
+      acrescente aqui quem ainda não está lá (um por linha).${menores(e.funcao) ? ' <b>Menores: só o primeiro nome e a inicial.</b>' : ''}</p>
+    ${daSec.length ? `<p class="pequeno"><b>Da secretaria:</b> ${daSec.map(esc).join(', ')}</p>` : ''}
+    <label>Nomes acrescentados por vocês <textarea id="tNomes">${esc(e.extras.join('\n'))}</textarea></label>
+    <div class="linha"><span class="espaco"></span><button type="button" class="primario" id="bNomes">Salvar os nomes</button></div>`;
+}
+
+function ligarEscala() {
+  if ($('#sFiltro')) $('#sFiltro').onchange = ev => { S.filtro = ev.target.value; guardar.por('filtro.' + S.funcao, S.filtro); telaPrincipal(); };
+  document.querySelectorAll('.missa input').forEach(inp => {
+    inp.oninput = () => {
+      const l = S.escala.linhas.find(x => x.chave === inp.dataset.chave), vale = l.portal ? l.portal.valor : l.base, v = inp.value.trim();
+      if (v === vale) delete S.mudancas[l.chave]; else S.mudancas[l.chave] = v;
+      inp.closest('.missa').classList.toggle('mudada', !!l.portal || S.mudancas[l.chave] !== undefined);
+      const n = Object.keys(S.mudancas).length;
+      $('#nMud').textContent = n ? `${n} mudança${n > 1 ? 's' : ''} sem salvar` : 'Tudo salvo';
+      $('#bSalvar').disabled = $('#bDesfazer').disabled = !n;
+    };
+  });
+  if ($('#bDesfazer')) $('#bDesfazer').onclick = () => { S.mudancas = {}; telaPrincipal(); };
+  if ($('#bSalvar')) $('#bSalvar').onclick = async () => {
+    ocupado(true);
+    try {
+      const r = await chamar('salvar', { token: S.token, mes: S.mes, funcao: S.funcao, celas: S.mudancas });
+      await carregarEscala(); telaPrincipal(r.msg, true);
+    } catch (e) { if (e && e.sair) return telaEntrar(erroDe(e)); telaPrincipal(erroDe(e)); }
+    finally { ocupado(false); }
+  };
+  if ($('#bNomes')) $('#bNomes').onclick = async () => {
+    ocupado(true);
+    try {
+      const nomes = $('#tNomes').value.split('\n').map(s => s.trim()).filter(Boolean);
+      const r = await chamar('salvarPessoas', { token: S.token, funcao: S.funcao, nomes });
+      await carregarEscala(); telaPrincipal(r.msg, true);
+    } catch (e) { if (e && e.sair) return telaEntrar(erroDe(e)); telaPrincipal(erroDe(e)); }
+    finally { ocupado(false); }
+  };
+}
+
+window.addEventListener('beforeunload', ev => { if (Object.keys(S.mudancas).length) { ev.preventDefault(); ev.returnValue = ''; } });
+
+// ------------------------------------------------------------ começo
+(async () => {
+  try { S.info = await chamar('info'); mostrarParoquia(S.info.paroquia, S.info.brasao); } catch (_) { S.info = { funcoes: [] }; }
+  if (!S.token) return telaEntrar();
+  try { await iniciarSessao(); } catch (e) { telaEntrar(erroDe(e)); }
+})();
+</script>
+</body>
+</html>
