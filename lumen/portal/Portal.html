@@ -105,6 +105,19 @@
   .capa-par b { font-size: 1.05rem; }
   .ag-aberta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
   .carregando { opacity: .6; pointer-events: none; }
+  /* (0.4.0) choque de sala e 📋 entregas */
+  .ag-sala { display: inline-block; color: #ff8a80; margin-bottom: 4px; }
+  @media (prefers-color-scheme: light) { .ag-sala { color: #c62828; } }
+  .num { display: inline-block; min-width: 1.4em; padding: 0 .35em; margin-left: 4px; border-radius: 1em; background: #e0473a; color: #fff; font-size: .78rem; font-weight: 700; text-align: center; }
+  .ent { border-top: 1px solid var(--linha); padding: 12px 0; }
+  .ent:first-of-type { border-top: 0; }
+  .ent h3 { margin: 0 0 4px; font-size: 1.02rem; }
+  .ent-prazo { font-size: .88rem; }
+  .ent-prazo.atraso { color: #ff8a80; font-weight: 700; }
+  @media (prefers-color-scheme: light) { .ent-prazo.atraso { color: #c62828; } }
+  .ent-ok { color: var(--ok); font-weight: 600; }
+  .ent-past { margin-top: 10px; padding: 10px; border: 1px solid var(--linha); border-radius: 10px; background: var(--campo); }
+  .ent-arq { font-size: .9rem; margin: 0 0 10px; }
 </style>
 </head>
 <body>
@@ -259,7 +272,7 @@ function telaTrocarSenha(obrigatoria, aviso) {
 // ------------------------------------------------------------ com login
 async function iniciarSessao() {
   const r = await chamar('eu', { token: S.token });
-  S.eu = r.eu; S.meses = r.meses || [];
+  S.eu = r.eu; S.meses = r.meses || []; S.entN = (r.entregas && r.entregas.pendentes) || 0; S.reuN = (r.reunioes && r.reunioes.pendentes) || 0;
   mostrarParoquia(r.paroquia);
   if (!S.funcao || !S.eu.funcoes.some(f => f.id === S.funcao)) S.funcao = (S.eu.funcoes[0] || {}).id || '';
   const hoje = new Date().toISOString().slice(0, 7);
@@ -290,11 +303,15 @@ async function carregarEscala() {
 
 function telaPrincipal(aviso, ok) {
   const eu = S.eu, fs = eu.funcoes;
-  const secoes = [['agenda', '📅 Calendário pastoral'], fs.length && ['escala', '📋 Escala das Missas'], relPast().length && ['relatorio', '📝 Relatório do mês']].filter(Boolean);
+  const secoes = [['agenda', '📅 Calendário pastoral'], fs.length && ['escala', '📋 Escala das Missas'], relPast().length && ['relatorio', '📝 Relatório do mês'],
+    relPast().length && ['entregas', '📨 Entregas' + (S.entN ? `<span class="num" title="Pedidos da secretaria ainda sem entrega">${S.entN}</span>` : '')],
+    !S.publico && ['reunioes', '🤝 Reuniões' + (S.reuN ? `<span class="num" title="Encaminhamentos das suas pastorais ainda sem ✔">${S.reuN}</span>` : '')]].filter(Boolean);
   if (!secoes.some(s => s[0] === S.secao)) S.secao = 'agenda';
   let corpo;
   if (S.secao === 'agenda') corpo = htmlAgenda(aviso, ok);
   else if (S.secao === 'relatorio') corpo = htmlRelatorio(aviso, ok);
+  else if (S.secao === 'entregas') corpo = htmlEntregas(aviso, ok);
+  else if (S.secao === 'reunioes') corpo = htmlReunioes(aviso, ok);
   else if (!S.meses.length) corpo = `<div class="cartao">${msg('A secretaria ainda não mandou as Missas de nenhum mês.')}</div>`;
   else corpo = `<div class="cartao">
       <div class="linha">
@@ -320,10 +337,14 @@ function telaPrincipal(aviso, ok) {
   document.querySelectorAll('[data-secao]').forEach(b => b.onclick = () => {
     if (S.secao === 'escala' && b.dataset.secao !== 'escala' && Object.keys(S.mudancas).length && !confirm('Há mudanças na escala não salvas. Sair sem salvar?')) return;
     if (b.dataset.secao !== 'escala') S.mudancas = {};
+    if (b.dataset.secao === 'entregas') S.ent = null;
+    if (b.dataset.secao === 'reunioes') S.reu = null;            // lê de novo ao entrar
     S.secao = b.dataset.secao; guardar.por('secao', S.secao); telaPrincipal();
   });
   if (S.secao === 'agenda') return ligarAgenda();
   if (S.secao === 'relatorio') return ligarRelatorio();
+  if (S.secao === 'entregas') return ligarEntregas();
+  if (S.secao === 'reunioes') return ligarReunioes();
   const trocar = async () => {
     if (Object.keys(S.mudancas).length && !confirm('Há mudanças não salvas. Sair sem salvar?')) return telaPrincipal();
     ocupado(true);
@@ -435,9 +456,12 @@ const podePor = () => ((S.eu && S.eu.pastorais) || []).length > 0;
 // (0.3.0) ⏳ provisório (espera a secretaria; só quem entra vê) · 🔁 pediu para mudar dia/hora/local ou tirar · ✖ não aprovado
 const marcaEv = e => e.situacao === 'provisorio' ? '⏳ ' : e.situacao === 'recusado' ? '✖ ' : e.pedido ? '🔁 ' : '';
 const classeEv = e => e.situacao === 'provisorio' ? ' prov' : e.situacao === 'recusado' ? ' recus' : '';
-const titEv = e => marcaEv(e) + (e.origem === 'sec' ? '🎉 ' : '') + e.titulo;
+const titEv = e => marcaEv(e) + (e.origem === 'sec' ? '🎉 ' : e.origem === 'reu' ? '🤝 ' : '') + (e.jubilar ? '🚶 ' : '') + e.titulo;
+// (0.5.0) Ano Jubilar ligado pela secretaria: aparece o 🚶 peregrinação no evento
+const jubileu = () => (S.ag && S.ag.jubileu) || (S.info && S.info.jubileu) || { ligado: false };
 const esperando = e => e.situacao === 'provisorio' || !!e.pedido;
-const periodo = e => e.fim ? `${dataCurta(e.ini)} a ${dataCurta(e.fim)}` : dataCurta(e.ini);
+const locais = () => (S.ag && S.ag.locais) || (S.info && S.info.locais) || [];      // (0.4.0) espaços da paróquia
+const periodo = e => e.fim ?`${dataCurta(e.ini)} a ${dataCurta(e.fim)}` : dataCurta(e.ini);
 
 async function carregarAgenda(ano) {
   ano = ano || (S.agMes || hojeIso()).slice(0, 4);
@@ -450,7 +474,19 @@ function eventosDoDia(iso, todos) {
     .sort((a, b) => (a.hora || '99').localeCompare(b.hora || '99') || a.titulo.localeCompare(b.titulo, 'pt-BR'));
 }
 const conflito = iso => new Set(eventosDoDia(iso, true).map(e => e.pastoral)).size > 1;
-const marcaConflito = iso => conflito(iso) ? ' <span class="ag-conf" title="Mais de uma pastoral neste dia">⚠</span>' : '';
+// (0.4.0) choque de sala: o mesmo local (sem contar acento e maiúscula) em dias que se cruzam e com menos de 2 horas
+// entre os começos; sem hora num dos dois, conta o dia inteiro
+const normLocal = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const minutos = h => /^\d{2}:\d{2}$/.test(h || '') ? +h.slice(0, 2) * 60 + +h.slice(3, 5) : null;
+function mesmaSala(a, b) {
+  const la = normLocal(a.local);
+  if (!la || la !== normLocal(b.local) || !(a.ini <= (b.fim || b.ini) && (a.fim || a.ini) >= b.ini)) return false;
+  const ha = minutos(a.hora), hb = minutos(b.hora);
+  return ha == null || hb == null || Math.abs(ha - hb) < 120;
+}
+const choqueSala = iso => { const evs = eventosDoDia(iso, true); return evs.some((e, i) => evs.some((f, j) => j > i && mesmaSala(e, f))); };
+const marcaConflito = iso => choqueSala(iso) ? ' <span class="ag-conf" title="Dois eventos no mesmo local e horário">🔴</span>'
+  : conflito(iso) ? ' <span class="ag-conf" title="Mais de uma pastoral neste dia">⚠</span>' : '';
 
 function htmlAgenda(aviso, ok) {
   const ag = S.ag;
@@ -531,12 +567,18 @@ function ligarAgenda() {
   };
 }
 
-// o que já está marcado no mesmo dia (de outras pastorais), para quem está pondo um evento
-function avisoDoDia(ini, fim, pastoral, id) {
-  const outros = [];
-  for (let d = ini; d && d <= (fim || ini) && outros.length < 8; d = somaDia(d, 1))
-    eventosDoDia(d, true).forEach(e => { if (e.id !== id && e.pastoral !== pastoral && !outros.includes(e)) outros.push(e); });
-  return outros.length ? `⚠ Já marcado ${fim && fim > ini ? 'nesses dias' : 'neste dia'}: ${outros.map(e => `<b>${esc(e.titulo)}</b> (${esc(nomePastoral(e.pastoral))})`).join('; ')}. Pode pôr assim mesmo.` : '';
+// o que já está marcado no mesmo dia (de outras pastorais), para quem está pondo um evento;
+// (0.4.0) primeiro, o que ocupa o MESMO local no mesmo horário (de qualquer pastoral)
+function avisoDoDia(ini, fim, pastoral, id, hora, local) {
+  const outros = [], sala = [], q = { ini, fim, hora, local };
+  for (let d = ini; d && d <= (fim || ini) && outros.length + sala.length < 12; d = somaDia(d, 1))
+    eventosDoDia(d, true).forEach(e => {
+      if (e.id === id || outros.includes(e) || sala.includes(e)) return;
+      if (mesmaSala(q, e)) sala.push(e); else if (e.pastoral !== pastoral) outros.push(e);
+    });
+  const item = e => `<b>${esc(e.titulo)}</b> (${esc(nomePastoral(e.pastoral))}${e.hora ? ', ' + esc(e.hora) : ''})`;
+  return (sala.length ? `<span class="ag-sala">🔴 <b>${esc(local)}</b> já está ocupado nesse horário: ${sala.map(item).join('; ')}. Escolha outro horário ou local, ou combine antes com a outra pastoral.</span><br>` : '')
+    + (outros.length ? `⚠ Também marcado ${fim && fim > ini ? 'nesses dias' : 'neste dia'}: ${outros.map(item).join('; ')}. Pode pôr assim mesmo.` : '');
 }
 
 // ------------------------------------------------------------ 📝 relatório das atividades do mês (por pastoral)
@@ -599,6 +641,142 @@ function ligarRelatorio() {
   };
 }
 
+// ------------------------------------------------------------ 📨 entregas (0.4.0): o que a secretaria pediu, com prazo
+const ANEXO_MAX = 5 * 1024 * 1024;
+const tamanho = n => n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+function htmlPrazo(p) {
+  if (p.fechado) return '<div class="ent-prazo sutil">🔒 Fechado: a secretaria não recebe mais por aqui.</div>';
+  if (!p.prazo) return '';
+  const [a, m, d] = p.prazo.split('-').map(Number), [ha, hm, hd] = hojeIso().split('-').map(Number);
+  const dias = Math.round((new Date(a, m - 1, d) - new Date(ha, hm - 1, hd)) / 864e5);
+  const quanto = dias > 1 ? `faltam ${dias} dias` : dias === 1 ? 'é amanhã' : dias === 0 ? 'é hoje' : `passou há ${-dias} dia${dias === -1 ? '' : 's'}`;
+  return `<div class="ent-prazo${dias < 0 ? ' atraso' : ''}">📅 Prazo: ${dataCurta(p.prazo)} (${quanto})</div>`;
+}
+function htmlSituEnt(r) {
+  if (r.em) return `<div class="ent-ok">✅ Entregue por ${esc(r.porNome || '—')} em ${esc(quando(r.em))}</div>`;
+  if (r.papel) return `<div class="ent-ok">✅ A secretaria marcou como recebido${r.papel.nota ? ` (${esc(r.papel.nota)})` : ''} em ${esc(quando(r.papel.em))}</div>`;
+  return '<div class="sutil">⏳ Ainda não entregue</div>';
+}
+function htmlEntregas(aviso, ok) {
+  const E = S.ent;
+  if (!E) return `<div class="cartao"><h2>📨 Entregas</h2>${msg('Carregando…')}</div>`;
+  if (E.erro) return `<div class="cartao"><h2>📨 Entregas</h2>${msg(E.erro)}<button type="button" id="entTentar">Tentar de novo</button></div>`;
+  const varias = (E.pastorais || []).length > 1;
+  const nomeP = id => ((E.pastorais || []).find(p => p.id === id) || {}).nome || id;
+  return `<div class="cartao"><h2>📨 Entregas</h2>${msg(aviso, ok)}
+    <p class="pequeno sutil">O que a secretaria pediu às pastorais (planejamento do ano, avaliação…), com o prazo. Escreva aqui ou mande um arquivo (PDF, planilha, documento ou foto, até 5 MB). Dá para mudar até a secretaria fechar o pedido.</p>
+    ${!E.pedidos.length ? '<p class="sutil">Nenhum pedido da secretaria agora. 🙂</p>' : E.pedidos.map(p => `<div class="ent">
+      <h3>${esc(p.titulo)}</h3>${htmlPrazo(p)}
+      ${p.desc ? `<p style="white-space:pre-wrap;margin:6px 0">${esc(p.desc)}</p>` : ''}
+      ${p.minhas.map(r => `<div class="ent-past">
+        ${varias ? `<b>${esc(nomeP(r.pastoral))}</b>` : ''}${htmlSituEnt(r)}
+        ${p.fechado ? (r.texto ? `<p style="white-space:pre-wrap">${esc(r.texto)}</p>` : '') + (r.arquivo ? `<p class="ent-arq">📎 ${esc(r.arquivo.nome)}</p>` : '')
+        : `<form data-ent="${esc(p.id)}" data-past="${esc(r.pastoral)}" style="margin-top:8px">
+          <label>Texto (opcional se mandar arquivo) <textarea name="texto" maxlength="10000" style="min-height:6em" placeholder="Ex.: o planejamento da pastoral para 2027, com as datas e os espaços que vamos precisar…">${esc(r.texto || '')}</textarea></label>
+          ${r.arquivo ? `<p class="ent-arq">📎 <b>${esc(r.arquivo.nome)}</b> (${tamanho(r.arquivo.tam || 0)}) já mandado
+            <label class="chk pequeno" style="margin:6px 0 0"><input type="checkbox" name="tirar"><span>Tirar este arquivo</span></label></p>` : ''}
+          <label>${r.arquivo ? 'Trocar por outro arquivo' : 'Arquivo (opcional)'} <input type="file" name="arquivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.csv,.txt,.jpg,.jpeg,.png"></label>
+          <div class="linha"><button class="primario">${r.em ? 'Salvar a mudança' : 'Entregar'}</button></div>
+        </form>`}</div>`).join('')}</div>`).join('')}</div>`;
+}
+const lerBase64 = arq => new Promise((ok, falha) => { const r = new FileReader(); r.onload = () => ok(String(r.result).replace(/^data:[^,]*,/, '')); r.onerror = () => falha({ erro: 'Não deu para ler o arquivo.' }); r.readAsDataURL(arq); });
+async function carregarEntregas() {
+  try { S.ent = await chamar('entregas', { token: S.token }); }
+  catch (e) { if (e && e.sair) throw e; S.ent = { erro: erroDe(e) }; return; }
+  S.entN = S.ent.pedidos.reduce((n, p) => n + (p.fechado ? 0 : p.minhas.filter(r => !r.em && !r.papel).length), 0);
+}
+function ligarEntregas() {
+  const recarregar = async (aviso, ok) => {
+    ocupado(true);
+    try { await carregarEntregas(); telaPrincipal(aviso, ok); } catch (e) { telaEntrar(erroDe(e)); } finally { ocupado(false); }
+  };
+  if (!S.ent) return recarregar();
+  if ($('#entTentar')) return $('#entTentar').onclick = () => recarregar();
+  document.querySelectorAll('form[data-ent]').forEach(f => f.onsubmit = async ev => {
+    ev.preventDefault();
+    const arq = f.arquivo.files[0];
+    if (arq && arq.size > ANEXO_MAX) return telaPrincipal('Arquivo grande demais (até 5 MB). Se for uma foto, mande menor; se for PDF, tente "reduzir o tamanho".');
+    if (!f.texto.value.trim() && !arq && (!f.tirar || f.tirar.checked)) {
+      if (!confirm('Sem texto e sem arquivo, a entrega fica vazia (apagada). Continuar?')) return;
+    }
+    ocupado(true);
+    try {
+      const dados = { token: S.token, pedido: f.dataset.ent, pastoral: f.dataset.past, texto: f.texto.value, tirarArquivo: !!(f.tirar && f.tirar.checked) };
+      if (arq) dados.arquivo = { nome: arq.name, b64: await lerBase64(arq) };
+      const r = await chamar('entregaSalvar', dados);
+      await carregarEntregas(); telaPrincipal(r.msg, true);
+    } catch (e) {
+      if (e && e.sair) return telaEntrar(erroDe(e));
+      // não perde o que foi escrito
+      const p = (S.ent.pedidos || []).find(x => x.id === f.dataset.ent), x = p && p.minhas.find(q => q.pastoral === f.dataset.past);
+      if (x) x.texto = f.texto.value;
+      telaPrincipal(erroDe(e));
+    } finally { ocupado(false); }
+  });
+}
+
+// ------------------------------------------------------------ 🤝 reuniões (0.5.0): próximas, atas e encaminhamentos
+const SIT_PRES = { veio: '✅ veio', rep: '👤 mandou representante', faltou: '✖ faltou', just: '🙏 justificou' };
+function htmlReunioes(aviso, ok) {
+  const R = S.reu;
+  if (!R) return `<div class="cartao"><h2>🤝 Reuniões</h2>${msg('Carregando…')}</div>`;
+  if (R.erro) return `<div class="cartao"><h2>🤝 Reuniões</h2>${msg(R.erro)}<button type="button" id="reuTentar">Tentar de novo</button></div>`;
+  const nomeP = id => ((R.pastorais || []).find(p => p.id === id) || {}).nome || id;
+  const hoje = hojeIso(), quandoR = r => `📅 ${dataCurta(r.data)}${r.hora ? ' · 🕒 ' + esc(r.hora) : ''}${r.local ? ' · 📍 ' + esc(r.local) : ''}`;
+  const proximas = R.reunioes.filter(r => r.data > hoje || (r.data === hoje && !r.publicada)).sort((a, b) => a.data.localeCompare(b.data));
+  const atas = R.reunioes.filter(r => r.publicada && r.data <= hoje);
+  // encaminhamentos das minhas pastorais (os que faltam primeiro)
+  const meus = [];
+  R.reunioes.forEach(r => (r.encs || []).forEach(enc => enc.minhas.forEach(pid => meus.push({ r, enc, pid, feito: enc.feitos[pid] }))));
+  meus.sort((a, b) => (a.feito ? 1 : 0) - (b.feito ? 1 : 0) || (a.enc.prazo || '9999').localeCompare(b.enc.prazo || '9999'));
+  const varias = (R.minhas || []).length > 1;
+  const prazoEnc = enc => enc.prazo ? ` · <span class="${enc.prazo < hoje ? 'ent-prazo atraso' : ''}">prazo ${dataCurta(enc.prazo)}</span>` : '';
+  const quemEnc = enc => enc.pastoral === 'paroquia' ? 'Coordenação da paróquia' : enc.pastoral ? nomeP(enc.pastoral) : 'Todas as pastorais';
+  return `<div class="cartao"><h2>🤝 Reuniões</h2>${msg(aviso, ok)}
+    ${proximas.length ? `<h3 style="margin:4px 0 6px">Próximas</h3>${proximas.map(r => `<div class="ent-past"><b>${esc(r.titulo)}</b><div>${quandoR(r)}</div>
+      ${r.pauta ? `<p style="white-space:pre-wrap;margin:6px 0 0"><b>Pauta:</b> ${esc(r.pauta)}</p>` : ''}</div>`).join('')}
+      <p class="pequeno sutil">Se a sua pastoral não puder vir, mande um representante: os recados para os liderados passam pelos coordenadores.</p>` : ''}
+    ${meus.length ? `<h3 style="margin:14px 0 6px">Encaminhamentos das suas pastorais</h3>${meus.map(m => `<div class="ent-past">
+      <div>${esc(m.enc.texto)}</div>
+      <div class="pequeno sutil">${varias || !m.enc.pastoral ? esc(nomeP(m.pid)) + ' · ' : ''}${m.enc.resp ? 'responsável: ' + esc(m.enc.resp) + ' · ' : ''}${esc(m.r.titulo)}, ${dataCurta(m.r.data)}${prazoEnc(m.enc)}</div>
+      ${m.feito ? `<div class="ent-ok">✔ Feito — ${esc(m.feito.porNome || '')}, ${esc(quando(m.feito.em))}${m.feito.nota ? ': ' + esc(m.feito.nota) : ''}</div>
+        <button type="button" class="link pequeno" data-enc="${esc(m.enc.id)}" data-reu="${esc(m.r.id)}" data-past="${esc(m.pid)}" data-feito="0">Desfazer</button>`
+      : `<div class="linha" style="margin-top:6px"><button type="button" class="primario" data-enc="${esc(m.enc.id)}" data-reu="${esc(m.r.id)}" data-past="${esc(m.pid)}" data-feito="1">✔ Feito</button></div>`}</div>`).join('')}` : ''}
+    <h3 style="margin:14px 0 6px">Atas</h3>
+    ${atas.length ? atas.map(r => {
+      const pres = Object.keys(r.presenca || {}).map(pid => `${esc(nomeP(pid))}: ${SIT_PRES[r.presenca[pid].s] || ''}${r.presenca[pid].quem ? ' (' + esc(r.presenca[pid].quem) + ')' : ''}`);
+      return `<details class="ent-past"><summary><b>${esc(r.titulo)}</b> · ${dataCurta(r.data)}</summary>
+        <div class="pequeno sutil" style="margin:6px 0">${quandoR(r)}</div>
+        ${pres.length ? `<p class="pequeno"><b>Presença:</b> ${pres.join(' · ')}</p>` : ''}
+        ${r.ata ? `<p style="white-space:pre-wrap">${esc(r.ata)}</p>` : ''}
+        ${(r.encs || []).length ? `<p><b>Encaminhamentos</b></p><ol style="margin:0;padding-left:1.3em">${r.encs.map(enc => `<li style="margin-bottom:6px">${esc(enc.texto)}
+          <span class="pequeno sutil"> — ${esc(quemEnc(enc))}${enc.resp ? ', ' + esc(enc.resp) : ''}${prazoEnc(enc)}${Object.keys(enc.feitos || {}).length ? ' · ✔ ' + Object.keys(enc.feitos).map(p => esc(nomeP(p))).join(', ') : ''}</span></li>`).join('')}</ol>` : ''}
+      </details>`; }).join('') : '<p class="sutil">Nenhuma ata publicada ainda.</p>'}</div>`;
+}
+async function carregarReunioes() {
+  try { S.reu = await chamar('reunioes', { token: S.token }); }
+  catch (e) { if (e && e.sair) throw e; S.reu = { erro: erroDe(e) }; return; }
+  S.reuN = 0;
+  S.reu.reunioes.forEach(r => (r.encs || []).forEach(enc => enc.minhas.forEach(pid => { if (!enc.feitos[pid]) S.reuN++; })));
+}
+function ligarReunioes() {
+  const recarregar = async (aviso, ok) => {
+    ocupado(true);
+    try { await carregarReunioes(); telaPrincipal(aviso, ok); } catch (e) { telaEntrar(erroDe(e)); } finally { ocupado(false); }
+  };
+  if (!S.reu) return recarregar();
+  if ($('#reuTentar')) return $('#reuTentar').onclick = () => recarregar();
+  document.querySelectorAll('[data-enc]').forEach(b => b.onclick = async () => {
+    const feito = b.dataset.feito === '1';
+    let nota = '';
+    if (feito) { nota = prompt('Quer deixar um recado para a secretaria? (opcional)\nEx.: "mandado no dia 26", "fica para janeiro"', ''); if (nota === null) return; }
+    ocupado(true);
+    try { const r = await chamar('encFeito', { token: S.token, reuniao: b.dataset.reu, enc: b.dataset.enc, pastoral: b.dataset.past, feito, nota }); await carregarReunioes(); telaPrincipal(r.msg, true); }
+    catch (e) { if (e && e.sair) return telaEntrar(erroDe(e)); telaPrincipal(erroDe(e)); }
+    finally { ocupado(false); }
+  });
+}
+
 // ------------------------------------------------------------ 📲 pôr o evento na agenda do celular
 const icsTxt = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 const icsData = (iso, h) => iso.replace(/-/g, '') + (h ? 'T' + h.replace(':', '') + '00' : '');
@@ -650,10 +828,10 @@ function htmlSituacao(ev) {
 function telaDetalhe(ev) {
   if (!ev) return telaPrincipal();
   $('#raiz').onclick = null;
-  const quemMuda = ev.origem === 'sec' ? 'Marcado na secretaria. Só ela muda este evento.'
+  const quemMuda = ev.origem === 'reu' ? 'Reunião marcada pela secretaria. Só ela muda.' : ev.origem === 'sec' ? 'Marcado na secretaria. Só ela muda este evento.'
     : ev.pastoral === 'paroquia' ? 'Só a secretaria muda este evento.' : `Só a ${esc(nomePastoral(ev.pastoral))} ou a secretaria mudam este evento.`;
   $('#raiz').innerHTML = `<div class="cartao ag-det"><h2>${esc(ev.titulo)}</h2>
-    <p><span class="ag-legenda"><span><i style="background:${corPastoral(ev.pastoral)}"></i>${esc(nomePastoral(ev.pastoral))}${ev.origem === 'sec' ? ' · 🎉 evento da paróquia' : ''}</span></span></p>
+    <p><span class="ag-legenda"><span><i style="background:${corPastoral(ev.pastoral)}"></i>${esc(nomePastoral(ev.pastoral))}${ev.origem === 'sec' ? ' · 🎉 evento da paróquia' : ev.origem === 'reu' ? ' · 🤝 reunião' : ''}${ev.jubilar ? ' · 🚶 peregrinação do ' + esc(jubileu().nome || 'Ano Jubilar') : ''}</span></span></p>
     <p>📅 ${periodo(ev)}${ev.hora ? ' · 🕒 ' + esc(ev.hora) : ''}${ev.local ? '<br>📍 ' + esc(ev.local) : ''}</p>
     ${htmlSituacao(ev)}
     ${ev.desc ?`<p style="white-space:pre-wrap">${esc(ev.desc)}</p>` : ''}
@@ -661,7 +839,7 @@ function telaDetalhe(ev) {
       <button type="button" id="agIcs" class="primario" title="Baixa o evento: no celular, abra o arquivo e ele vai para a agenda">📲 Pôr na agenda do celular</button>
       <a class="botao" id="agGoogle" href="${esc(linkGoogleAgenda(ev))}" target="_blank" rel="noopener">Google Agenda ↗</a>
     </div>
-    ${S.publico ? '' : `<p class="pequeno sutil">${ev.origem === 'sec' ? '' : `Posto por ${esc(ev.autorNome || '—')}${ev.porNome && ev.em ? ` · última mudança: ${esc(ev.porNome)}, ${esc(quando(ev.em))}` : ''}.<br>`}
+    ${S.publico ? '' : `<p class="pequeno sutil">${ev.origem === 'sec' || ev.origem === 'reu' ? '' : `Posto por ${esc(ev.autorNome || '—')}${ev.porNome && ev.em ? ` · última mudança: ${esc(ev.porNome)}, ${esc(quando(ev.em))}` : ''}.<br>`}
       ${ev.meu ? '' : quemMuda}</p>`}
     <div class="linha"><button type="button" id="agVoltar">◀ Voltar</button><span class="espaco"></span>
       ${ev.meu ? '<button type="button" id="agMudar">✏ Mudar ou apagar</button>' : ''}</div></div>`;
@@ -691,16 +869,19 @@ function telaEvento(ev, dia, aviso) {
         <label>Até (se for mais de um dia) <input name="fim" type="date" value="${esc(e.fim)}"></label>
         <label>Hora (opcional) <input name="hora" type="time" value="${esc(e.hora)}"></label>
       </div>
-      <label>Local (opcional) <input name="local" maxlength="120" value="${esc(e.local)}" placeholder="Ex.: Salão paroquial, Capela NSF"></label>
+      <label>Local (opcional) <input name="local" maxlength="120" value="${esc(e.local)}" list="agLocais" autocomplete="off" placeholder="${locais().length ? 'Escolha da lista ou escreva' : 'Ex.: Salão paroquial, Capela NSF'}"></label>
+      <datalist id="agLocais">${locais().map(l => `<option value="${esc(l)}">`).join('')}</datalist>
       <label>Detalhes (opcional) <textarea name="desc" maxlength="1000" style="min-height:5em">${esc(e.desc)}</textarea></label>
+      ${jubileu().ligado ? `<label class="chk"><input type="checkbox" name="jubilar"${e.jubilar ? ' checked' : ''}><span>🚶 É a <b>peregrinação</b> da pastoral no ${esc(jubileu().nome || 'Ano Jubilar')}</span></label>` : ''}
       <p class="ag-aviso" id="agAviso"></p>
       ${novo ? '' : `<p class="pequeno sutil">Posto por ${esc(ev.autorNome || '—')}${ev.porNome && ev.em ? ` · última mudança: ${esc(ev.porNome)}, ${esc(quando(ev.em))}` : ''}.</p>`}
       <div class="linha"><button class="primario">Salvar</button><button type="button" id="agCancelar">Cancelar</button><span class="espaco"></span>
         ${novo ? '' : `<button type="button" id="agApagar">${aprovadoJa && !admin ? '🗑 Pedir para tirar' : '🗑 Apagar'}</button>`}</div>
     </form></div>`;
   const f = $('#fEv');
-  const conferir = () => { $('#agAviso').innerHTML = avisoDoDia(f.ini.value, f.fim.value, f.pastoral.value, e.id); };
-  ['ini', 'fim', 'pastoral'].forEach(k => f[k].addEventListener('change', conferir));
+  const conferir = () => { $('#agAviso').innerHTML = avisoDoDia(f.ini.value, f.fim.value, f.pastoral.value, e.id, f.hora.value, f.local.value); };
+  ['ini', 'fim', 'pastoral', 'hora', 'local'].forEach(k => f[k].addEventListener('change', conferir));
+  f.local.addEventListener('input', conferir);
   conferir();
   $('#agCancelar').onclick = () => telaPrincipal();
   const depois = async r => {
@@ -716,10 +897,11 @@ function telaEvento(ev, dia, aviso) {
   };
   f.onsubmit = async evt => {
     evt.preventDefault();
-    const dados = { id: e.id || '', titulo: f.titulo.value, pastoral: f.pastoral.value, ini: f.ini.value, fim: f.fim.value, hora: f.hora.value, local: f.local.value, desc: f.desc.value };
+    const dados = { id: e.id || '', titulo: f.titulo.value, pastoral: f.pastoral.value, ini: f.ini.value, fim: f.fim.value, hora: f.hora.value, local: f.local.value, desc: f.desc.value,
+      jubilar: f.jubilar ? f.jubilar.checked : !!e.jubilar };
     ocupado(true);
     try { await depois(await chamar('agendaSalvar', { token: S.token, evento: dados })); }
-    catch (x) { if (x && x.sair) return telaEntrar(erroDe(x)); telaEvento(ev ? Object.assign({}, ev, dados, { pedido: null }) : null, dados.ini, erroDe(x)); if (!ev) { const g = $('#fEv'); Object.keys(dados).forEach(k => { if (g[k]) g[k].value = dados[k]; }); } }
+    catch (x) { if (x && x.sair) return telaEntrar(erroDe(x)); telaEvento(ev ? Object.assign({}, ev, dados, { pedido: null }) : null, dados.ini, erroDe(x)); if (!ev) { const g = $('#fEv'); Object.keys(dados).forEach(k => { if (g[k] && g[k].type === 'checkbox') g[k].checked = !!dados[k]; else if (g[k]) g[k].value = dados[k]; }); } }
     finally { ocupado(false); }
   };
 }

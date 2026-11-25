@@ -160,6 +160,8 @@ const HTML_CAL_PASTORAL = `
       <button type="button" data-cp-aba="acesso">🙋 Quem pode mexer</button>
       <button type="button" data-cp-aba="pastorais">⛪ Pastorais e programação</button>
       <button type="button" data-cp-aba="rel">📝 Relatórios do mês</button>
+      <button type="button" data-cp-aba="ent">📨 Entregas <span id="calEntN" class="cp-badge" hidden></span></button>
+      <button type="button" data-cp-aba="reu">🤝 Reuniões</button>
     </div>
     <div data-cp-painel="cal">
       <div class="linha">
@@ -178,8 +180,9 @@ const HTML_CAL_PASTORAL = `
           <label class="campo">Dia <input type="date" id="calfIni"></label>
           <label class="campo">Até (se for mais de um dia) <input type="date" id="calfFim"></label>
           <label class="campo">Hora <input type="time" id="calfHora"></label>
-          <label class="campo" style="flex:2">Local <input id="calfLocal" maxlength="120"></label>
+          <label class="campo" style="flex:2">Local <input id="calfLocal" maxlength="120" list="calLocais" autocomplete="off"></label>
         </div>
+        <datalist id="calLocais"></datalist>
         <label class="campo">Detalhes <textarea id="calfDesc" maxlength="1000" rows="2"></textarea></label>
         <p id="calfAviso" class="pequeno"></p>
         <div class="linha"><span id="calfQuem" class="sutil pequeno"></span><span class="espaco"></span>
@@ -206,8 +209,10 @@ const HTML_CAL_PASTORAL = `
       <div class="linha">
         <label class="campo" style="flex:2">Pastorais e movimentos (um por linha; a “Paróquia (secretaria)” já vem sempre)
           <textarea id="ptPastorais" rows="8" spellcheck="false" placeholder="Catequese&#10;ECC&#10;Pastoral do Batismo"></textarea></label>
+        <label class="campo" style="flex:1.4">Espaços da paróquia (um por linha): no portal viram a lista do campo Local, e o mesmo espaço no mesmo horário aparece como 🔴 choque de sala
+          <textarea id="ptLocais" rows="8" spellcheck="false" placeholder="Igreja matriz&#10;Salão paroquial&#10;Sala São Pedro&#10;Capela Nossa Senhora de Fátima"></textarea></label>
         <div style="display:flex;flex-direction:column;gap:6px">
-          <button type="button" id="ptPastSalvar">💾 Salvar as pastorais</button>
+          <button type="button" id="ptPastSalvar">💾 Salvar as pastorais e os espaços</button>
           <button type="button" id="ptAgImportar" title="Um arquivo .json com a programação (ex.: o calendário do ano da paróquia); o que já está lá não se repete">📥 Trazer uma programação…</button>
           <input type="file" id="ptAgArq" accept=".json,application/json" hidden>
         </div>
@@ -219,6 +224,13 @@ const HTML_CAL_PASTORAL = `
         <button type="button" id="ptLogo2Escolher">🖼 Escolher a imagem…</button>
         <button type="button" id="ptLogo2Tirar" hidden>✕ Tirar</button>
         <input type="file" id="ptLogo2Arq" accept="image/png,image/jpeg,image/webp" hidden>
+      </div>
+      <h3 class="esc-pt-tit">🚶 Ano Jubilar</h3>
+      <label class="pequeno esc-chk"><input type="checkbox" id="calJubLigado"> A paróquia está num <b>Ano Jubilar</b>: no portal, cada pastoral pode marcar o evento dela como 🚶 <b>peregrinação</b>, e no 📅 Calendário dá para ver quem já marcou</label>
+      <div class="linha" id="calJubMais">
+        <label class="campo" style="flex:2">Nome <input id="calJubNome" maxlength="80" placeholder="Ano Jubilar da paróquia"></label>
+        <label class="campo">De <input type="date" id="calJubDe"></label>
+        <label class="campo">Até <input type="date" id="calJubAte"></label>
       </div>
       <h3 class="esc-pt-tit">📢 Avisos paroquiais automáticos</h3>
       <label class="pequeno esc-chk"><input type="checkbox" id="calAvLigado"> Os eventos <b>aprovados</b> do calendário entram sozinhos nos 📢 avisos paroquiais, em todas as celebrações de todas as comunidades (e no MiguelAngelus, pela nuvem)</label>
@@ -242,6 +254,35 @@ const HTML_CAL_PASTORAL = `
         <button type="button" id="calrImprimir" class="primario">🖨 Imprimir o relatório…</button>
       </div>
       <div id="calrLista"></div>
+    </div>
+    <div data-cp-painel="ent" hidden>
+      <p class="sutil pequeno" style="margin:0 0 6px">Peça algo às pastorais com prazo (o planejamento do ano, a avaliação…). Cada coordenação entrega no portal, na aba 📨 Entregas, com texto e/ou arquivo.
+        Aqui você vê quem entregou e quem falta, baixa os arquivos e marca ✔ o que chegou por fora (em papel, por e-mail, na reunião).</p>
+      <div class="linha"><button type="button" id="calEntNovo" class="primario">＋ Novo pedido</button><span class="espaco"></span>
+        <button type="button" id="calEntLer">↻ Atualizar</button></div>
+      <div id="calEntForm" class="esc-form" hidden>
+        <div class="linha">
+          <label class="campo" style="flex:2">O que é para entregar <input id="calEntTit" maxlength="120" placeholder="Ex.: Planejamento 2027"></label>
+          <label class="campo">Prazo <input type="date" id="calEntPrazo"></label>
+          <label class="campo" title="Mostra, para cada pastoral, quantos eventos dela já estão no calendário nesse ano">Ano do calendário (opcional) <input type="number" id="calEntAno" min="2020" max="2100" placeholder="2027"></label>
+        </div>
+        <label class="campo">Explicação (a pastoral vê) <textarea id="calEntDesc" maxlength="2000" rows="3" placeholder="Ex.: mandem as atividades de 2027 com as datas e os espaços (salão, salas). Quem já pôs os eventos no 📅 calendário do portal pode só escrever “está no calendário”."></textarea></label>
+        <div class="pequeno">Para quais pastorais <label class="esc-chk pequeno" style="display:inline-flex"><input type="checkbox" id="calEntTodas" checked> todas</label></div>
+        <div id="calEntPast" class="cp-av-past"></div>
+        <div class="linha"><label class="esc-chk pequeno"><input type="checkbox" id="calEntFechado"> 🔒 Fechado (não recebe mais entregas)</label><span class="espaco"></span>
+          <button type="button" id="calEntApagar" class="perigo" hidden>🗑 Apagar o pedido</button>
+          <button type="button" id="calEntCancelar">Cancelar</button><button type="button" id="calEntSalvar" class="primario">Salvar no portal</button></div>
+      </div>
+      <div id="calEntLista"></div>
+    </div>
+    <div data-cp-painel="reu" hidden>
+      <p class="sutil pequeno" style="margin:0 0 6px">Reuniões do Conselho Pastoral (ou outras): marque com a pauta (entra no 📅 calendário e no portal), anote quem veio, a ata e os encaminhamentos.
+        Com a ata <b>publicada</b>, cada coordenação vê no portal, na aba 🤝 Reuniões, e marca ✔ o que a pastoral dela ficou de fazer.</p>
+      <div class="linha"><button type="button" id="calReuNova" class="primario">＋ Nova reunião</button>
+        <span class="espaco"></span><button type="button" id="calReuPres" title="Quantas vezes cada pastoral veio, mandou representante, justificou ou faltou no ano">📊 Presença no ano…</button>
+        <button type="button" id="calReuLer">↻ Atualizar</button></div>
+      <div id="calReuForm" class="esc-form" hidden></div>
+      <div id="calReuLista"></div>
     </div>
     </div>
     <div class="linha"><span class="espaco"></span><button value="fechar">Fechar</button></div>
@@ -271,6 +312,8 @@ function renderPortalEsc() {
   }
   $('#ptAgAberta').checked = c.agendaAberta !== false;
   if (document.activeElement?.id !== 'ptPastorais') $('#ptPastorais').value = pastoraisPortal().map(p => p.nome).join('\n');
+  if (document.activeElement?.id !== 'ptLocais') $('#ptLocais').value = locaisPortal().join('\n');
+  $('#calLocais').innerHTML = locaisPortal().map(l => `<option value="${esc(l)}">`).join('');
   $('#ptSituacao').innerHTML = Portal.situacao || '';
   // nas Escalas e no Calendário: o portal existe? a situação, o link e o resto
   const tem = !!(c.url && c.chave);
@@ -368,6 +411,8 @@ async function testarPortal() {
 const cfgParaPortal = brasao => ({ paroquia: Agenda.dados.paroquia?.nome || '', ...(brasao !== undefined ? { brasao } : {}),
   funcoes: funcoesEsc().map(f => ({ id: f.id, nome: f.nome })), agendaAberta: Esc.portal?.agendaAberta !== false,
   ...(Array.isArray(Esc.portal?.pastorais) ? { pastorais: Esc.portal.pastorais } : {}),    // sem lista aqui: não apaga a do portal
+  ...(Array.isArray(Esc.portal?.locais) ? { locais: Esc.portal.locais } : {}),             // (1.8.0) espaços da paróquia
+  ...(Esc.portal?.jubileu ? { jubileu: Esc.portal.jubileu } : {}),                         // (1.8.0) 🚶 Ano Jubilar
   ...(typeof Esc.portal?.logo2 === 'string' ? { logo2: Esc.portal.logo2 } : {}) });
 
 // logo da Pascom: reduzido para 160 px de altura (PNG, com o fundo transparente)
@@ -402,8 +447,18 @@ function pastoraisDoTexto(txt) {
   }
   return out;
 }
+// (1.8.0) espaços da paróquia (salão, salas, igreja, capelas): um por linha, sem repetir
+const locaisPortal = () => Array.isArray(Esc.portal?.locais) ? Esc.portal.locais : [];
+function locaisDoTexto(txt) {
+  const out = [];
+  for (const l of String(txt || '').split(/\r?\n/).map(s => s.trim().replace(/\s+/g, ' ').slice(0, 80)).filter(Boolean))
+    if (!out.some(x => normLocalCP(x) === normLocalCP(l))) out.push(l);
+  return out.slice(0, 60);
+}
+// sem "lista" (o botão 💾): as pastorais e os espaços vêm das duas caixas de texto
 async function salvarPastoraisPortal(lista, aberta) {
-  await gravarCfgPortal({ pastorais: lista ?? pastoraisDoTexto($('#ptPastorais').value), agendaAberta: aberta ?? Esc.portal?.agendaAberta !== false });
+  await gravarCfgPortal({ pastorais: lista ?? pastoraisDoTexto($('#ptPastorais').value), agendaAberta: aberta ?? Esc.portal?.agendaAberta !== false,
+    ...(lista === undefined ? { locais: locaisDoTexto($('#ptLocais').value) } : {}) });
   await chamarPortal('configurar', cfgParaPortal());
 }
 async function importarAgendaPortal(arq) {
@@ -826,7 +881,7 @@ function avisosDesejadosCP(eventos) {
   if (!c.ligado) return [];
   const hoje = hojeIso(), dias = Math.max(1, Math.min(120, +c.dias || 21));
   const aMao = new Set(AvPar.lista.filter(a => !a.auto && a.ligadoId).map(a => a.ligadoId));
-  return eventos.filter(e => !e.situacao && e.ini && (e.fim || e.ini) >= hoje && !c.fora.includes(e.id) && !c.pastoraisFora.includes(e.pastoral))
+  return eventos.filter(e => !e.situacao && e.origem !== 'reu' && e.ini && (e.fim || e.ini) >= hoje && !c.fora.includes(e.id) && !c.pastoraisFora.includes(e.pastoral))
     .filter(e => !(e.origem === 'sec' && aMao.has(e.id.replace(/^sec-/, ''))))
     .map(e => {
       const ini = deIso(e.ini); ini.setDate(ini.getDate() - dias);
@@ -893,7 +948,7 @@ function renderAvisosCfgCP() {
 
 function eventosMesCP() {
   const ini = CP.mes + '-01', fim = CP.mes + '-31';
-  return (CP.dados?.eventos || []).filter(e => e.ini <= fim && (e.fim || e.ini) >= ini && (!CP.filtro || e.pastoral === CP.filtro))
+  return (CP.dados?.eventos || []).filter(e => e.ini <= fim && (e.fim || e.ini) >= ini && (!CP.filtro || (CP.filtro === '_jub' ? e.jubilar : e.pastoral === CP.filtro)))
     .sort((a, b) => (a.ini + (a.hora || '99')).localeCompare(b.ini + (b.hora || '99')) || a.titulo.localeCompare(b.titulo, 'pt-BR'));
 }
 
@@ -908,11 +963,14 @@ function renderCalPastoral() {
   if (CP.aba === 'aprovar') renderCpAprovar();
   if (CP.aba === 'rel') renderCpRel();
   if (CP.aba === 'pastorais') renderAvisosCfgCP();
+  if (CP.aba === 'ent') renderCpEnt(); else badgeEntCP();
+  if (CP.aba === 'reu') renderCpReu();
+  if (CP.aba === 'pastorais') renderJubCP();
 }
 // 📢/🔕 de um evento na lista do mês (só aprovados que ainda não passaram, com os avisos automáticos ligados)
 function botaoAvisoCP(e) {
   const c = cfgAvisosCP();
-  if (!c.ligado || e.situacao || (e.fim || e.ini) < hojeIso()) return '';
+  if (!c.ligado || e.situacao || e.origem === 'reu' || (e.fim || e.ini) < hojeIso()) return '';   // reunião não vira aviso
   if (c.pastoraisFora.includes(e.pastoral)) return '<span class="sutil pequeno" title="Esta pastoral está desmarcada em ⛪ Pastorais e programação › 📢 Avisos automáticos">🔕</span> ';
   const fora = c.fora.includes(e.id);
   return fora ? '<button type="button" data-cp-av="nao" title="Este evento NÃO vai para os avisos paroquiais. Clique para voltar a avisar.">🔕</button> '
@@ -925,10 +983,31 @@ const pendentesCP = () => (CP.dados?.eventos || []).filter(e => e.situacao === '
   .sort((a, b) => ((a.pedido && !a.pedido.cancelar ? a.pedido.ini : a.ini) || '').localeCompare((b.pedido && !b.pedido.cancelar ? b.pedido.ini : b.ini) || '')
     || nomeCP(a.pastoral).localeCompare(nomeCP(b.pastoral), 'pt-BR'));
 const quandoCP = q => `${periodoCP(q)}${q.hora ? ', ' + esc(q.hora) : ''}${q.local ? ' · ' + esc(q.local) : ''}`;
-// o que mais está marcado nesses dias (de outras pastorais), aprovado ou esperando
+// (1.8.0) 🔴 choque de sala: o mesmo local (sem contar acento e maiúscula) em dias que se cruzam e com menos de 2 horas entre
+// os começos; sem hora num dos dois, conta o dia inteiro. (A mesma regra está no Portal.html.)
+const normLocalCP = s => semAcento(String(s || '')).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const minutosCP = h => /^\d{2}:\d{2}$/.test(h || '') ? +h.slice(0, 2) * 60 + +h.slice(3, 5) : null;
+function mesmaSalaCP(a, b) {
+  const la = normLocalCP(a.local);
+  if (!la || la !== normLocalCP(b.local) || !(a.ini <= (b.fim || b.ini) && (a.fim || a.ini) >= b.ini)) return false;
+  const ha = minutosCP(a.hora), hb = minutosCP(b.hora);
+  return ha == null || hb == null || Math.abs(ha - hb) < 120;
+}
+// o que mais está marcado nesses dias, aprovado ou esperando: sala = mesmo local e horário (qualquer pastoral);
+// dia = outras pastorais no mesmo dia, em outro lugar
 function conflitosCP(ev, q) {
-  const fim = q.fim || q.ini;
-  return (CP.dados?.eventos || []).filter(e => e.id !== ev.id && e.situacao !== 'recusado' && e.pastoral !== ev.pastoral && e.ini <= fim && (e.fim || e.ini) >= q.ini).slice(0, 10);
+  const fim = q.fim || q.ini, sala = [], dia = [];
+  for (const e of CP.dados?.eventos || []) {
+    if (e.id === ev.id || e.situacao === 'recusado' || !(e.ini <= fim && (e.fim || e.ini) >= q.ini)) continue;
+    if (mesmaSalaCP(q, e)) sala.push(e); else if (e.pastoral !== ev.pastoral) dia.push(e);
+  }
+  return { sala: sala.slice(0, 10), dia: dia.slice(0, 10) };
+}
+// eventos (não recusados) que dividem o local e o horário com outro
+function idsChoqueSalaCP() {
+  const evs = (CP.dados?.eventos || []).filter(e => e.situacao !== 'recusado' && e.local), ids = new Set();
+  for (let i = 0; i < evs.length; i++) for (let j = i + 1; j < evs.length; j++) if (mesmaSalaCP(evs[i], evs[j])) { ids.add(evs[i].id); ids.add(evs[j].id); }
+  return ids;
 }
 function renderCpAprovar() {
   const box = $('#calAprovar');
@@ -939,7 +1018,7 @@ function renderCpAprovar() {
   const ev = lista[i]; CP.apr = ev.id;
   const p = ev.pedido, tipo = !p ? 'novo' : p.cancelar ? 'tirar' : 'mudar';
   const q = tipo === 'mudar' ? p : ev;
-  const outros = tipo === 'tirar' ? [] : conflitosCP(ev, q);
+  const outros = tipo === 'tirar' ? null : conflitosCP(ev, q);
   const dif = k => tipo === 'mudar' && String(ev[k] || '') !== String(p[k] || '') ? ' class="cp-apr-dif"' : '';
   box.innerHTML = `
     <div class="linha"><button type="button" data-apr-ir="-1" ${i ? '' : 'disabled'}>◀</button><b>${i + 1} de ${lista.length}</b><button type="button" data-apr-ir="1" ${i < lista.length - 1 ? '' : 'disabled'}>▶</button>
@@ -962,9 +1041,9 @@ function renderCpAprovar() {
           <label class="campo">Dia <input type="date" id="calAjIni" value="${esc(q.ini)}"></label>
           <label class="campo">Até <input type="date" id="calAjFim" value="${esc(q.fim || '')}"></label>
           <label class="campo">Hora <input type="time" id="calAjHora" value="${esc(q.hora || '')}"></label>
-          <label class="campo" style="flex:2">Local <input id="calAjLocal" maxlength="120" value="${esc(q.local || '')}"></label>
+          <label class="campo" style="flex:2">Local <input id="calAjLocal" maxlength="120" value="${esc(q.local || '')}" list="calLocais" autocomplete="off"></label>
         </div></div>` : ''}
-      <div id="calAprConf">${tipo === 'tirar' ? '' : htmlConflitosCP(outros)}</div>
+      <div id="calAprConf">${outros ? htmlConflitosCP(outros) : ''}</div>
       ${CP.aprEd === ev.id ? `<div class="linha"><button type="button" data-apr="ajcancelar">Cancelar o ajuste</button><span class="espaco"></span>
           <button type="button" data-apr="ajsim" class="primario">✅ Aprovar com o ajuste</button></div>`
       : `<label class="campo">Motivo, se não aprovar (a pastoral vê) <input id="calAprMotivo" maxlength="300" placeholder="Ex.: o salão já está reservado; combinar outro sábado"></label>
@@ -976,13 +1055,14 @@ function renderCpAprovar() {
     <details class="cp-apr-todos"><summary>Todos os ${lista.length} esperando</summary><ol>${lista.map(e => `<li><button type="button" class="link" data-apr-id="${esc(e.id)}">${e.id === ev.id ? '▶ ' : ''}${e.pedido ? (e.pedido.cancelar ? '🗑 ' : '🔁 ') : '⏳ '}${esc(e.titulo)}</button>
       <small class="sutil">${esc(nomeCP(e.pastoral))} · ${quandoCP(e.pedido && !e.pedido.cancelar ? e.pedido : e)}</small></li>`).join('')}</ol></details>`;
 }
-const htmlConflitosCP = outros => outros.length
-  ? `<div class="cp-apr-conf">⚠ Nesses dias também: ${outros.map(o => `<b>${esc(o.titulo)}</b> (${esc(nomeCP(o.pastoral))}${o.hora ? ', ' + esc(o.hora) : ''}${o.situacao === 'provisorio' ? ', ⏳ esperando' : ''})`).join('; ')}</div>`
-  : '<div class="sutil pequeno">Nenhuma outra pastoral marcou nada nesses dias.</div>';
-// ✏ enquanto ajusta a data, os conflitos acompanham
+const itemConfCP = o => `<b>${esc(o.titulo)}</b> (${esc(nomeCP(o.pastoral))}${o.hora ? ', ' + esc(o.hora) : ''}${o.local ? ', ' + esc(o.local) : ''}${o.situacao === 'provisorio' ? ', ⏳ esperando' : ''})`;
+const htmlConflitosCP = c => (c.sala.length ? `<div class="cp-apr-sala">🔴 <b>Choque de sala</b>: o mesmo local no mesmo horário que ${c.sala.map(itemConfCP).join('; ')}. Ajuste o horário ou o local, ou combine com a outra pastoral.</div>` : '')
+  + (c.dia.length ? `<div class="cp-apr-conf">⚠ Nesses dias também (em outro lugar ou horário): ${c.dia.map(itemConfCP).join('; ')}</div>` : '')
+  + (!c.sala.length && !c.dia.length ? '<div class="sutil pequeno">Nenhuma outra pastoral marcou nada nesses dias.</div>' : '');
+// ✏ enquanto ajusta a data, a hora ou o local, os conflitos acompanham
 function conflitosAjusteCP() {
   const ev = pendentesCP().find(e => e.id === CP.apr), ini = $('#calAjIni')?.value;
-  if (ev && ini) $('#calAprConf').innerHTML = htmlConflitosCP(conflitosCP(ev, { ini, fim: $('#calAjFim').value > ini ? $('#calAjFim').value : '' }));
+  if (ev && ini) $('#calAprConf').innerHTML = htmlConflitosCP(conflitosCP(ev, { ini, fim: $('#calAjFim').value > ini ? $('#calAjFim').value : '', hora: $('#calAjHora').value, local: $('#calAjLocal').value }));
 }
 async function decidirCP(aprovar, ajuste) {
   const ev = pendentesCP().find(e => e.id === CP.apr);
@@ -1002,19 +1082,24 @@ async function decidirCP(aprovar, ajuste) {
 
 function renderCpLista() {
   $('#calMesNome').textContent = nomeMesCP(CP.mes);
-  $('#calFiltro').innerHTML = '<option value="">Todas</option>' + pastoraisCP().map(p => `<option value="${esc(p.id)}"${p.id === CP.filtro ? ' selected' : ''}>${esc(p.nome)}</option>`).join('');
+  const jub = jubileuCP().ligado;
+  if (CP.filtro === '_jub' && !jub) CP.filtro = '';
+  $('#calFiltro').innerHTML = '<option value="">Todas</option>' + (jub ? `<option value="_jub"${CP.filtro === '_jub' ? ' selected' : ''}>🚶 Só as peregrinações</option>` : '')
+    + pastoraisCP().map(p => `<option value="${esc(p.id)}"${p.id === CP.filtro ? ' selected' : ''}>${esc(p.nome)}</option>`).join('');
   if (!CP.dados) return;
   const evs = eventosMesCP();
+  const topo = jub ? htmlJubResumoCP() : '';
   // dias com mais de uma pastoral (⚠: pode, mas vale combinar)
   const porDia = {};
   for (const e of CP.dados.eventos || []) if (e.situacao !== 'recusado') for (let d = e.ini; d <= (e.fim || e.ini); d = isoData(new Date(deIso(d).getTime() + 864e5))) (porDia[d] ||= new Set()).add(e.pastoral);
-  $('#calLista').innerHTML = !evs.length ? `<p class="sutil">Nada marcado em ${nomeMesCP(CP.mes)}${CP.filtro ? ' para esta pastoral' : ''}.</p>`
+  const sala = idsChoqueSalaCP();      // (1.8.0) 🔴 mesmo local no mesmo horário
+  $('#calLista').innerHTML = topo + (!evs.length ? `<p class="sutil">Nada marcado em ${nomeMesCP(CP.mes)}${CP.filtro === '_jub' ? ' como peregrinação' : CP.filtro ? ' para esta pastoral' : ''}.</p>`
     : `<table class="esc-tab cp-tab"><thead><tr><th>Dia</th><th>Hora</th><th>Evento</th><th>Pastoral</th><th>Local</th><th>Quem pôs</th><th></th></tr></thead><tbody>${evs.map(e => `
-      <tr data-cp-id="${esc(e.id)}" class="${e.situacao === 'recusado' ? 'cp-recus' : e.situacao === 'provisorio' ? 'cp-prov' : ''}"><td class="cp-dia">${esc(periodoCP(e))}${porDia[e.ini]?.size > 1 ? ' <span title="Mais de uma pastoral neste dia">⚠</span>' : ''}</td>
-        <td>${esc(e.hora || '')}</td><td><b>${marcaCP(e)}${e.origem === 'sec' ? '🎉 ' : ''}${esc(e.titulo)}</b>${esperaCP(e)}${e.desc ?`<br><small class="sutil">${esc(e.desc.slice(0, 140))}${e.desc.length > 140 ? '…' : ''}</small>` : ''}</td>
+      <tr data-cp-id="${esc(e.id)}" class="${e.situacao === 'recusado' ? 'cp-recus' : e.situacao === 'provisorio' ? 'cp-prov' : ''}"><td class="cp-dia">${esc(periodoCP(e))}${sala.has(e.id) ? ' <span title="Choque de sala: outro evento no mesmo local e horário">🔴</span>' : porDia[e.ini]?.size > 1 ? ' <span title="Mais de uma pastoral neste dia">⚠</span>' : ''}</td>
+        <td>${esc(e.hora || '')}</td><td><b>${marcaCP(e)}${e.origem === 'sec' ? '🎉 ' : e.origem === 'reu' ? '🤝 ' : ''}${e.jubilar ? '<span title="Peregrinação do Ano Jubilar">🚶</span> ' : ''}${esc(e.titulo)}</b>${esperaCP(e)}${e.desc ?`<br><small class="sutil">${esc(e.desc.slice(0, 140))}${e.desc.length > 140 ? '…' : ''}</small>` : ''}</td>
         <td><span class="cp-cor" style="background:${corCP(e.pastoral)}"></span>${esc(nomeCP(e.pastoral))}</td><td>${esc(e.local || '')}</td>
         <td><small class="sutil">${esc(e.porNome || e.autorNome || '')}</small></td>
-        <td class="esc-acoes">${botaoAvisoCP(e)}${e.situacao === 'provisorio' || e.pedido ? '<button type="button" data-cp-apr class="primario" title="Abrir na aba ✅ Aprovar">✅ Ver</button> ' : ''}${e.origem === 'sec' ? '<button type="button" data-cp-sec title="Este vem dos 🎉 Eventos com QR code: mude por lá">🎉 Mudar em Eventos</button>' : '<button type="button" data-cp-ed>Mudar</button>'}</td></tr>`).join('')}</tbody></table>`;
+        <td class="esc-acoes">${botaoAvisoCP(e)}${e.situacao === 'provisorio' || e.pedido ? '<button type="button" data-cp-apr class="primario" title="Abrir na aba ✅ Aprovar">✅ Ver</button> ' : ''}${e.origem === 'sec' ? '<button type="button" data-cp-sec title="Este vem dos 🎉 Eventos com QR code: mude por lá">🎉 Mudar em Eventos</button>' : e.origem === 'reu' ? '<button type="button" data-cp-reu title="Esta reunião vem da aba 🤝 Reuniões: mude por lá">🤝 Mudar em Reuniões</button>' : '<button type="button" data-cp-ed>Mudar</button>'}</td></tr>`).join('')}</tbody></table>`);
 }
 
 const marcaCP = e => e.situacao === 'provisorio' ? '⏳ ' : e.situacao === 'recusado' ? '✖ ' : e.pedido ? '🔁 ' : '';
@@ -1038,9 +1123,11 @@ function abrirFormCP(e) {
   $('#calfTitulo').focus();
 }
 function avisoFormCP() {
-  const ini = $('#calfIni').value, fim = $('#calfFim').value || ini, pid = $('#calfPastoral').value;
-  const outros = (CP.dados?.eventos || []).filter(e => e.id !== CP.editando && e.pastoral !== pid && e.ini <= fim && (e.fim || e.ini) >= ini).slice(0, 8);
-  $('#calfAviso').innerHTML = outros.length ? `⚠ Já marcado: ${outros.map(e => `<b>${esc(e.titulo)}</b> (${esc(nomeCP(e.pastoral))})`).join('; ')}. Pode pôr assim mesmo.` : '';
+  const ini = $('#calfIni').value, fim = $('#calfFim').value > ini ? $('#calfFim').value : '';
+  if (!ini) return $('#calfAviso').innerHTML = '';
+  const c = conflitosCP({ id: CP.editando, pastoral: $('#calfPastoral').value }, { ini, fim, hora: $('#calfHora').value, local: $('#calfLocal').value });
+  $('#calfAviso').innerHTML = (c.sala.length ? `<span class="cp-sala">🔴 <b>Choque de sala</b>: ${c.sala.map(itemConfCP).join('; ')}.</span><br>` : '')
+    + (c.dia.length ? `⚠ Também marcado: ${c.dia.slice(0, 8).map(itemConfCP).join('; ')}. Pode pôr assim mesmo.` : '');
 }
 async function salvarFormCP() {
   const ev = { id: CP.editando || '', titulo: $('#calfTitulo').value.trim(), pastoral: $('#calfPastoral').value, ini: $('#calfIni').value,
@@ -1104,16 +1191,355 @@ function imprimirRelatoriosCP() {
     htmlRelatoriosCP(true), 'Relatório das pastorais ' + r.de + (r.ate !== r.de ? ' a ' + r.ate : ''));
 }
 
+// ---------------------------------------------------------------- (1.8.0) 📨 entregas das pastorais (portal 0.4.0)
+// A secretaria pede algo com prazo (planejamento do ano, avaliação…); cada coordenação entrega no portal (texto e/ou arquivo).
+// Aqui: quem entregou e quem falta, ⬇ os arquivos, ✔ o que chegou por fora, 📋 a cobrança pronta para o grupo e 🖨 a folha da reunião.
+const pastoraisDoPedidoCP = p => pastoraisCP().filter(x => x.id !== 'paroquia' && (!(p.pastorais || []).length || p.pastorais.includes(x.id)));
+const respCP = (p, pid) => CP.ent?.respostas?.[p.id + '|' + pid] || null;
+const entregueCP = r => !!(r && (r.em || r.papel));
+const diasAteCP = iso => Math.round((deIso(iso) - deIso(hojeIso())) / 864e5);
+function prazoCP(p) {
+  if (!p.prazo) return '<span class="sutil">sem prazo</span>';
+  const d = diasAteCP(p.prazo), q = d > 1 ? `faltam ${d} dias` : d === 1 ? 'amanhã' : d === 0 ? 'hoje' : `passou há ${-d} dia${d === -1 ? '' : 's'}`;
+  return `<span class="${d < 0 && !p.fechado ? 'cp-ent-atraso' : ''}">📅 ${esc(diaCurtoCP(p.prazo))} (${q})</span>`;
+}
+const pedidosOrdCP = () => [...(CP.ent?.pedidos || [])].sort((a, b) => (a.fechado ? 1 : 0) - (b.fechado ? 1 : 0) || (a.prazo || '9999').localeCompare(b.prazo || '9999'));
+const faltamCP = p => pastoraisDoPedidoCP(p).filter(x => !entregueCP(respCP(p, x.id)));
+function badgeEntCP() {
+  const n = (CP.ent?.pedidos || []).filter(p => !p.fechado).reduce((s, p) => s + faltamCP(p).length, 0);
+  if ($('#calEntN')) { $('#calEntN').hidden = !n; $('#calEntN').textContent = n; $('#calEntN').title = `${n} entrega(s) faltando nos pedidos abertos`; }
+}
+async function carregarEntregasCP() {
+  if (!Esc.portal?.url || !Esc.portal?.chave) return;
+  try { CP.ent = await chamarPortal('entregasLer'); }
+  catch (e) { CP.ent = /desconhecida/.test(e.message) ? { velho: true } : { erro: e.message }; }
+  badgeEntCP();
+  if (CP.aba === 'ent') renderCpEnt();
+}
+const eventosNoAnoCP = (pid, ano) => (CP.dados?.eventos || []).filter(e => e.pastoral === pid && e.situacao !== 'recusado' && e.ini.slice(0, 4) <= ano && (e.fim || e.ini).slice(0, 4) >= ano).length;
+function situEntCP(r) {
+  if (r?.em) return `✅ ${esc(r.porNome || '—')}, ${esc(quandoBR(r.em))}`;
+  if (r?.papel) return `✅ ✔ recebido por fora${r.papel.nota ? ` (${esc(r.papel.nota)})` : ''}, ${esc(quandoBR(r.papel.em))}`;
+  return '⏳ falta';
+}
+function htmlPedidoCP(p, imprimir) {
+  const ps = pastoraisDoPedidoCP(p), ok = ps.filter(x => entregueCP(respCP(p, x.id))).length;
+  const linhas = ps.map(x => {
+    const r = respCP(p, x.id), feito = entregueCP(r);
+    const arq = r?.arquivo ? (imprimir ? `📎 ${esc(r.arquivo.nome)}` : `<button type="button" data-ent-baixar title="Baixar o arquivo que a pastoral mandou">⬇ ${esc(r.arquivo.nome)}</button>`) : '';
+    return `<tr data-ent-past="${esc(x.id)}" class="${feito ? '' : 'cp-ent-falta'}"><td><span class="cp-cor" style="background:${corCP(x.id)}"></span>${esc(x.nome)}</td>
+      <td>${situEntCP(r)}</td>
+      <td class="cp-ent-txt">${r?.texto ? esc(imprimir ? r.texto : r.texto.slice(0, 400) + (r.texto.length > 400 ? '…' : '')) : ''}${r?.texto && r.texto.length > 400 && !imprimir ? ' <button type="button" class="link" data-ent-ler>ler tudo</button>' : ''}${arq ? (r?.texto ? '<br>' : '') + arq : ''}</td>
+      ${p.ano ? `<td>${eventosNoAnoCP(x.id, p.ano)}</td>` : ''}
+      ${imprimir ? '' : `<td class="esc-acoes">${r?.papel ? '<button type="button" data-ent-papel="0" title="Tirar a marca de recebido por fora">↩ Desfazer ✔</button>'
+        : r?.em ? '' : '<button type="button" data-ent-papel="1" title="Chegou por fora do portal (em papel, por e-mail, na reunião)">✔ Recebido por fora</button>'}</td>`}</tr>`;
+  }).join('');
+  return `<div class="cp-ent${p.fechado ? ' fechado' : ''}" data-ent="${esc(p.id)}">
+    <div class="cp-ent-cab"><h3>${p.fechado ? '🔒 ' : ''}${esc(p.titulo)}</h3>${prazoCP(p)}<span class="cp-ent-cont">${ok} de ${ps.length} entregaram</span>
+      ${imprimir ? '' : `<span class="espaco"></span><button type="button" data-ent-ed>✏ Mudar</button><button type="button" data-ent-cobrar title="Copia uma mensagem com quem falta, para colar no grupo dos coordenadores">📋 Copiar a cobrança</button>
+        <button type="button" data-ent-imp>🖨 Imprimir…</button><button type="button" data-ent-fechar>${p.fechado ? '🔓 Reabrir' : '🔒 Fechar'}</button>`}</div>
+    ${p.desc ? `<div class="sutil pequeno" style="white-space:pre-wrap;margin:4px 0">${esc(p.desc)}</div>` : ''}
+    <table class="esc-tab cp-ent-tab"><thead><tr><th>Pastoral</th><th>Situação</th><th>O que mandou</th>${p.ano ? `<th title="Eventos da pastoral no calendário pastoral de ${esc(p.ano)} (aprovados ou esperando)">📆 ${esc(p.ano)}</th>` : ''}${imprimir ? '' : '<th></th>'}</tr></thead><tbody>${linhas}</tbody></table></div>`;
+}
+function renderCpEnt() {
+  const box = $('#calEntLista');
+  badgeEntCP();
+  if (!CP.ent) { box.innerHTML = '<p class="sutil">⏳ Lendo as entregas do portal…</p>'; if (Esc.portal?.url) carregarEntregasCP(); return; }
+  if (CP.ent.velho) return box.innerHTML = '<p class="pequeno">⚠ O portal ainda é antigo (sem 📨 Entregas): clique em ⬆ Atualizar o portal em ⚙ Ajustes › 🌐 Portal.</p>';
+  if (CP.ent.erro) return box.innerHTML = `<p class="pequeno">⚠ ${esc(CP.ent.erro)}</p>`;
+  const lista = pedidosOrdCP();
+  box.innerHTML = lista.length ? lista.map(p => htmlPedidoCP(p, false)).join('') : '<p class="sutil">Nenhum pedido ainda. Clique em ＋ Novo pedido (ex.: “Planejamento 2027”, prazo 27/11).</p>';
+}
+function abrirFormEntCP(p) {
+  CP.entEd = p?.id || 'novo';
+  $('#calEntTit').value = p?.titulo || '';
+  $('#calEntPrazo').value = p?.prazo || '';
+  $('#calEntAno').value = p?.ano || '';
+  $('#calEntDesc').value = p?.desc || '';
+  $('#calEntFechado').checked = !!p?.fechado;
+  const marc = p?.pastorais || [];
+  $('#calEntTodas').checked = !marc.length;
+  $('#calEntPast').innerHTML = pastoraisCP().filter(x => x.id !== 'paroquia').map(x => `<label class="esc-chk pequeno"><input type="checkbox" data-ent-p="${esc(x.id)}" ${marc.includes(x.id) ? 'checked' : ''}>
+    <span class="cp-cor" style="background:${corCP(x.id)}"></span>${esc(x.nome)}</label>`).join('');
+  $('#calEntPast').hidden = !marc.length;
+  $('#calEntApagar').hidden = !p;
+  $('#calEntForm').hidden = false;
+  $('#calEntTit').focus();
+}
+async function salvarFormEntCP() {
+  const ped = { id: CP.entEd === 'novo' ? '' : CP.entEd, titulo: $('#calEntTit').value.trim(), prazo: $('#calEntPrazo').value, ano: $('#calEntAno').value.trim(),
+    desc: $('#calEntDesc').value.trim(), fechado: $('#calEntFechado').checked,
+    pastorais: $('#calEntTodas').checked ? [] : $$('#calEntPast [data-ent-p]:checked').map(c => c.dataset.entP) };
+  if (!ped.titulo) return toast('Escreva o que é para entregar.');
+  if (!$('#calEntTodas').checked && !ped.pastorais.length) return toast('Marque as pastorais (ou “todas”).');
+  if (ped.ano && !/^\d{4}$/.test(ped.ano)) return toast('O ano do calendário precisa ter 4 números (ex.: 2027).');
+  try {
+    await chamarPortal('entregaPedido', { pedido: ped });
+    toast(ped.id ? 'Pedido mudado no portal.' : '📨 Pedido no portal: as coordenações já veem na aba 📨 Entregas.');
+    $('#calEntForm').hidden = true; CP.entEd = null;
+    await carregarEntregasCP();
+  } catch (e) { toast('⚠ ' + (/desconhecida/.test(e.message) ? 'O portal ainda é antigo: ⬆ Atualizar o portal em ⚙ Ajustes › 🌐 Portal.' : e.message)); }
+}
+async function apagarPedidoCP() {
+  const p = (CP.ent?.pedidos || []).find(x => x.id === CP.entEd);
+  if (!p) return;
+  const n = pastoraisDoPedidoCP(p).filter(x => respCP(p, x.id)?.em).length;
+  if (!confirm(`Apagar o pedido "${p.titulo}"${n ? ` e as ${n} entrega(s) que já vieram (com os arquivos)` : ''}? Não dá para desfazer.\n\nPara só parar de receber, use 🔒 Fechado.`)) return;
+  try { await chamarPortal('entregaApagar', { id: p.id }); toast('Pedido apagado.'); $('#calEntForm').hidden = true; CP.entEd = null; await carregarEntregasCP(); }
+  catch (e) { toast('⚠ ' + e.message); }
+}
+async function acaoEntregaCP(alvo) {
+  const box = alvo.closest('[data-ent]'), p = (CP.ent?.pedidos || []).find(x => x.id === box?.dataset.ent);
+  if (!p) return;
+  const pid = alvo.closest('[data-ent-past]')?.dataset.entPast;
+  if (alvo.closest('[data-ent-ed]')) return abrirFormEntCP(p);
+  if (alvo.closest('[data-ent-imp]')) return imprimirFolhaSec('Entregas das pastorais', p.titulo + (p.prazo ? ' · prazo ' + diaCurtoCP(p.prazo) : ''), htmlPedidoCP(p, true), 'Entregas - ' + p.titulo);
+  if (alvo.closest('[data-ent-cobrar]')) {
+    const f = faltamCP(p);
+    if (!f.length) return toast('Todas as pastorais já entregaram. 🙌');
+    const txt = `📨 *${p.titulo}*${p.prazo ? ` — prazo: ${diaCurtoCP(p.prazo)}` : ''}\n\nAinda falta${f.length > 1 ? 'm' : ''}: ${f.map(x => x.nome).join(', ')}.\n\n`
+      + `Entreguem pelo Portal das pastorais, na aba 📨 Entregas (dá para escrever ou mandar o arquivo)${Esc.portal?.url ? ':\n' + Esc.portal.url : '.'}`;
+    try { await navigator.clipboard.writeText(txt); toast(`📋 Cobrança copiada (${f.length} pastoral(is)): cole no grupo.`); } catch (_) { toast('⚠ Não deu para copiar.'); }
+    return;
+  }
+  if (alvo.closest('[data-ent-fechar]')) {
+    try { await chamarPortal('entregaPedido', { pedido: { ...p, fechado: !p.fechado } }); toast(p.fechado ? '🔓 Reaberto: as pastorais podem entregar de novo.' : '🔒 Fechado: o portal não recebe mais entregas deste pedido.'); await carregarEntregasCP(); }
+    catch (e) { toast('⚠ ' + e.message); }
+    return;
+  }
+  if (alvo.closest('[data-ent-ler]')) { const r = respCP(p, pid); return r?.texto && alert(`${nomeCP(pid)} — ${p.titulo}\n\n${r.texto}`); }
+  if (alvo.closest('[data-ent-baixar]')) {
+    alvo.disabled = true;
+    try {
+      const r = await chamarPortal('entregaArquivo', { pedido: p.id, pastoral: pid });
+      const bin = atob(r.b64), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      baixarBlob(`${nomeCP(pid)} - ${r.nome}`.replace(/[\\/:*?"<>|]+/g, '-'), new Blob([bytes], { type: r.tipo || 'application/octet-stream' }));
+      toast('⬇ Arquivo baixado (pasta Downloads).');
+    } catch (e) { toast('⚠ ' + e.message); }
+    alvo.disabled = false;
+    return;
+  }
+  const papel = alvo.closest('[data-ent-papel]');
+  if (papel) {
+    const marcar = papel.dataset.entPapel === '1';
+    let nota = '';
+    if (marcar) { nota = prompt(`${nomeCP(pid)} entregou "${p.titulo}" por fora do portal.\n\nComo chegou? (opcional; ex.: em papel, na reunião, por e-mail)`, 'em papel'); if (nota === null) return; }
+    try { await chamarPortal('entregaMarcar', { pedido: p.id, pastoral: pid, papel: marcar, nota }); await carregarEntregasCP(); }
+    catch (e) { toast('⚠ ' + e.message); }
+  }
+}
+
+// ---------------------------------------------------------------- (1.8.0) 🤝 reuniões (portal 0.5.0)
+// Marcar a reunião (com pauta; vai para o 📅 calendário como evento da paróquia, só para quem entra no portal), anotar a
+// presença de cada pastoral, a ata e os encaminhamentos. Publicada, as coordenações veem no portal e marcam ✔ feito.
+const SIT_PRES_CP = [['', '—'], ['veio', '✅ veio'], ['rep', '👤 representante'], ['faltou', '✖ faltou'], ['just', '🙏 justificou']];
+const pastoraisReuCP = () => pastoraisCP().filter(p => p.id !== 'paroquia');
+const dataLongaCP = iso => { const d = deIso(iso); return `${DIAS[d.getDay()].toLowerCase()}, ${dataBR(iso)}`; };
+const quemEncCP = enc => enc.pastoral === 'paroquia' ? 'Coordenação da paróquia' : enc.pastoral ? nomeCP(enc.pastoral) : 'Todas as pastorais';
+const devemEncCP = enc => enc.pastoral === 'paroquia' ? [] : enc.pastoral ? [enc.pastoral] : pastoraisReuCP().map(p => p.id);
+async function carregarReunioesCP() {
+  if (!Esc.portal?.url || !Esc.portal?.chave) return;
+  try { CP.reu = await chamarPortal('reunioesLer'); }
+  catch (e) { CP.reu = /desconhecida/.test(e.message) ? { velho: true } : { erro: e.message }; }
+  if (CP.aba === 'reu') renderCpReu();
+}
+function resumoPresCP(r) {
+  const c = { veio: 0, rep: 0, faltou: 0, just: 0 };
+  Object.values(r.presenca || {}).forEach(p => { if (c[p.s] !== undefined) c[p.s]++; });
+  return c;
+}
+function renderCpReu() {
+  const box = $('#calReuLista');
+  if (!CP.reu) { box.innerHTML = '<p class="sutil">⏳ Lendo as reuniões do portal…</p>'; if (Esc.portal?.url) carregarReunioesCP(); return; }
+  if (CP.reu.velho) return box.innerHTML = '<p class="pequeno">⚠ O portal ainda é antigo (sem 🤝 Reuniões): clique em ⬆ Atualizar o portal em ⚙ Ajustes › 🌐 Portal.</p>';
+  if (CP.reu.erro) return box.innerHTML = `<p class="pequeno">⚠ ${esc(CP.reu.erro)}</p>`;
+  const lista = [...CP.reu.reunioes].sort((a, b) => b.data.localeCompare(a.data));
+  box.innerHTML = !lista.length ? '<p class="sutil">Nenhuma reunião ainda. Clique em ＋ Nova reunião (ex.: a próxima do CPP, 29/12, 19h30).</p>'
+    : `<table class="esc-tab cp-tab"><thead><tr><th>Dia</th><th>Reunião</th><th>Presença</th><th>Encaminhamentos</th><th></th></tr></thead><tbody>${lista.map(r => {
+      const c = resumoPresCP(r), encs = r.encs || [];
+      const deve = encs.reduce((s, e) => s + devemEncCP(e).length, 0), feitos = encs.reduce((s, e) => s + devemEncCP(e).filter(p => e.feitos?.[p]).length, 0);
+      return `<tr data-reu="${esc(r.id)}"><td class="cp-dia">${esc(diaCurtoCP(r.data))}${r.hora ? ' ' + esc(r.hora) : ''}${r.data >= hojeIso() ? '<br><small class="cp-espera">próxima</small>' : ''}</td>
+        <td><b>${esc(r.titulo)}</b>${r.local ? `<br><small class="sutil">${esc(r.local)}</small>` : ''}${r.publicada ? '<br><small class="sutil">🌐 ata publicada no portal</small>' : ''}</td>
+        <td>${c.veio + c.rep + c.faltou + c.just ? `✅ ${c.veio} · 👤 ${c.rep} · ✖ ${c.faltou} · 🙏 ${c.just}` : '<span class="sutil">—</span>'}</td>
+        <td>${encs.length ? `${encs.length} · ✔ ${feitos} de ${deve}` : '<span class="sutil">—</span>'}</td>
+        <td class="esc-acoes"><button type="button" data-reu-abrir>✏ Abrir</button> <button type="button" data-reu-convite title="Copia o convite com a pauta, para colar no grupo dos coordenadores">📋 Convite</button>
+          ${encs.length ? '<button type="button" data-reu-encs title="Copia os encaminhamentos, para colar no grupo">📋 Encaminhamentos</button>' : ''} <button type="button" data-reu-imp>🖨 Ata…</button></td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+// ---- formulário (uma reunião por vez; CP.reuEd = cópia que está sendo mudada)
+function abrirFormReuCP(r) {
+  const ult = [...(CP.reu?.reunioes || [])].sort((a, b) => b.data.localeCompare(a.data))[0];
+  CP.reuEd = r ? JSON.parse(JSON.stringify(r))
+    : { id: '', titulo: ult?.titulo || 'Reunião do Conselho Pastoral Paroquial (CPP)', data: '', hora: ult?.hora || '19:30', local: ult?.local || '', pauta: '', ata: '', presenca: {}, encs: [], publicada: false };
+  renderFormReuCP();
+  $('#calReuForm').scrollIntoView({ block: 'nearest' });
+}
+function renderFormReuCP() {
+  const r = CP.reuEd, f = $('#calReuForm');
+  if (!r) { f.hidden = true; return; }
+  const opPast = sel => `<option value="">Todas as pastorais</option>${pastoraisReuCP().map(p => `<option value="${esc(p.id)}"${p.id === sel ? ' selected' : ''}>${esc(p.nome)}</option>`).join('')}<option value="paroquia"${sel === 'paroquia' ? ' selected' : ''}>Coordenação da paróquia</option>`;
+  f.innerHTML = `<h3 class="esc-pt-tit" style="margin-top:0">${r.id ? '✏ Reunião' : '＋ Nova reunião'}</h3>
+    <div class="linha">
+      <label class="campo" style="flex:2">Nome <input data-r="titulo" maxlength="120" value="${esc(r.titulo)}"></label>
+      <label class="campo">Dia <input type="date" data-r="data" value="${esc(r.data)}"></label>
+      <label class="campo">Hora <input type="time" data-r="hora" value="${esc(r.hora || '')}"></label>
+      <label class="campo" style="flex:1.5">Local <input data-r="local" maxlength="120" list="calLocais" autocomplete="off" value="${esc(r.local || '')}"></label>
+    </div>
+    <label class="campo">Pauta (vai no convite e no portal) <textarea data-r="pauta" rows="3" maxlength="5000">${esc(r.pauta || '')}</textarea></label>
+    <details class="cp-reu-bloco" ${Object.keys(r.presenca).length || r.data && r.data <= hojeIso() ? 'open' : ''}><summary><b>Presença das pastorais</b> <span class="sutil pequeno">(na reunião ou depois)</span></summary>
+      <div class="linha" style="margin:4px 0"><span class="sutil pequeno">Marcar todas as sem marca como:</span>
+        <button type="button" data-reu-todas="faltou" class="pequeno">✖ faltou</button><button type="button" data-reu-todas="veio" class="pequeno">✅ veio</button></div>
+      <div class="cp-reu-pres">${pastoraisReuCP().map(p => { const x = r.presenca[p.id] || {}; return `<div class="cp-reu-pl" data-pres="${esc(p.id)}">
+        <span><span class="cp-cor" style="background:${corCP(p.id)}"></span>${esc(p.nome)}</span>
+        <select data-pres-s>${SIT_PRES_CP.map(([v, t]) => `<option value="${v}"${(x.s || '') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
+        <input data-pres-q maxlength="80" placeholder="quem veio (opcional)" value="${esc(x.quem || '')}"></div>`; }).join('')}</div>
+    </details>
+    <label class="campo">Ata <textarea data-r="ata" rows="7" maxlength="30000" placeholder="O que foi tratado, decisões, orientações do pároco…">${esc(r.ata || '')}</textarea></label>
+    <div class="cp-reu-bloco"><b>Encaminhamentos</b> <span class="sutil pequeno">(o que cada pastoral ficou de fazer; com a ata publicada, a pastoral marca ✔ no portal)</span>
+      ${r.encs.map((enc, i) => { const dev = devemEncCP(enc), f2 = dev.filter(p => enc.feitos?.[p]);
+        return `<div class="cp-reu-enc" data-enc="${i}">
+        <textarea data-e="texto" rows="2" maxlength="600" placeholder="Ex.: concluir e mandar o planejamento de 2027">${esc(enc.texto || '')}</textarea>
+        <select data-e="pastoral">${opPast(enc.pastoral || '')}</select>
+        <input data-e="resp" maxlength="120" placeholder="responsável" value="${esc(enc.resp || '')}">
+        <input type="date" data-e="prazo" value="${esc(enc.prazo || '')}" title="Prazo">
+        <span class="pequeno ${dev.length && f2.length === dev.length ? 'ent-ok' : 'sutil'}" title="${esc(f2.map(nomeCP).join(', '))}">${dev.length ? `✔ ${f2.length}/${dev.length}` : ''}</span>
+        <button type="button" data-enc-tirar title="Tirar este encaminhamento">✕</button></div>`; }).join('')}
+      <button type="button" data-enc-mais class="pequeno">＋ Encaminhamento</button></div>
+    <label class="pequeno esc-chk"><input type="checkbox" data-r="publicada" ${r.publicada ? 'checked' : ''}> 🌐 <b>Publicar a ata e os encaminhamentos no portal</b> (as coordenações veem e marcam ✔ feito)</label>
+    <div class="linha"><span class="espaco"></span>${r.id ? '<button type="button" data-reu-apagar class="perigo">🗑 Apagar</button>' : ''}
+      <button type="button" data-reu-cancelar>Cancelar</button><button type="button" data-reu-salvar class="primario">Salvar no portal</button></div>`;
+  f.hidden = false;
+}
+// o que está na tela volta para CP.reuEd (antes de redesenhar ou salvar)
+function lerFormReuCP() {
+  const r = CP.reuEd, f = $('#calReuForm');
+  if (!r) return;
+  f.querySelectorAll('[data-r]').forEach(el => { r[el.dataset.r] = el.type === 'checkbox' ? el.checked : el.value.trim(); });
+  r.presenca = {};
+  f.querySelectorAll('[data-pres]').forEach(l => { const s = l.querySelector('[data-pres-s]').value; if (s) r.presenca[l.dataset.pres] = { s, quem: l.querySelector('[data-pres-q]').value.trim() }; });
+  f.querySelectorAll('[data-enc]').forEach(l => { const enc = r.encs[+l.dataset.enc]; l.querySelectorAll('[data-e]').forEach(el => { enc[el.dataset.e] = el.value.trim(); }); });
+}
+async function salvarReuCP() {
+  lerFormReuCP();
+  const r = CP.reuEd;
+  if (!r.data) return toast('Escolha o dia da reunião.');
+  if (r.publicada && !r.ata && !r.encs.some(e => e.texto)) return toast('Para publicar, escreva a ata ou algum encaminhamento.');
+  try {
+    const x = await chamarPortal('reuniaoSalvar', { reuniao: { ...r, encs: r.encs.filter(e => e.texto) } });
+    toast(r.id ? '🤝 Reunião salva no portal.' : '🤝 Reunião marcada: já está no 📅 calendário do portal.');
+    CP.reuEd = null; $('#calReuForm').hidden = true;
+    await Promise.all([carregarReunioesCP(), carregarCalPastoral()]);
+    return x;
+  } catch (e) { toast('⚠ ' + (/desconhecida/.test(e.message) ? 'O portal ainda é antigo: ⬆ Atualizar o portal em ⚙ Ajustes › 🌐 Portal.' : e.message)); }
+}
+async function apagarReuCP() {
+  const r = CP.reuEd;
+  if (!r?.id || !confirm(`Apagar "${r.titulo}" de ${dataBR(r.data)}, com a presença, a ata e os encaminhamentos? Não dá para desfazer.`)) return;
+  try { await chamarPortal('reuniaoApagar', { id: r.id }); toast('Reunião apagada.'); CP.reuEd = null; $('#calReuForm').hidden = true; await Promise.all([carregarReunioesCP(), carregarCalPastoral()]); }
+  catch (e) { toast('⚠ ' + e.message); }
+}
+// ---- 📋 convite e encaminhamentos (texto para o grupo) e 🖨 ata
+function textoConviteCP(r) {
+  return `🤝 *${r.titulo}*\n📅 ${dataLongaCP(r.data)}${r.hora ? ', às ' + hTxt(r.hora) : ''}${r.local ? '\n📍 ' + r.local : ''}`
+    + (r.pauta ? `\n\n*Pauta:*\n${r.pauta}` : '') + '\n\nCada pastoral e movimento: venha o coordenador ou mande um representante. 🙏';
+}
+function textoEncsCP(r) {
+  return `📌 *Encaminhamentos — ${r.titulo}* (${dataBR(r.data)})\n\n` + (r.encs || []).map((e, i) => `${i + 1}. ${e.texto} — ${quemEncCP(e)}${e.resp ? ' (' + e.resp + ')' : ''}${e.prazo ? ', até ' + dataBR(e.prazo).slice(0, 5) : ''}`).join('\n')
+    + (Esc.portal?.url ? `\n\nMarquem ✔ quando fizerem, no Portal das pastorais, aba 🤝 Reuniões:\n${Esc.portal.url}` : '');
+}
+function htmlAtaCP(r) {
+  const pres = pastoraisReuCP().map(p => ({ p, x: r.presenca?.[p.id] })).filter(o => o.x);
+  const sem = pastoraisReuCP().filter(p => !r.presenca?.[p.id]);
+  return `<p><b>Dia:</b> ${esc(dataLongaCP(r.data))}${r.hora ? ', às ' + esc(hTxt(r.hora)) : ''}${r.local ? ` · <b>Local:</b> ${esc(r.local)}` : ''}</p>
+    ${pres.length ? `<h2>Presença</h2><table><thead><tr><th>Pastoral / movimento</th><th>Presença</th><th>Quem</th></tr></thead><tbody>${pres.map(o => `<tr><td>${esc(o.p.nome)}</td><td>${esc((SIT_PRES_CP.find(s => s[0] === o.x.s) || [])[1] || '')}</td><td>${esc(o.x.quem || '')}</td></tr>`).join('')}</tbody></table>
+      ${sem.length ? `<p class="cinza">Sem anotação: ${sem.map(p => esc(p.nome)).join(', ')}.</p>` : ''}` : ''}
+    ${r.pauta ? `<h2>Pauta</h2><div style="white-space:pre-wrap">${esc(r.pauta)}</div>` : ''}
+    ${r.ata ? `<h2>Ata</h2><div style="white-space:pre-wrap">${esc(r.ata)}</div>` : ''}
+    ${(r.encs || []).length ? `<h2>Encaminhamentos</h2><table><thead><tr><th>#</th><th>O quê</th><th>Quem</th><th>Responsável</th><th>Prazo</th><th>Feito</th></tr></thead><tbody>${r.encs.map((e, i) => {
+      const dev = devemEncCP(e), f = dev.filter(p => e.feitos?.[p]);
+      return `<tr><td>${i + 1}</td><td>${esc(e.texto)}</td><td>${esc(quemEncCP(e))}</td><td>${esc(e.resp || '')}</td><td>${e.prazo ? esc(dataBR(e.prazo)) : ''}</td><td>${dev.length ? (f.length === dev.length ? '✔' : `${f.length}/${dev.length}`) : ''}</td></tr>`; }).join('')}</tbody></table>` : ''}`;
+}
+async function acaoReuCP(b) {
+  const tr = b.closest('[data-reu]'), r = tr && (CP.reu?.reunioes || []).find(x => x.id === tr.dataset.reu);
+  if (!r) return;
+  if (b.closest('[data-reu-abrir]')) return abrirFormReuCP(r);
+  if (b.closest('[data-reu-imp]')) return imprimirFolhaSec(r.titulo, `${dataLongaCP(r.data)}${r.local ? ' · ' + r.local : ''}`, htmlAtaCP(r), `Ata - ${r.titulo} - ${r.data}`);
+  const txt = b.closest('[data-reu-convite]') ? textoConviteCP(r) : b.closest('[data-reu-encs]') ? textoEncsCP(r) : '';
+  if (txt) { try { await navigator.clipboard.writeText(txt); toast('📋 Copiado: cole no grupo.'); } catch (_) { toast('⚠ Não deu para copiar.'); } }
+}
+// 📊 presença no ano: quantas vezes cada pastoral veio, mandou representante, justificou ou faltou
+function imprimirPresencaCP() {
+  const anos = [...new Set((CP.reu?.reunioes || []).map(r => r.data.slice(0, 4)))].sort();
+  if (!anos.length) return toast('Nenhuma reunião ainda.');
+  const ano = prompt(`Presença nas reuniões de qual ano? (${anos.join(', ')})`, anos.includes(hojeIso().slice(0, 4)) ? hojeIso().slice(0, 4) : anos.at(-1));
+  if (!ano) return;
+  const rs = CP.reu.reunioes.filter(r => r.data.startsWith(ano) && r.data <= hojeIso()).sort((a, b) => a.data.localeCompare(b.data));
+  if (!rs.length) return toast('Nenhuma reunião já feita nesse ano.');
+  const marca = { veio: '✅', rep: '👤', faltou: '✖', just: '🙏' };
+  const linhas = pastoraisReuCP().map(p => {
+    const c = { veio: 0, rep: 0, faltou: 0, just: 0 };
+    const cel = rs.map(r => { const s = r.presenca?.[p.id]?.s; if (s) c[s]++; return `<td style="text-align:center">${s ? marca[s] : ''}</td>`; }).join('');
+    return `<tr><td>${esc(p.nome)}</td>${cel}<td class="num">${c.veio}</td><td class="num">${c.rep}</td><td class="num">${c.just}</td><td class="num"><b>${c.faltou}</b></td></tr>`;
+  }).join('');
+  imprimirFolhaSec('Presença nas reuniões', `${ano} · ${rs.length} reunião(ões)`, `<table><thead><tr><th>Pastoral / movimento</th>${rs.map(r => `<th style="text-align:center">${esc(dataBR(r.data).slice(0, 5))}</th>`).join('')}
+    <th class="num">✅ veio</th><th class="num">👤 repr.</th><th class="num">🙏 just.</th><th class="num">✖ faltou</th></tr></thead><tbody>${linhas}</tbody></table>
+    <p class="cinza">✅ veio · 👤 mandou representante · 🙏 justificou · ✖ faltou · em branco: sem anotação</p>`, `Presença nas reuniões ${ano}`, { paisagem: rs.length > 8 });
+}
+function ligarReuCP() {
+  $('#calReuNova').addEventListener('click', () => abrirFormReuCP(null));
+  $('#calReuLer').addEventListener('click', () => { CP.reu = null; renderCpReu(); });
+  $('#calReuPres').addEventListener('click', imprimirPresencaCP);
+  $('#calReuLista').addEventListener('click', e => { const b = e.target.closest('button'); if (b) acaoReuCP(b); });
+  $('#calReuForm').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.reuSalvar !== undefined) return salvarReuCP();
+    if (b.dataset.reuApagar !== undefined) return apagarReuCP();
+    if (b.dataset.reuCancelar !== undefined) { CP.reuEd = null; return renderFormReuCP(); }
+    lerFormReuCP();
+    if (b.dataset.encMais !== undefined) { CP.reuEd.encs.push({ id: '', texto: '', pastoral: '', resp: '', prazo: '' }); renderFormReuCP(); return $('#calReuForm .cp-reu-enc:last-of-type textarea')?.focus(); }
+    if (b.dataset.encTirar !== undefined) { CP.reuEd.encs.splice(+b.closest('[data-enc]').dataset.enc, 1); return renderFormReuCP(); }
+    if (b.dataset.reuTodas) { pastoraisReuCP().forEach(p => { CP.reuEd.presenca[p.id] ||= { s: b.dataset.reuTodas, quem: '' }; }); return renderFormReuCP(); }
+  });
+}
+
+// ---------------------------------------------------------------- (1.8.0) 🚶 Ano Jubilar
+const jubileuCP = () => ({ ligado: false, nome: '', de: '', ate: '', ...(Esc.portal?.jubileu || {}) });
+function renderJubCP() {
+  if (!$('#calJubLigado')) return;
+  const j = jubileuCP();
+  $('#calJubLigado').checked = j.ligado;
+  $('#calJubMais').hidden = !j.ligado;
+  for (const [id, k] of [['calJubNome', 'nome'], ['calJubDe', 'de'], ['calJubAte', 'ate']]) if (document.activeElement?.id !== id) $('#' + id).value = j[k] || '';
+}
+async function salvarJubCP() {
+  const j = { ligado: $('#calJubLigado').checked, nome: $('#calJubNome').value.trim() || 'Ano Jubilar', de: $('#calJubDe').value, ate: $('#calJubAte').value };
+  try { await gravarCfgPortal({ jubileu: j }); await chamarPortal('configurar', cfgParaPortal()); toast(j.ligado ? '🚶 Ano Jubilar ligado no portal.' : 'Ano Jubilar desligado no portal.'); }
+  catch (e) { toast('⚠ ' + e.message); }
+  renderJubCP(); renderCalPastoral();
+}
+// pastorais que já marcaram (ou não) a 🚶 peregrinação no período do jubileu
+function htmlJubResumoCP() {
+  const j = jubileuCP(), evs = (CP.dados?.eventos || []).filter(e => e.jubilar && e.situacao !== 'recusado' && (!j.de || (e.fim || e.ini) >= j.de) && (!j.ate || e.ini <= j.ate));
+  const com = new Set(evs.map(e => e.pastoral)), ps = pastoraisReuCP();
+  const sem = ps.filter(p => !com.has(p.id));
+  return `<div class="cp-jub">🚶 <b>${esc(j.nome || 'Ano Jubilar')}</b>${j.de ? ` (${esc(dataBR(j.de))} a ${esc(dataBR(j.ate || j.de))})` : ''}: <b>${ps.length - sem.length} de ${ps.length}</b> pastorais já marcaram a peregrinação.
+    ${sem.length ? `<br><span class="sutil">Ainda não: ${sem.map(p => esc(p.nome)).join(', ')}.</span> <button type="button" class="pequeno" data-jub-cobrar>📋 Copiar lembrete</button>` : ''}</div>`;
+}
+
 async function abrirCalPastoral() {
   await carregarEscala();
   Portal.cfgLida = true;
   if (!CP.mes) CP.mes = hojeIso().slice(0, 7);
   $('#calForm').hidden = true; CP.editando = null; CP.rel = null;
+  $('#calEntForm').hidden = true; CP.entEd = null; CP.ent = null;
+  $('#calReuForm').hidden = true; CP.reuEd = null; CP.reu = null;
   renderCalPastoral();
   abrirDialogo('dlgCalPastoral');
   if (!Esc.portal?.url || !Esc.portal?.chave) return;
   if (!Portal.usuarios && !Portal.testando) { Portal.testando = true; testarPortal().finally(() => { Portal.testando = false; renderCalPastoral(); }); }
   await carregarCalPastoral();
+  if (!CP.ent) await carregarEntregasCP();          // (1.8.0) o número na aba 📨 Entregas
 }
 
 async function abrirPortalCfg() {
@@ -1148,7 +1574,7 @@ function ligarPortalEsc() {
   $('#ptTrazer').addEventListener('click', trazerPortal);
   // 📆 Calendário pastoral
   $('#ptPastSalvar').addEventListener('click', async () => {
-    try { await salvarPastoraisPortal(); toast('Pastorais salvas no portal.'); CP.dados = null; renderPortalEsc(); carregarCalPastoral(); } catch (e) { toast('⚠ ' + e.message); }
+    try { await salvarPastoraisPortal(); toast('Pastorais e espaços salvos no portal.'); CP.dados = null; renderPortalEsc(); carregarCalPastoral(); } catch (e) { toast('⚠ ' + e.message); }
   });
   $('#ptAgAberta').addEventListener('change', async e => {
     try { await salvarPastoraisPortal(pastoraisPortal(), e.target.checked); toast(e.target.checked ? 'O calendário pode ser visto sem entrar.' : 'O calendário agora só abre para quem entra.'); }
@@ -1164,13 +1590,27 @@ function ligarPortalEsc() {
   $('#calfSalvar').addEventListener('click', salvarFormCP);
   $('#calfApagar').addEventListener('click', apagarFormCP);
   $('#calfCancelar').addEventListener('click', () => { $('#calForm').hidden = true; CP.editando = null; });
-  ['calfIni', 'calfFim', 'calfPastoral'].forEach(id => $('#' + id).addEventListener('change', avisoFormCP));
+  ['calfIni', 'calfFim', 'calfPastoral', 'calfHora', 'calfLocal'].forEach(id => $('#' + id).addEventListener('change', avisoFormCP));
+  $('#calfLocal').addEventListener('input', avisoFormCP);
   $('#ptLogo2Escolher').addEventListener('click', () => $('#ptLogo2Arq').click());
   $('#ptLogo2Arq').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) escolherLogo2Portal(f); });
   $('#ptLogo2Tirar').addEventListener('click', tirarLogo2Portal);
+  // (1.8.0) 📨 entregas
+  $('#calEntNovo').addEventListener('click', () => abrirFormEntCP(null));
+  $('#calEntLer').addEventListener('click', () => { CP.ent = null; renderCpEnt(); });
+  $('#calEntSalvar').addEventListener('click', salvarFormEntCP);
+  $('#calEntCancelar').addEventListener('click', () => { $('#calEntForm').hidden = true; CP.entEd = null; });
+  $('#calEntApagar').addEventListener('click', apagarPedidoCP);
+  $('#calEntTodas').addEventListener('change', e => { $('#calEntPast').hidden = e.target.checked; });
+  $('#calEntLista').addEventListener('click', e => { const b = e.target.closest('button'); if (b) acaoEntregaCP(b); });
+  // (1.8.0) 🤝 reuniões e 🚶 Ano Jubilar
+  ligarReuCP();
+  $('#calJubLigado').addEventListener('change', e => { $('#calJubMais').hidden = !e.target.checked; salvarJubCP(); });
+  ['calJubNome', 'calJubDe', 'calJubAte'].forEach(id => $('#' + id).addEventListener('change', salvarJubCP));
   $('#calrVer').addEventListener('click', verRelatoriosCP);
   $('#calrImprimir').addEventListener('click', imprimirRelatoriosCP);
-  $('#calAprovar').addEventListener('change', e => { if (e.target.id === 'calAjIni' || e.target.id === 'calAjFim') conflitosAjusteCP(); });
+  $('#calAprovar').addEventListener('change', e => { if (/^calAj(Ini|Fim|Hora|Local)$/.test(e.target.id)) conflitosAjusteCP(); });
+  $('#calAprovar').addEventListener('input', e => { if (e.target.id === 'calAjLocal') conflitosAjusteCP(); });
   // (1.7.4) 📢 avisos automáticos
   $('#calAvLigado').addEventListener('change', e => mudarAvisosCfgCP({ ligado: e.target.checked }));
   const diasAvCP = () => { const n = Math.max(1, Math.min(99, Math.round(+$('#calAvN').value) || 3)); return Math.min(120, n * +$('#calAvUn').value); };
@@ -1224,6 +1664,17 @@ function ligarPortalEsc() {
     const tr = e.target.closest('#calLista tr[data-cp-id]');
     if (tr && e.target.closest('[data-cp-ed]')) return abrirFormCP((CP.dados?.eventos || []).find(x => x.id === tr.dataset.cpId));
     if (tr && e.target.closest('[data-cp-sec]')) { $('#dlgCalPastoral').close(); return abrirEventos(); }
+    if (tr && e.target.closest('[data-cp-reu]')) {
+      CP.aba = 'reu'; renderCalPastoral();
+      const r = (CP.reu?.reunioes || []).find(x => 'reu-' + x.id === tr.dataset.cpId);
+      return r ? abrirFormReuCP(r) : undefined;
+    }
+    if (e.target.closest('[data-jub-cobrar]')) {
+      const j = jubileuCP(), com = new Set((CP.dados?.eventos || []).filter(x => x.jubilar && x.situacao !== 'recusado').map(x => x.pastoral));
+      const sem = pastoraisReuCP().filter(p => !com.has(p.id)).map(p => '• ' + p.nome).join('\n');
+      const txt = `🚶 *${j.nome || 'Ano Jubilar'}*\nCada pastoral e movimento vai fazer a sua peregrinação à nossa igreja jubilar${j.ate ? ' até ' + dataBR(j.ate) : ''}. Ainda não marcaram a data no calendário do portal:\n${sem}\n\nNo portal, ao pôr o evento, marque 🚶 "É a peregrinação da pastoral".${Esc.portal?.url ? '\n' + Esc.portal.url : ''}`;
+      return navigator.clipboard.writeText(txt).then(() => toast('📋 Lembrete copiado: cole no grupo.'), () => toast('⚠ Não deu para copiar.'));
+    }
     if (tr && e.target.closest('[data-cp-apr]')) { CP.apr = tr.dataset.cpId; CP.aba = 'aprovar'; return renderCalPastoral(); }
     const av = tr && e.target.closest('[data-cp-av]');
     if (av) { av.disabled = true; return foraAvisoCP(tr.dataset.cpId, av.dataset.cpAv === 'sim'); }

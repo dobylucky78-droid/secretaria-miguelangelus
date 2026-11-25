@@ -1331,6 +1331,7 @@ dialog.dlg-sec-largo { width: min(1100px, 96vw); }
 .mc-form .linha, .in-form .linha, .in-rel .linha { flex-wrap: wrap; align-items: flex-end; }
 .mc-larga, .in-larga { flex: 1; min-width: 260px; }
 .mc-larga textarea, .mc-larga input, .in-larga input { width: 100%; }
+.mc-rom-resumo { margin: 4px 0 10px; padding: 8px 10px; border-radius: 7px; background: rgba(87,179,111,.14); border-left: 4px solid #57b36f; }
 .mc-conflito { margin: 6px 0; padding: 6px 10px; border-radius: 7px; background: rgba(240,180,41,.18); border-left: 4px solid #f0b429; }
 .in-cel-campo { flex: 1; } .in-cel-campo select { width: 100%; }
 .in-lista { max-height: 34vh; overflow: auto; background: var(--painel2); border-radius: 8px; padding: 6px 10px; margin: 6px 0; min-height: 70px; }
@@ -1559,7 +1560,29 @@ html[data-tema-app="claro"] .slide .corpo.tl .quem, html[data-tema-app="claro"] 
 .cp-apr-desc { white-space: pre-wrap; opacity: .85; }
 .cp-apr-tab { font-size: 1.1rem; }
 .cp-apr-tab .cp-apr-dif { font-weight: 700; color: #d4a93a; }
-.cp-apr-conf { background: rgba(224,71,58,.12); border-radius: 6px; padding: 8px 10px; font-size: 1rem; }
+.cp-apr-conf { background: rgba(212,169,58,.12); border-radius: 6px; padding: 8px 10px; font-size: 1rem; }
+/* (1.8.0) 🔴 choque de sala e 📨 entregas */
+.cp-apr-sala { background: rgba(224,71,58,.18); border-left: 4px solid #e0473a; border-radius: 6px; padding: 8px 10px; font-size: 1.05rem; }
+.cp-sala { color: #e86a5f; }
+.cp-ent { border: 1px solid var(--borda, #3a3f48); border-radius: 10px; padding: 10px 14px; margin: 10px 0; }
+.cp-ent.fechado { opacity: .75; }
+.cp-ent-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.cp-ent-cab h3 { margin: 0; font-size: 1.15rem; }
+.cp-ent-cont { font-weight: 700; }
+.cp-ent-atraso { color: #e86a5f; font-weight: 700; }
+.cp-ent-tab td { vertical-align: top; }
+.cp-ent-tab .cp-ent-txt { max-width: 420px; white-space: pre-wrap; }
+.cp-ent-falta td { opacity: .8; }
+/* (1.8.0) 🤝 reuniões e 🚶 Ano Jubilar */
+.cp-reu-bloco { border: 1px solid var(--borda, #3a3f48); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+.cp-reu-bloco summary { cursor: pointer; }
+.cp-reu-pres { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 4px 16px; }
+.cp-reu-pl { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center; }
+.cp-reu-pl input { min-width: 0; }
+.cp-reu-enc { display: grid; grid-template-columns: 1fr 180px 140px 140px auto auto; gap: 6px; align-items: start; margin: 6px 0; }
+.cp-reu-enc textarea { min-height: 2.6em; }
+.cp-reu-enc .ent-ok { color: #57b36f; font-weight: 700; }
+.cp-jub { background: rgba(87,179,111,.12); border-left: 4px solid #57b36f; border-radius: 6px; padding: 8px 10px; margin: 6px 0 10px; }
 .cp-apr .linha button { font-size: 1rem; padding: 10px 16px; }
 .cp-apr-aj { border: 1px dashed #d4a93a; border-radius: 8px; padding: 8px 10px; }
 .cp-apr-aj input { font-size: 1.05rem; }

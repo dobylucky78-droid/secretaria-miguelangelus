@@ -27,10 +27,17 @@
  *                   | sem situacao = aprovado. Num aprovado, mudar dia/hora/local vira pedido: { ini, fim, hora, local, cancelar?, por, porNome, em }
  *                   (o aprovado continua valendo até a secretaria decidir); recusa: { motivo, em } = a última que a secretaria não aprovou.
  *  relatorios.json  { 'pastoral|AAAA-MM': { texto, participantes, por, porNome, em } }   (0.2.0) resumo das atividades do mês
+ *  entregas.json    (0.4.0) o que a secretaria (ou o conselho) pediu às pastorais, com prazo — ex.: "Planejamento 2027, até 27/11":
+ *                   { pedidos: [{ id, titulo, desc, prazo, pastorais: [ids] (vazio = todas), ano, fechado, criado, em }],
+ *                     respostas: { 'pedido|pastoral': { texto, arquivo: { id, nome, tipo, tam } | null, por, porNome, em, papel } } }
+ *                   papel = a secretaria marcou como recebido fora do portal (em papel, por e-mail…). Os anexos ficam na mesma pasta.
+ *  reunioes.json    (0.5.0) 🤝 reuniões (CPP…): pauta, presença por pastoral, ata e encaminhamentos com ✔ feito (ver reunioes_ abaixo)
+ * (0.5.0) Ano Jubilar (props 'jubileu' { ligado, nome, de, ate }): evento com jubilar = 🚶 peregrinação de uma pastoral.
+ * (0.4.0) espaços da paróquia (props 'locais'): a lista que a Secretaria manda, para o campo Local e para avisar choque de sala.
  * LGPD: só nome e e-mail de quem acessa; nas escalas, só nomes. Funções de menores (coroinhas) vão com o 1º nome e a inicial.
  */
 
-const VERSAO_PORTAL = '0.3.1';
+const VERSAO_PORTAL = '0.5.0';
 const PASTA_PORTAL = 'MiguelAngelus Portal';
 const SESSAO_SEG = 6 * 3600;           // a sessão dura 6 horas (limite do CacheService)
 const ITERACOES = 1000;                // PBKDF2-HMAC-SHA256
@@ -175,6 +182,14 @@ function gravarImagem_(nome, valor) {
   if (img && (img.length > 300000 || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(img))) throw falha_('Imagem inválida ou grande demais.');
   if (img !== imagem_(nome)) { gravar_(nome + '.json', { img }); CacheService.getScriptCache().remove(nome); }
 }
+// (0.4.0) anexos das 📋 entregas: arquivos de verdade (PDF, planilha, documento, foto) na pasta do portal
+function gravarAnexo_(nome, tipo, b64) {
+  const meta = JSON.parse(drive_('post', 'drive/v3/files?fields=id', JSON.stringify({ name: nome, parents: [pasta_()], mimeType: tipo })).getContentText());
+  drive_('patch', 'upload/drive/v3/files/' + meta.id + '?uploadType=media', Utilities.base64Decode(b64), tipo);
+  return meta.id;
+}
+function lerAnexo_(id) { const r = drive_('get', 'drive/v3/files/' + id + '?alt=media'); return r ? Utilities.base64Encode(r.getContent()) : ''; }
+function apagarAnexo_(id) { try { drive_('delete', 'drive/v3/files/' + id); } catch (x) { console.warn('apagar anexo', x); } }
 const nomeMes_ = mes => { if (!/^\d{4}-\d{2}$/.test(String(mes))) throw falha_('Mês inválido.'); return 'mes-' + mes + '.json'; };
 
 // ---------------------------------------------------------------- senhas (PBKDF2-HMAC-SHA256, um bloco)
@@ -234,7 +249,9 @@ const listaPastorais_ = () => [PAROQUIA_].concat(pastoraisConhecidas_().filter(p
 // a própria pastoral, ou quem a secretaria marcou para mudar tudo; os eventos da paróquia só esses
 const podePastoral_ = (u, pid) => !!u.admin || (pid !== PAROQUIA_.id && (u.pastorais || []).indexOf(pid) >= 0);
 // os eventos com cartaz que vieram da Secretaria só mudam lá
-const podeEvento_ = (u, e) => e.origem !== 'sec' && podePastoral_(u, e.pastoral);
+// (0.5.0) 'reu' = reunião marcada em 🤝 Reuniões da Secretaria: também só ela muda
+const daSecretaria_ = e => e.origem === 'sec' || e.origem === 'reu';
+const podeEvento_ = (u, e) => !daSecretaria_(e) && podePastoral_(u, e.pastoral);
 // relatório do mês: só das pastorais da própria pessoa (a "paróquia" não tem relatório)
 // (0.3.0) só as marcadas para a pessoa, mesmo com "muda tudo" (a secretaria lê todos no card dela)
 const relPastorais_ = u => listaPastorais_().filter(p => p.id !== PAROQUIA_.id && (u.pastorais || []).indexOf(p.id) >= 0);
@@ -263,14 +280,88 @@ function limparEvento_(e, pastorais) {
   if (hora && !/^\d{2}:\d{2}$/.test(hora)) throw falha_('A hora não está certa.');
   const pastoral = String(e.pastoral || '');
   if (!pastorais.some(p => p.id === pastoral)) throw falha_('Escolha a pastoral do evento.');
-  return { titulo, ini, fim, hora, local: texto_(e.local, 120), pastoral, desc: String(e.desc == null ? '' : e.desc).trim().slice(0, 1000) };
+  return { titulo, ini, fim, hora, local: texto_(e.local, 120), pastoral, desc: String(e.desc == null ? '' : e.desc).trim().slice(0, 1000),
+    jubilar: !!e.jubilar };          // (0.5.0) 🚶 peregrinação do Ano Jubilar
+}
+// (0.4.0) espaços da paróquia (salão, salas, capelas…), mandados pela Secretaria
+function locaisConhecidos_() {
+  try { return JSON.parse(props_().getProperty('locais') || '[]'); } catch (x) { return []; }
+}
+// (0.5.0) Ano Jubilar da paróquia: { ligado, nome, de, ate } (a Secretaria liga; sem ele, o 🚶 não aparece)
+function jubileu_() {
+  try { return JSON.parse(props_().getProperty('jubileu') || 'null') || { ligado: false }; } catch (x) { return { ligado: false }; }
+}
+
+// ---------------------------------------------------------------- 🤝 reuniões (0.5.0)
+// A secretaria marca a reunião (do CPP ou outra), com pauta; depois anota a presença de cada pastoral, a ata e os
+// encaminhamentos (o que cada pastoral ficou de fazer, com responsável e prazo). Publicada, a ata aparece no portal e
+// cada coordenação marca ✔ feito nos encaminhamentos dela. A reunião também entra no 📅 calendário (origem 'reu').
+// reunioes.json { reunioes: [{ id, titulo, data, hora, local, pauta, ata, publicada,
+//   presenca: { pastoral: { s: 'veio'|'rep'|'faltou'|'just', quem } },
+//   encs: [{ id, texto, pastoral ('' = todas; 'paroquia' = a própria coordenação), resp, prazo,
+//            feitos: { pastoral: { em, por, porNome, nota } } }], criado, em }] }
+const SIT_PRESENCA_ = ['veio', 'rep', 'faltou', 'just'];
+function reunioes_() { const r = ler_('reunioes.json', null) || {}; r.reunioes = r.reunioes || []; return r; }
+// as pastorais que respondem por um encaminhamento
+const pastoraisDoEnc_ = enc => enc.pastoral === PAROQUIA_.id ? [] : enc.pastoral ? [enc.pastoral] : pastoraisConhecidas_().map(p => p.id);
+function encsPendentes_(u) {
+  const ps = relPastorais_(u).map(p => p.id);
+  let n = 0;
+  reunioes_().reunioes.forEach(r => { if (r.publicada) (r.encs || []).forEach(enc => pastoraisDoEnc_(enc).forEach(pid => { if (ps.indexOf(pid) >= 0 && !(enc.feitos || {})[pid]) n++; })); });
+  return n;
+}
+// a reunião no calendário pastoral (como evento da paróquia, já aprovado; só a Secretaria muda)
+function reuniaoNaAgenda_(r) {
+  const ag = ler_('agenda.json', { eventos: [] });
+  const evs = (ag.eventos || []).filter(e => e.id !== 'reu-' + r.id);
+  if (r && r.data && !r.apagar)
+    evs.push({ id: 'reu-' + r.id, ref: r.id, origem: 'reu', titulo: r.titulo, ini: r.data, fim: '', hora: r.hora || '', local: r.local || '',
+      pastoral: PAROQUIA_.id, desc: r.pauta ? 'Pauta: ' + r.pauta.slice(0, 900) : '', autor: 'secretaria', autorNome: 'Secretaria', por: 'secretaria', porNome: 'Secretaria', em: agora_() });
+  ag.eventos = evs;
+  gravar_('agenda.json', ag);
+}
+
+// ---------------------------------------------------------------- 📋 entregas (0.4.0)
+// A secretaria pede algo às pastorais, com prazo (planejamento do ano, avaliação…); cada coordenação entrega pelo portal
+// (texto e/ou um arquivo). Só as pastorais marcadas para a pessoa (as mesmas do 📝 relatório).
+const ANEXO_MAX = 5 * 1024 * 1024;
+const TIPOS_ANEXO_ = { pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  odt: 'application/vnd.oasis.opendocument.text', ods: 'application/vnd.oasis.opendocument.spreadsheet',
+  csv: 'text/csv', txt: 'text/plain', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
+function entregas_() { const e = ler_('entregas.json', null) || {}; e.pedidos = e.pedidos || []; e.respostas = e.respostas || {}; return e; }
+const paraPastoral_ = (p, pid) => !(p.pastorais || []).length || p.pastorais.indexOf(pid) >= 0;
+// o id do arquivo no Drive não sai do portal
+const semIdAnexo_ = r => r ? Object.assign({}, r, { arquivo: r.arquivo ? { nome: r.arquivo.nome, tipo: r.arquivo.tipo, tam: r.arquivo.tam } : null }) : r;
+function limparAnexo_(a) {
+  const nome = texto_(a.nome, 120).replace(/[\\/:*?"<>|]+/g, '-');
+  const ext = (nome.match(/\.([a-z0-9]+)$/i) || [])[1];
+  const tipo = ext && TIPOS_ANEXO_[ext.toLowerCase()];
+  if (!tipo) throw falha_('Esse tipo de arquivo não vai. Mande PDF, planilha (Excel), documento (Word), apresentação ou foto.');
+  const b64 = String(a.b64 || '');
+  if (!/^[A-Za-z0-9+/=]+$/.test(b64)) throw falha_('Não deu para ler o arquivo.');
+  const tam = Math.floor(b64.length * 3 / 4);
+  if (tam > ANEXO_MAX) throw falha_('Arquivo grande demais (até 5 MB).');
+  return { nome, tipo, b64, tam };
+}
+function pendentesEntregas_(u) {
+  const E = ler_('entregas.json', null);
+  if (!E || !(E.pedidos || []).length) return { pendentes: 0, total: 0 };
+  let pend = 0, total = 0;
+  relPastorais_(u).forEach(x => (E.pedidos || []).forEach(p => {
+    if (!paraPastoral_(p, x.id) || p.fechado) return;
+    total++;
+    if (!(E.respostas || {})[p.id + '|' + x.id]) pend++;
+  }));
+  return { pendentes: pend, total };
 }
 
 // ================================================================ o que a página pode pedir
 const PORTAL_ = {
   info() {
     return { versao: VERSAO_PORTAL, paroquia: props_().getProperty('paroquia') || '', brasao: brasao_(), logo2: imagem_('logo2'), funcoes: funcoesConhecidas_().map(f => ({ id: f.id, nome: f.nome })),
-      pastorais: pastoraisConhecidas_().map(p => ({ id: p.id, nome: p.nome })), agendaAberta: agendaAberta_() };
+      pastorais: pastoraisConhecidas_().map(p => ({ id: p.id, nome: p.nome })), agendaAberta: agendaAberta_(), locais: locaisConhecidos_(), jubileu: jubileu_() };
   },
 
   cadastrar(d) {
@@ -321,7 +412,73 @@ const PORTAL_ = {
         funcoes: (u.funcoes || []).map(id => ({ id, nome: (fs.find(f => f.id === id) || {}).nome || id })),
         pastorais: listaPastorais_().filter(p => podePastoral_(u, p.id)), relatorio: relPastorais_(u) },
       meses,
+      entregas: pendentesEntregas_(u),          // (0.4.0) quantas entregas ainda faltam (o número na aba)
+      reunioes: { pendentes: encsPendentes_(u) },   // (0.5.0) encaminhamentos das pastorais da pessoa ainda sem ✔
     };
+  },
+
+  // (0.5.0) 🤝 reuniões: as próximas (com a pauta) e as atas publicadas, com os encaminhamentos das pastorais da pessoa
+  reunioes(d) {
+    const u = sessao_(d), minhas = relPastorais_(u).map(p => p.id), hoje = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
+    const lista = reunioes_().reunioes.filter(r => r.publicada || (r.data && r.data >= hoje))
+      .sort((a, b) => String(b.data || '').localeCompare(String(a.data || ''))).slice(0, 30)
+      .map(r => ({ id: r.id, titulo: r.titulo, data: r.data, hora: r.hora || '', local: r.local || '', pauta: r.pauta || '', publicada: !!r.publicada,
+        ata: r.publicada ? r.ata || '' : '', presenca: r.publicada ? r.presenca || {} : {},
+        encs: r.publicada ? (r.encs || []).map(enc => ({ id: enc.id, texto: enc.texto, pastoral: enc.pastoral || '', resp: enc.resp || '', prazo: enc.prazo || '',
+          feitos: enc.feitos || {}, minhas: pastoraisDoEnc_(enc).filter(pid => minhas.indexOf(pid) >= 0) })) : [] }));
+    return { reunioes: lista, pastorais: listaPastorais_(), minhas };
+  },
+  // ✔ feito (ou desfazer) num encaminhamento, por uma pastoral da pessoa
+  encFeito(d) {
+    const u = sessao_(d), pid = String(d.pastoral || '');
+    if (!relPastorais_(u).some(p => p.id === pid)) throw falha_('Você só marca os encaminhamentos das suas pastorais.');
+    return comTrava_(() => {
+      const R = reunioes_(), r = R.reunioes.find(x => x.id === String(d.reuniao || ''));
+      const enc = r && r.publicada && (r.encs || []).find(x => x.id === String(d.enc || ''));
+      if (!enc) throw falha_('Este encaminhamento não existe mais. Atualize a página.');
+      if (pastoraisDoEnc_(enc).indexOf(pid) < 0) throw falha_('Este encaminhamento não é desta pastoral.');
+      enc.feitos = enc.feitos || {};
+      if (d.feito) enc.feitos[pid] = { em: agora_(), por: u.id, porNome: u.nome, nota: texto_(d.nota, 300) };
+      else delete enc.feitos[pid];
+      gravar_('reunioes.json', R);
+      return { msg: d.feito ? '✔ Marcado como feito. A secretaria já vê.' : 'Desmarcado.' };
+    });
+  },
+
+  // (0.4.0) 📋 entregas: o que a secretaria pediu às pastorais da pessoa, com a entrega de cada uma
+  entregas(d) {
+    const u = sessao_(d), ps = relPastorais_(u), E = entregas_();
+    const resp = (p, x) => E.respostas[p.id + '|' + x.id];
+    const lista = E.pedidos.filter(p => ps.some(x => paraPastoral_(p, x.id)) && (!p.fechado || ps.some(x => resp(p, x))))
+      .sort((a, b) => (a.fechado ? 1 : 0) - (b.fechado ? 1 : 0) || String(a.prazo || '9999').localeCompare(String(b.prazo || '9999')));
+    return { pastorais: ps, pedidos: lista.map(p => ({ id: p.id, titulo: p.titulo, desc: p.desc || '', prazo: p.prazo || '', fechado: !!p.fechado,
+      minhas: ps.filter(x => paraPastoral_(p, x.id)).map(x => Object.assign({ pastoral: x.id }, semIdAnexo_(resp(p, x)) || {})) })) };
+  },
+  entregaSalvar(d) {
+    const u = sessao_(d), pid = String(d.pastoral || ''), id = String(d.pedido || '');
+    if (!relPastorais_(u).some(p => p.id === pid)) throw falha_('Você só entrega pelas suas pastorais.');
+    const texto = String(d.texto == null ? '' : d.texto).trim().slice(0, 10000);
+    const anexo = d.arquivo && d.arquivo.b64 ? limparAnexo_(d.arquivo) : null;
+    return comTrava_(() => {
+      const E = entregas_(), p = E.pedidos.find(x => x.id === id);
+      if (!p) throw falha_('Este pedido não existe mais. Atualize a página.');
+      if (!paraPastoral_(p, pid)) throw falha_('Este pedido não é para esta pastoral.');
+      if (p.fechado) throw falha_('A secretaria já fechou este pedido. Fale com ela.');
+      const k = id + '|' + pid, ant = E.respostas[k] || {};
+      let arquivo = ant.arquivo || null;
+      if (arquivo && (anexo || d.tirarArquivo)) { apagarAnexo_(arquivo.id); arquivo = null; }
+      if (anexo) arquivo = { id: gravarAnexo_('entrega ' + texto_(p.titulo, 40) + ' - ' + pid + ' - ' + anexo.nome, anexo.tipo, anexo.b64), nome: anexo.nome, tipo: anexo.tipo, tam: anexo.tam };
+      let msg;
+      if (!texto && !arquivo) {
+        if (ant.papel) E.respostas[k] = { papel: ant.papel }; else delete E.respostas[k];
+        msg = 'Entrega apagada.';
+      } else {
+        E.respostas[k] = { texto, arquivo, por: u.id, porNome: u.nome, em: agora_() };
+        msg = 'Entregue! A secretaria já pode ver. Dá para mudar até ela fechar o pedido.';
+      }
+      gravar_('entregas.json', E);
+      return { msg };
+    });
   },
 
   // (0.2.0) agenda pastoral do ano: todos veem tudo; "meu" = pode mudar
@@ -331,13 +488,14 @@ const PORTAL_ = {
     if (!d.token) {
       if (!agendaAberta_()) throw falha_('A agenda só abre para quem entra no portal.');
       // (0.3.0) só os aprovados, como foram aprovados (sem os pedidos de mudança)
-      return { ano, pastorais: listaPastorais_(), admin: false, publico: true,
-        eventos: eventos_().filter(e => aprovado_(e) && doAno_(e, ano)).map(e => ({ id: e.id, titulo: e.titulo, ini: e.ini, fim: e.fim || '', hora: e.hora || '',
-          local: e.local || '', pastoral: e.pastoral, desc: e.desc || '', origem: e.origem || '', meu: false })) };
+      // (0.5.0) as reuniões (🤝) só para quem entra
+      return { ano, pastorais: listaPastorais_(), admin: false, publico: true, locais: locaisConhecidos_(), jubileu: jubileu_(),
+        eventos: eventos_().filter(e => aprovado_(e) && doAno_(e, ano) && e.origem !== 'reu').map(e => ({ id: e.id, titulo: e.titulo, ini: e.ini, fim: e.fim || '', hora: e.hora || '',
+          local: e.local || '', pastoral: e.pastoral, desc: e.desc || '', origem: e.origem || '', jubilar: !!e.jubilar, meu: false })) };
     }
     const u = sessao_(d);
     // quem entra (coordenadores) vê também os ⏳ provisórios e os pedidos; os recusados, só a própria pastoral
-    return { ano, pastorais: listaPastorais_(), admin: !!u.admin,
+    return { ano, pastorais: listaPastorais_(), admin: !!u.admin, locais: locaisConhecidos_(), jubileu: jubileu_(),
       eventos: eventos_().filter(e => doAnoOuPedido_(e, ano) && (e.situacao !== 'recusado' || podeEvento_(u, e)))
         .map(e => Object.assign({}, e, { meu: podeEvento_(u, e) })) };
   },
@@ -372,7 +530,7 @@ const PORTAL_ = {
       const id = String(dado.id || '');
       let e = id ? evs.find(x => x.id === id) : null;
       if (id && !e) throw falha_('Este evento não existe mais (alguém apagou). Atualize a agenda.');
-      if (e && e.origem === 'sec') throw falha_('Este evento foi marcado na Secretaria: só ela muda.');
+      if (e && daSecretaria_(e)) throw falha_('Este evento foi marcado na Secretaria: só ela muda.');
       if (e && !podePastoral_(u, e.pastoral)) throw falha_('Só a própria pastoral (ou a secretaria) muda este evento.');
       const quem = { por: u.id, porNome: u.nome, em: agora_() };
       let msg = 'Evento salvo.';
@@ -408,7 +566,7 @@ const PORTAL_ = {
     return comTrava_(() => {
       const ag = ler_('agenda.json', { eventos: [] }), evs = ag.eventos || [], e = evs.find(x => x.id === id);
       if (!e) return { msg: 'Este evento já tinha sido apagado.' };
-      if (e.origem === 'sec') throw falha_('Este evento foi marcado na Secretaria: só ela apaga.');
+      if (daSecretaria_(e)) throw falha_('Este evento foi marcado na Secretaria: só ela apaga.');
       if (!podePastoral_(u, e.pastoral)) throw falha_('Só a própria pastoral (ou a secretaria) apaga este evento.');
       // (0.3.0) o que já foi aprovado (todos veem) só sai com a aprovação da secretaria
       if (aprovado_(e) && !u.admin) {
@@ -528,6 +686,13 @@ const SEC_ = {
       props_().setProperty('pastorais', JSON.stringify(d.pastorais.map(p => ({ id: texto_(p.id, 40), nome: texto_(p.nome, 80) }))
         .filter(p => p.id && p.nome && p.id !== PAROQUIA_.id).slice(0, 80)));
     if (d.agendaAberta !== undefined) props_().setProperty('agendaAberta', d.agendaAberta ? '1' : '0');
+    // (0.4.0) espaços da paróquia (para o campo Local e o aviso de choque de sala)
+    if (Array.isArray(d.locais))
+      props_().setProperty('locais', JSON.stringify(Array.from(new Set(d.locais.map(l => texto_(l, 80)).filter(Boolean))).slice(0, 60)));
+    // (0.5.0) Ano Jubilar
+    if (d.jubileu && typeof d.jubileu === 'object')
+      props_().setProperty('jubileu', JSON.stringify({ ligado: !!d.jubileu.ligado, nome: texto_(d.jubileu.nome, 80) || 'Ano Jubilar',
+        de: dataOk_(d.jubileu.de) ? d.jubileu.de : '', ate: dataOk_(d.jubileu.ate) ? d.jubileu.ate : '' }));
     // brasão da paróquia (imagem pequena, PNG/JPEG/WebP em data URL) para o cabeçalho do portal; '' tira
     if (d.brasao !== undefined) gravarImagem_('brasao', d.brasao);
     if (d.logo2 !== undefined) gravarImagem_('logo2', d.logo2);       // (0.2.0) logo da Pascom, opcional
@@ -585,6 +750,7 @@ const SEC_ = {
       let e = id ? evs.find(x => x.id === id) : null;
       if (id && !e) throw falha_('Este evento não existe mais (alguém apagou).');
       if (e && e.origem === 'sec') throw falha_('Este evento vem dos 🎉 Eventos da Secretaria: mude por lá.');
+      if (e && e.origem === 'reu') throw falha_('Esta reunião vem das 🤝 Reuniões: mude por lá.');
       if (!e) { e = { id: novoId_(), criado: agora_(), autor: 'secretaria', autorNome: 'Secretaria' }; evs.push(e); }
       Object.assign(e, novo, { por: 'secretaria', porNome: 'Secretaria', em: agora_() });
       // (0.3.0) o que a secretaria salva já está aprovado; um pedido que ficou igual ao que ela pôs some
@@ -653,6 +819,110 @@ const SEC_ = {
     Object.keys(rel).forEach(k => { const [p, m] = k.split('|'); if (m >= de && m <= ate) lista.push(Object.assign({ pastoral: p, mes: m }, rel[k])); });
     return { relatorios: lista, pastorais: listaPastorais_() };
   },
+  // (0.5.0) 🤝 reuniões: todas, com a presença, a ata e os encaminhamentos
+  reunioesLer() { return { reunioes: reunioes_().reunioes, pastorais: listaPastorais_() }; },
+  // criar ou mudar uma reunião; os ✔ das pastorais continuam nos encaminhamentos que ficaram (mesmo id)
+  reuniaoSalvar(d) {
+    const x = d.reuniao || {}, titulo = texto_(x.titulo, 120) || 'Reunião do Conselho Pastoral';
+    const data = String(x.data || '');
+    if (!dataOk_(data)) throw falha_('Escolha o dia da reunião.');
+    const hora = String(x.hora || '');
+    if (hora && !/^\d{2}:\d{2}$/.test(hora)) throw falha_('A hora não está certa.');
+    const ids = listaPastorais_().map(p => p.id), presenca = {};
+    Object.keys(x.presenca || {}).forEach(pid => {
+      const p = x.presenca[pid] || {};
+      if (ids.indexOf(pid) >= 0 && SIT_PRESENCA_.indexOf(p.s) >= 0) presenca[pid] = { s: p.s, quem: texto_(p.quem, 80) };
+    });
+    return comTrava_(() => {
+      const R = reunioes_(), id = String(x.id || '');
+      let r = id ? R.reunioes.find(q => q.id === id) : null;
+      if (id && !r) throw falha_('Esta reunião não existe mais.');
+      if (!r) { r = { id: novoId_(), criado: agora_() }; R.reunioes.push(r); }
+      const antes = {};
+      (r.encs || []).forEach(enc => { antes[enc.id] = enc.feitos || {}; });
+      const encs = (Array.isArray(x.encs) ? x.encs : []).slice(0, 80).map(enc => ({
+        id: texto_(enc.id, 20) || novoId_(), texto: String(enc.texto == null ? '' : enc.texto).trim().slice(0, 600),
+        pastoral: ids.indexOf(String(enc.pastoral || '')) >= 0 ? String(enc.pastoral) : '', resp: texto_(enc.resp, 120),
+        prazo: dataOk_(enc.prazo) ? enc.prazo : '' })).filter(enc => enc.texto);
+      encs.forEach(enc => { enc.feitos = {}; const f = antes[enc.id] || {}; pastoraisDoEnc_(enc).forEach(pid => { if (f[pid]) enc.feitos[pid] = f[pid]; }); });
+      Object.assign(r, { titulo, data, hora, local: texto_(x.local, 120), pauta: String(x.pauta == null ? '' : x.pauta).trim().slice(0, 5000),
+        ata: String(x.ata == null ? '' : x.ata).trim().slice(0, 30000), publicada: !!x.publicada, presenca, encs, em: agora_() });
+      gravar_('reunioes.json', R);
+      reuniaoNaAgenda_(r);
+      return { id: r.id };
+    });
+  },
+  reuniaoApagar(d) {
+    return comTrava_(() => {
+      const R = reunioes_(), id = String(d.id || '');
+      R.reunioes = R.reunioes.filter(r => r.id !== id);
+      gravar_('reunioes.json', R);
+      reuniaoNaAgenda_({ id, apagar: true });
+      return {};
+    });
+  },
+
+  // (0.4.0) 📋 entregas: tudo o que foi pedido e o que cada pastoral entregou (sem o conteúdo dos anexos)
+  entregasLer() {
+    const E = entregas_(), r = {};
+    Object.keys(E.respostas).forEach(k => { r[k] = semIdAnexo_(E.respostas[k]); });
+    return { pedidos: E.pedidos, respostas: r, pastorais: listaPastorais_() };
+  },
+  // criar ou mudar um pedido (fechado = não recebe mais entregas; as que vieram continuam)
+  entregaPedido(d) {
+    const x = d.pedido || {}, titulo = texto_(x.titulo, 120);
+    if (titulo.length < 2) throw falha_('Escreva o que é para entregar.');
+    const prazo = String(x.prazo || '');
+    if (prazo && !dataOk_(prazo)) throw falha_('O prazo não está certo.');
+    const ids = listaPastorais_().map(p => p.id);
+    const pastorais = Array.isArray(x.pastorais) ? x.pastorais.map(String).filter(p => p !== PAROQUIA_.id && ids.indexOf(p) >= 0) : [];
+    const ano = /^\d{4}$/.test(String(x.ano || '')) ? String(x.ano) : '';
+    return comTrava_(() => {
+      const E = entregas_(), id = String(x.id || '');
+      let p = id ? E.pedidos.find(q => q.id === id) : null;
+      if (id && !p) throw falha_('Este pedido não existe mais.');
+      if (!p) { p = { id: novoId_(), criado: agora_() }; E.pedidos.push(p); }
+      Object.assign(p, { titulo, desc: String(x.desc == null ? '' : x.desc).trim().slice(0, 2000), prazo, pastorais, ano, fechado: !!x.fechado, em: agora_() });
+      gravar_('entregas.json', E);
+      return { id: p.id };
+    });
+  },
+  // apaga o pedido, as entregas e os anexos dele
+  entregaApagar(d) {
+    return comTrava_(() => {
+      const E = entregas_(), id = String(d.id || '');
+      E.pedidos = E.pedidos.filter(p => p.id !== id);
+      Object.keys(E.respostas).forEach(k => {
+        if (k.indexOf(id + '|') !== 0) return;
+        if (E.respostas[k].arquivo) apagarAnexo_(E.respostas[k].arquivo.id);
+        delete E.respostas[k];
+      });
+      gravar_('entregas.json', E);
+      return {};
+    });
+  },
+  // ✔ recebido fora do portal (em papel, por e-mail, na reunião…), ou desfazer
+  entregaMarcar(d) {
+    const pid = String(d.pastoral || ''), id = String(d.pedido || '');
+    if (!listaPastorais_().some(p => p.id === pid && p.id !== PAROQUIA_.id)) throw falha_('Pastoral desconhecida.');
+    return comTrava_(() => {
+      const E = entregas_(), k = id + '|' + pid;
+      if (!E.pedidos.some(p => p.id === id)) throw falha_('Este pedido não existe mais.');
+      if (d.papel) E.respostas[k] = Object.assign(E.respostas[k] || {}, { papel: { em: agora_(), nota: texto_(d.nota, 200) } });
+      else if (E.respostas[k]) { delete E.respostas[k].papel; if (!E.respostas[k].texto && !E.respostas[k].arquivo) delete E.respostas[k]; }
+      gravar_('entregas.json', E);
+      return {};
+    });
+  },
+  // o anexo de uma entrega (base64), para a secretaria abrir ou guardar
+  entregaArquivo(d) {
+    const r = entregas_().respostas[String(d.pedido || '') + '|' + String(d.pastoral || '')];
+    if (!r || !r.arquivo) throw falha_('Esta entrega não tem arquivo.');
+    const b64 = lerAnexo_(r.arquivo.id);
+    if (!b64) throw falha_('O arquivo não foi encontrado no Drive do portal (apagado?).');
+    return { nome: r.arquivo.nome, tipo: r.arquivo.tipo, b64 };
+  },
+
   agendaExcluir(d) {
     return comTrava_(() => {
       const ag = ler_('agenda.json', { eventos: [] }), antes = (ag.eventos || []).length;
