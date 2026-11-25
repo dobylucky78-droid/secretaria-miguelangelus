@@ -30,7 +30,7 @@
  * LGPD: só nome e e-mail de quem acessa; nas escalas, só nomes. Funções de menores (coroinhas) vão com o 1º nome e a inicial.
  */
 
-const VERSAO_PORTAL = '0.3.0';
+const VERSAO_PORTAL = '0.3.1';
 const PASTA_PORTAL = 'MiguelAngelus Portal';
 const SESSAO_SEG = 6 * 3600;           // a sessão dura 6 horas (limite do CacheService)
 const ITERACOES = 1000;                // PBKDF2-HMAC-SHA256
@@ -555,8 +555,10 @@ const SEC_ = {
 
   // (0.2.0) agenda pastoral: a Secretaria lê tudo e traz uma programação pronta (ex.: o calendário do ano da paróquia)
   agendaLer() { return { eventos: eventos_(), pastorais: listaPastorais_() }; },
+  // (0.3.1) proposta: true = os eventos entram ⏳ provisórios, para a secretaria aprovar um a um
+  // (ex.: o planejamento do ano que uma pastoral mandou em planilha); autorNome = de quem é a proposta
   agendaImportar(d) {
-    const ps = listaPastorais_();
+    const ps = listaPastorais_(), proposta = !!d.proposta, autorNome = texto_(d.autorNome, 80) || 'Secretaria';
     return comTrava_(() => {
       const ag = ler_('agenda.json', { eventos: [] }), evs = ag.eventos = ag.eventos || [];
       const chave = e => [e.titulo.toLowerCase(), e.ini, e.pastoral].join('|'), tem = new Set(evs.map(chave));
@@ -565,11 +567,13 @@ const SEC_ = {
         const e = limparEvento_(x || {}, ps);
         if (tem.has(chave(e))) { iguais++; return; }
         tem.add(chave(e));
-        evs.push(Object.assign({ id: novoId_(), criado: agora_(), autor: 'secretaria', autorNome: 'Secretaria', por: 'secretaria', porNome: 'Secretaria', em: agora_() }, e));
+        const n = Object.assign({ id: novoId_(), criado: agora_(), autor: 'secretaria', autorNome, por: 'secretaria', porNome: autorNome, em: agora_() }, e);
+        if (proposta) n.situacao = 'provisorio';
+        evs.push(n);
         novos++;
       });
       if (novos) gravar_('agenda.json', ag);
-      return { novos, iguais };
+      return { novos, iguais, proposta };
     });
   },
   // a secretaria põe ou muda um evento qualquer (menos os com cartaz, que vêm de agendaSecretaria)

@@ -11,6 +11,15 @@
 // VERSAO_SECRETARIA fica no <head> do index.html (o splash usa antes deste arquivo carregar)
 
 const NOVIDADES_SECRETARIA = [
+  { versao: '1.7.4', data: '2026-11-25', itens: [
+    '📢 Avisos paroquiais automáticos: cada evento aprovado do 📆 Calendário pastoral entra sozinho nos avisos paroquiais, em todas as celebrações de todas as comunidades (e no MiguelAngelus, pela nuvem). Começa 3 semanas antes e sai no dia seguinte ao evento (no de vários dias, depois do último). ⏳ Provisórios e pedidos ainda não aprovados não entram. Se o evento mudar de data no portal, o aviso acompanha; se sair do calendário, o aviso sai.',
+    '⚙ Em 📆 Calendário pastoral › ⛪ Pastorais e programação › 📢 Avisos paroquiais automáticos: ligar ou desligar, quantos dias ou semanas antes e quais pastorais viram aviso. Para um evento só, use o 📢/🔕 na linha dele no 📅 Calendário (ou o 🔕 na lista de avisos).',
+    '🎉 Os eventos com cartaz não se repetem: se já existe um aviso feito à mão para o evento, não entra outro; se não existe, o aviso automático já sai com o slide do evento no telão.',
+  ] },
+  { versao: '1.7.3', data: '2026-11-25', itens: [
+    '📥 Programação como proposta (portal 0.3.1): um arquivo de programação marcado como proposta (por exemplo, o planejamento do ano que uma pastoral mandou em planilha) entra ⏳ provisório e vai para a aba ✅ Aprovar, para você decidir um a um. Quem não entrou no portal só vê depois de aprovado. Se o portal ainda for o antigo, a Secretaria avisa e não manda nada.',
+    '⛪ Ao trazer uma programação, a pastoral que já existe com o mesmo nome é usada (não aparece repetida na lista).',
+  ] },
   { versao: '1.7.2', data: '2026-11-25', itens: [
     '✅ Aprovar o calendário pastoral (portal 0.3.0): o que as coordenações põem no portal fica ⏳ provisório. Só quem entra no portal vê, e o calendário aberto não mostra. Na aba ✅ Aprovar do 📆 Calendário pastoral você decide um a um, em letra grande, para fazer na reunião das pastorais. Para cada pedido aparece o que mais está marcado nesses dias, e há um motivo opcional para quando não aprovar (a pastoral vê o motivo).',
     '🔁 Num evento já aprovado, mudar o dia, a hora ou o local (ou tirar o evento) também vai para a aprovação; até lá, vale o que estava aprovado. Nome, pastoral e detalhes a coordenação muda sozinha, a qualquer hora.',

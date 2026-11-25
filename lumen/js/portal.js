@@ -220,6 +220,18 @@ const HTML_CAL_PASTORAL = `
         <button type="button" id="ptLogo2Tirar" hidden>✕ Tirar</button>
         <input type="file" id="ptLogo2Arq" accept="image/png,image/jpeg,image/webp" hidden>
       </div>
+      <h3 class="esc-pt-tit">📢 Avisos paroquiais automáticos</h3>
+      <label class="pequeno esc-chk"><input type="checkbox" id="calAvLigado"> Os eventos <b>aprovados</b> do calendário entram sozinhos nos 📢 avisos paroquiais, em todas as celebrações de todas as comunidades (e no MiguelAngelus, pela nuvem)</label>
+      <div id="calAvMais">
+        <div class="cp-av-dias pequeno">
+          Começam a aparecer <input type="number" id="calAvN" min="1" max="99">
+          <select id="calAvUn"><option value="7">semana(s) antes</option><option value="1">dia(s) antes</option></select>
+          do evento e saem no dia seguinte a ele (no de vários dias, depois do último). <span class="sutil">⏳ Provisórios e pedidos ainda não aprovados não entram.</span>
+        </div>
+        <div class="pequeno">Pastorais que viram aviso (desmarque as que não devem ir para os avisos; um evento só: 🔕 no 📅 Calendário):</div>
+        <div id="calAvPast" class="cp-av-past"></div>
+      </div>
+      <p id="calAvInfo" class="sutil pequeno"></p>
     </div>
     <div data-cp-painel="rel" hidden>
       <div class="linha">
@@ -397,20 +409,37 @@ async function salvarPastoraisPortal(lista, aberta) {
 async function importarAgendaPortal(arq) {
   let j;
   try { j = JSON.parse(await arq.text()); } catch (_) { return toast('Esse arquivo não é uma programação (.json) da agenda.'); }
-  const evs = Array.isArray(j?.eventos) ? j.eventos : null;
+  let evs = Array.isArray(j?.eventos) ? j.eventos : null;
   if (!evs || !evs.length) return toast('O arquivo não tem eventos.');
-  // pastorais do arquivo que ainda não estão na lista entram nela
-  const lista = [...pastoraisPortal()];
-  for (const p of (Array.isArray(j.pastorais) ? j.pastorais : [])) if (p?.id && p?.nome && p.id !== 'paroquia' && !lista.some(q => q.id === p.id)) lista.push({ id: String(p.id).slice(0, 40), nome: String(p.nome).slice(0, 80) });
+  // (1.7.3) "proposta": os eventos entram ⏳ provisórios e vão para ✅ Aprovar (precisa do portal 0.3.1)
+  const proposta = j.proposta === true, autorNome = String(j.autorNome || '').trim().slice(0, 80);
+  if (proposta && !versaoAoMenos(Portal.versao, '0.3.1'))
+    return toast('⚠ Para trazer como proposta, o portal precisa estar atualizado: ⚙ Ajustes › 🌐 Portal › ⬆ Atualizar o portal. Depois tente de novo.');
+  // pastorais do arquivo que ainda não estão na lista entram nela; a que já existe com o mesmo nome é a mesma
+  const lista = [...pastoraisPortal()], troca = {};
+  for (const p of (Array.isArray(j.pastorais) ? j.pastorais : [])) {
+    if (!p?.id || !p?.nome || p.id === 'paroquia') continue;
+    const igual = lista.find(q => semAcento(q.nome).toLowerCase() === semAcento(String(p.nome)).toLowerCase());
+    if (igual) { if (igual.id !== p.id) troca[p.id] = igual.id; continue; }
+    if (!lista.some(q => q.id === p.id)) lista.push({ id: String(p.id).slice(0, 40), nome: String(p.nome).slice(0, 80) });
+  }
+  evs = evs.map(e => e && troca[e.pastoral] ? { ...e, pastoral: troca[e.pastoral] } : e);
   const ids = new Set(['paroquia', ...lista.map(p => p.id)]), sem = evs.filter(e => !ids.has(e?.pastoral)).length;
-  if (!confirm(`Trazer ${evs.length} evento(s) de "${arq.name}" para a agenda pastoral do portal?${sem ? `\n\n${sem} sem pastoral conhecida ficam de fora.` : ''}\n\nO que já está lá (mesmo nome, dia e pastoral) não se repete.`)) return;
+  if (!confirm(`Trazer ${evs.length} evento(s) de "${arq.name}" para a agenda pastoral do portal${proposta ? ` COMO PROPOSTA${autorNome ? ' (' + autorNome + ')' : ''}?\n\nEles entram ⏳ provisórios (só os coordenadores veem) e vão para a aba ✅ Aprovar, para você decidir um a um.` : '?'}${sem ? `\n\n${sem} sem pastoral conhecida ficam de fora.` : ''}\n\nO que já está lá (mesmo nome, dia e pastoral) não se repete.`)) return;
   try {
     $('#ptAgInfo').textContent = '⏳ Mandando ao portal…';
     await salvarPastoraisPortal(lista);
-    const r = await chamarPortal('agendaImportar', { eventos: evs.filter(e => ids.has(e?.pastoral)) });
-    $('#ptAgInfo').textContent = `✔ ${r.novos} evento(s) novo(s) na agenda${r.iguais ? `; ${r.iguais} já estavam lá` : ''}.`;
+    const r = await chamarPortal('agendaImportar', { eventos: evs.filter(e => ids.has(e?.pastoral)), proposta, autorNome });
+    if (proposta && r.proposta !== true && r.novos) toast('⚠ O portal não entendeu "proposta": os eventos entraram aprovados. Atualize o portal e confira o calendário.');
+    $('#ptAgInfo').textContent = `✔ ${r.novos} evento(s) novo(s) na agenda${proposta ? ', ⏳ esperando a aprovação em ✅ Aprovar' : ''}${r.iguais ? `; ${r.iguais} já estavam lá` : ''}.`;
     renderPortalEsc();
   } catch (e) { $('#ptAgInfo').textContent = ''; toast('⚠ ' + e.message); }
+}
+// "0.3.1" >= "0.3.0"…
+function versaoAoMenos(v, min) {
+  const a = String(v || '0').split('.').map(Number), b = min.split('.').map(Number);
+  for (let i = 0; i < 3; i++) { if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0); }
+  return true;
 }
 
 // brasão da paróquia para o cabeçalho do portal: o mesmo da ⬇ planilha (canto superior esquerdo do telão), PNG pequeno
@@ -774,6 +803,92 @@ async function carregarCalPastoral() {
     CP.dados = await chamarPortal('agendaLer');
   } catch (e) { CP.dados = null; if (lista) lista.innerHTML = `<p class="pequeno">⚠ ${esc(e.message)}</p>`; return; }
   renderCalPastoral();
+  atualizarAvisosCP().catch(e => console.warn('avisos do calendário', e));
+}
+
+// ---------------------------------------------------------------- (1.7.4) 📢 avisos paroquiais automáticos
+// Cada evento APROVADO do calendário pastoral vira um aviso programado (Ferramentas › 📢 Avisos paroquiais), em todas as
+// celebrações de todas as comunidades: começa N dias antes (padrão 3 semanas) e sai no dia seguinte ao evento (ao último
+// dia, se for de vários). ⏳ provisório e recusado não entram; mudou a data no portal, o aviso acompanha; saiu do
+// calendário, o aviso sai. Os avisos têm id "cal-<id do evento>" e vão para o MiguelAngelus pela nuvem, como os outros.
+// 🎉 evento da Secretaria (origem 'sec'): o aviso fica ligado ao evento (no telão entra o slide dele); se já existe um
+// aviso feito à mão para esse evento, não cria outro. Ajustes (só entre as Secretarias): Esc.portal.avisosCal.
+const cfgAvisosCP = () => ({ ligado: true, dias: 21, fora: [], pastoraisFora: [], ...(Esc.portal?.avisosCal || {}) });
+function textoAvisoCP(e) {
+  const dm = iso => dataBR(iso).slice(0, 5), d = deIso(e.ini);
+  const quando = e.fim && e.fim !== e.ini ? `de ${dm(e.ini)} a ${dm(e.fim)}` : `${DIAS[d.getDay()].toLowerCase()}, ${dm(e.ini)}`;
+  const nomeP = e.pastoral && e.pastoral !== 'paroquia' ? nomeCP(e.pastoral) : '';
+  const deQuem = nomeP && !semAcento(e.titulo).toLowerCase().includes(semAcento(nomeP).toLowerCase()) ? ` (${nomeP})` : '';
+  return `${e.titulo}${deQuem}: ${quando}${e.hora ? ', às ' + hTxt(e.hora) : ''}${e.local ? ', ' + e.local : ''}.`;
+}
+function avisosDesejadosCP(eventos) {
+  const c = cfgAvisosCP();
+  if (!c.ligado) return [];
+  const hoje = hojeIso(), dias = Math.max(1, Math.min(120, +c.dias || 21));
+  const aMao = new Set(AvPar.lista.filter(a => !a.auto && a.ligadoId).map(a => a.ligadoId));
+  return eventos.filter(e => !e.situacao && e.ini && (e.fim || e.ini) >= hoje && !c.fora.includes(e.id) && !c.pastoraisFora.includes(e.pastoral))
+    .filter(e => !(e.origem === 'sec' && aMao.has(e.id.replace(/^sec-/, ''))))
+    .map(e => {
+      const ini = deIso(e.ini); ini.setDate(ini.getDate() - dias);
+      return { id: 'cal-' + e.id, auto: 'cal', calId: e.id, texto: textoAvisoCP(e), inicio: isoData(ini), fim: e.fim || e.ini,
+        locais: [], localId: '', tipo: 'evento', ligadoId: e.origem === 'sec' ? e.id.replace(/^sec-/, '') : '' };
+    });
+}
+// junta o que o calendário pede com os avisos guardados: só grava (e só manda à nuvem) o que mudou
+async function atualizarAvisosCP() {
+  if (!CP.dados?.eventos || typeof AvPar === 'undefined') return null;
+  await AvPar.pronto;
+  await carregarAvisosPar();                       // o mais novo do banco (pode ter chegado da nuvem)
+  const quer = new Map(avisosDesejadosCP(CP.dados.eventos).map(a => [a.id, a]));
+  const agora = Date.now(), r = { novos: 0, mudados: 0, tirados: 0 };
+  const igual = (a, b) => ['texto', 'inicio', 'fim', 'ligadoId'].every(k => (a[k] || '') === (b[k] || '')) && !a.locais?.length;
+  AvPar.lista = AvPar.lista.filter(a => {
+    if (a.auto !== 'cal') return true;
+    const q = quer.get(a.id);
+    if (q) { if (!igual(a, q)) { Object.assign(a, q, { em: agora }); r.mudados++; } quer.delete(a.id); return true; }
+    (AvPar.apagados ||= {})[a.id] = agora; r.tirados++; return false;
+  });
+  for (const q of quer.values()) {
+    if (AvPar.apagados?.[q.id]) delete AvPar.apagados[q.id];      // voltou (ligou de novo, aprovaram de novo)
+    AvPar.lista.push({ ...q, em: agora }); r.novos++;
+  }
+  if (r.novos || r.mudados || r.tirados) {
+    await salvarAvisosPar();
+    if ($('#dlgAvisosPar')?.open) renderAvisosPar();
+    if (typeof renderSecretaria === 'function') renderSecretaria();
+  }
+  renderAvisosCfgCP();
+  return r;
+}
+// de hora em hora (e logo depois de abrir): lê o calendário do portal e acerta os avisos, mesmo sem abrir o card
+async function lerAvisosCP() {
+  if (!Esc.portal?.url || !Esc.portal?.chave || !cfgAvisosCP().ligado || $('#dlgCalPastoral')?.open) return;
+  try { CP.dados = await chamarPortal('agendaLer'); await atualizarAvisosCP(); } catch (_) { /* sem internet: fica como está */ }
+}
+async function mudarAvisosCfgCP(mudar) {
+  try { await gravarCfgPortal({ avisosCal: { ...cfgAvisosCP(), ...mudar } }); }
+  catch (e) { toast('⚠ ' + e.message); }
+  const r = await atualizarAvisosCP();
+  renderCalPastoral();
+  if (r && (r.novos || r.tirados)) toast(`📢 Avisos do calendário: ${r.novos ? r.novos + ' entrou(aram)' : ''}${r.novos && r.tirados ? ', ' : ''}${r.tirados ? r.tirados + ' saiu(saíram)' : ''}.`);
+}
+// 🔕 um evento só (no 📅 Calendário ou no 🗑 da lista de avisos)
+function foraAvisoCP(calId, fora) {
+  const c = cfgAvisosCP(), lista = c.fora.filter(x => x !== calId);
+  if (fora) lista.push(calId);
+  return mudarAvisosCfgCP({ fora: lista });
+}
+function renderAvisosCfgCP() {
+  if (!$('#calAvLigado')) return;
+  const c = cfgAvisosCP(), semanas = c.dias % 7 === 0;
+  $('#calAvLigado').checked = c.ligado;
+  if (document.activeElement?.id !== 'calAvN') $('#calAvN').value = semanas ? c.dias / 7 : c.dias;
+  $('#calAvUn').value = semanas ? '7' : '1';
+  $('#calAvMais').hidden = !c.ligado;
+  $('#calAvPast').innerHTML = pastoraisCP().map(p => `<label class="esc-chk pequeno"><input type="checkbox" data-cp-avp="${esc(p.id)}" ${c.pastoraisFora.includes(p.id) ? '' : 'checked'}>
+    <span class="cp-cor" style="background:${corCP(p.id)}"></span>${esc(p.nome)}</label>`).join('');
+  const n = typeof AvPar !== 'undefined' ? AvPar.lista.filter(a => a.auto === 'cal').length : 0;
+  $('#calAvInfo').textContent = c.ligado ? `${n} aviso(s) do calendário programado(s) agora${c.fora.length ? ` · ${c.fora.length} evento(s) marcado(s) com 🔕 (não avisar)` : ''}.` : 'Desligado: os eventos do calendário não viram aviso.';
 }
 
 function eventosMesCP() {
@@ -792,6 +907,16 @@ function renderCalPastoral() {
   if (CP.aba === 'cal') renderCpLista();
   if (CP.aba === 'aprovar') renderCpAprovar();
   if (CP.aba === 'rel') renderCpRel();
+  if (CP.aba === 'pastorais') renderAvisosCfgCP();
+}
+// 📢/🔕 de um evento na lista do mês (só aprovados que ainda não passaram, com os avisos automáticos ligados)
+function botaoAvisoCP(e) {
+  const c = cfgAvisosCP();
+  if (!c.ligado || e.situacao || (e.fim || e.ini) < hojeIso()) return '';
+  if (c.pastoraisFora.includes(e.pastoral)) return '<span class="sutil pequeno" title="Esta pastoral está desmarcada em ⛪ Pastorais e programação › 📢 Avisos automáticos">🔕</span> ';
+  const fora = c.fora.includes(e.id);
+  return fora ? '<button type="button" data-cp-av="nao" title="Este evento NÃO vai para os avisos paroquiais. Clique para voltar a avisar.">🔕</button> '
+    : '<button type="button" data-cp-av="sim" title="Vai para os avisos paroquiais (todas as celebrações) antes do evento. Clique para não avisar este.">📢</button> ';
 }
 
 // ---------------------------------------------------------------- ✅ aprovar, um a um (portal 0.3.0)
@@ -889,7 +1014,7 @@ function renderCpLista() {
         <td>${esc(e.hora || '')}</td><td><b>${marcaCP(e)}${e.origem === 'sec' ? '🎉 ' : ''}${esc(e.titulo)}</b>${esperaCP(e)}${e.desc ?`<br><small class="sutil">${esc(e.desc.slice(0, 140))}${e.desc.length > 140 ? '…' : ''}</small>` : ''}</td>
         <td><span class="cp-cor" style="background:${corCP(e.pastoral)}"></span>${esc(nomeCP(e.pastoral))}</td><td>${esc(e.local || '')}</td>
         <td><small class="sutil">${esc(e.porNome || e.autorNome || '')}</small></td>
-        <td class="esc-acoes">${e.situacao === 'provisorio' || e.pedido ? '<button type="button" data-cp-apr class="primario" title="Abrir na aba ✅ Aprovar">✅ Ver</button> ' : ''}${e.origem === 'sec' ? '<button type="button" data-cp-sec title="Este vem dos 🎉 Eventos com QR code: mude por lá">🎉 Mudar em Eventos</button>' : '<button type="button" data-cp-ed>Mudar</button>'}</td></tr>`).join('')}</tbody></table>`;
+        <td class="esc-acoes">${botaoAvisoCP(e)}${e.situacao === 'provisorio' || e.pedido ? '<button type="button" data-cp-apr class="primario" title="Abrir na aba ✅ Aprovar">✅ Ver</button> ' : ''}${e.origem === 'sec' ? '<button type="button" data-cp-sec title="Este vem dos 🎉 Eventos com QR code: mude por lá">🎉 Mudar em Eventos</button>' : '<button type="button" data-cp-ed>Mudar</button>'}</td></tr>`).join('')}</tbody></table>`;
 }
 
 const marcaCP = e => e.situacao === 'provisorio' ? '⏳ ' : e.situacao === 'recusado' ? '✖ ' : e.pedido ? '🔁 ' : '';
@@ -1046,6 +1171,19 @@ function ligarPortalEsc() {
   $('#calrVer').addEventListener('click', verRelatoriosCP);
   $('#calrImprimir').addEventListener('click', imprimirRelatoriosCP);
   $('#calAprovar').addEventListener('change', e => { if (e.target.id === 'calAjIni' || e.target.id === 'calAjFim') conflitosAjusteCP(); });
+  // (1.7.4) 📢 avisos automáticos
+  $('#calAvLigado').addEventListener('change', e => mudarAvisosCfgCP({ ligado: e.target.checked }));
+  const diasAvCP = () => { const n = Math.max(1, Math.min(99, Math.round(+$('#calAvN').value) || 3)); return Math.min(120, n * +$('#calAvUn').value); };
+  $('#calAvN').addEventListener('change', () => mudarAvisosCfgCP({ dias: diasAvCP() }));
+  $('#calAvUn').addEventListener('change', () => mudarAvisosCfgCP({ dias: diasAvCP() }));
+  $('#calAvPast').addEventListener('change', e => {
+    const p = e.target.dataset.cpAvp; if (!p) return;
+    const fora = cfgAvisosCP().pastoraisFora.filter(x => x !== p);
+    if (!e.target.checked) fora.push(p);
+    mudarAvisosCfgCP({ pastoraisFora: fora });
+  });
+  setTimeout(lerAvisosCP, 30000);
+  setInterval(lerAvisosCP, 3600000);
   // botões que aparecem nos três lugares
   for (const raiz of [painel, $('#dlgPortalCfg'), $('#dlgCalPastoral')]) raiz.addEventListener('click', e => {
     const cp = e.target.closest('[data-pt-copiar]');
@@ -1087,6 +1225,8 @@ function ligarPortalEsc() {
     if (tr && e.target.closest('[data-cp-ed]')) return abrirFormCP((CP.dados?.eventos || []).find(x => x.id === tr.dataset.cpId));
     if (tr && e.target.closest('[data-cp-sec]')) { $('#dlgCalPastoral').close(); return abrirEventos(); }
     if (tr && e.target.closest('[data-cp-apr]')) { CP.apr = tr.dataset.cpId; CP.aba = 'aprovar'; return renderCalPastoral(); }
+    const av = tr && e.target.closest('[data-cp-av]');
+    if (av) { av.disabled = true; return foraAvisoCP(tr.dataset.cpId, av.dataset.cpAv === 'sim'); }
   });
 }
 

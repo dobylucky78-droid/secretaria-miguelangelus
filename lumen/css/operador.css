@@ -1567,6 +1567,11 @@ html[data-tema-app="claro"] .slide .corpo.tl .quem, html[data-tema-app="claro"] 
 .cp-apr-todos { margin-top: 6px; }
 .cp-apr-todos summary { cursor: pointer; }
 .cp-logo2 { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--borda, #3a3f48); }
+.cp-av-past { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0 6px; }
+.cp-av-past .esc-chk { margin: 0; }
+.cp-av-dias { margin: 6px 0; line-height: 2; }
+dialog .form .cp-av-dias input { width: 4.5em !important; display: inline-block !important; margin: 0 4px; }
+dialog .form .cp-av-dias select { width: auto !important; display: inline-block !important; margin: 0 4px; }
 .cp-logo2-previa img { height: 48px; background: #1b1e24; border-radius: 8px; padding: 4px 8px; vertical-align: middle; }
 .esc-pt-avancado { margin-top: 18px; }
 .esc-pt-avancado summary { cursor: pointer; }
