@@ -1534,6 +1534,21 @@ html[data-tema-app="claro"] .slide .corpo.tl .quem, html[data-tema-app="claro"] 
 .esc-pt-criar .esc-pt-passos li { margin: 0 0 3px; }
 .esc-pt-passos li.ok { color: #6fcf7f; } .esc-pt-passos li.erro { color: #ff8a80; } .esc-pt-passos li.ag { font-weight: 600; }
 #ptSituacao a { color: #e0b43c; }
+.esc-pt-conta { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 10px; padding: 8px 12px; border: 1px solid var(--borda, #3a3f48); border-radius: 8px; }
+.esc-pt-conta label { display: flex; gap: 8px; align-items: center; justify-content: flex-start; text-align: left; cursor: pointer; }
+.esc-pt-conta input[type=radio] { width: auto; flex: none; margin: 0; }
+/* (1.7.1) 📆 calendário pastoral e o portal em três lugares */
+.pt-link-linha { margin: 0 0 8px; }
+.esc-pt-sem-area td { opacity: .75; }
+.esc-pt-pediu { color: var(--cor, #d4a93a); }
+.cp-mes { min-width: 10em; text-align: center; font-size: 1.05rem; }
+.cp-mes::first-letter { text-transform: uppercase; }
+.cp-dia { white-space: nowrap; }
+.cp-cor { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+.cp-lista { max-height: 55vh; overflow: auto; }
+.cp-rel { border-left: 4px solid var(--cor, #d4a93a); padding: 6px 10px; margin: 6px 0 10px; }
+.cp-logo2 { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--borda, #3a3f48); }
+.cp-logo2-previa img { height: 48px; background: #1b1e24; border-radius: 8px; padding: 4px 8px; vertical-align: middle; }
 .esc-pt-avancado { margin-top: 18px; }
 .esc-pt-avancado summary { cursor: pointer; }
 .esc-pt-passos kbd { border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; font-size: .85em; opacity: .85; }

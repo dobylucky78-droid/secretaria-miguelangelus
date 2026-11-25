@@ -910,7 +910,9 @@ function carregarRascMissal(ed) {
   Ms.edicao = ed;
 }
 function abrirTabelaMissal() {
-  Ms.todos = [...listaOEs().map(o => ({ id: o.id, nome: o.nome, grupo: 'Orações Eucarísticas' })), ...listaPrefacios(), ...PARTES_MISSAL, ...BENCAOS_SOLENES, ...listaMissaDoDia()];
+  Ms.todos = [...listaOEs().map(o => ({ id: o.id, nome: o.nome, grupo: 'Orações Eucarísticas' })), // (1.9.22, Luciano) os prefácios dos Domingos da Quaresma ficam dentro da Missa do domingo: na tabela só aparece a
+    // celebração (mais abaixo); a página deles continua em MISSAL_PAGINAS (qd1–qd5) para a 💡 Dica e o seletor
+    ...listaPrefacios().filter(p => !/^qd\d$/.test(p.id)), ...PARTES_MISSAL, ...BENCAOS_SOLENES, ...listaMissaDoDia()];
   Ms.rascs = {}; Ms.edicao = '';
   carregarRascMissal(edicaoMissal());
   $('#msEdicao').value = Ms.edicao;

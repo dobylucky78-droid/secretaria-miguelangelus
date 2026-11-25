@@ -30,12 +30,16 @@ namespace MiguelAngelus
         readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
         readonly string arquivo = Path.Combine(Program.PastaDados, "google-portal.dat");
         string clienteId, clienteSegredo, refreshToken, accessToken, email;
+        // (1.7.1) "1" = conta à parte: o portal (e as agendas) usam um arquivo do Google próprio, de outra conta,
+        // sem depender do projeto da ☁ nuvem. Vazio = o mesmo arquivo da nuvem (como na 1.7.0).
+        string proprio;
         DateTime expira;
 
         public GooglePortal(HttpClient http) { this.http = http; Carregar(); }
 
         public bool TemCliente => !string.IsNullOrEmpty(clienteId);
         public bool Conectado => !string.IsNullOrEmpty(refreshToken);
+        public bool Proprio => proprio == "1";
         public string Email => email;
 
         void Carregar()
@@ -46,14 +50,14 @@ namespace MiguelAngelus
                 var d = json.Deserialize<Dictionary<string, string>>(Encoding.UTF8.GetString(
                     ProtectedData.Unprotect(File.ReadAllBytes(arquivo), null, DataProtectionScope.CurrentUser)));
                 d.TryGetValue("cliente", out clienteId); d.TryGetValue("segredo", out clienteSegredo);
-                d.TryGetValue("refresh", out refreshToken); d.TryGetValue("email", out email);
+                d.TryGetValue("refresh", out refreshToken); d.TryGetValue("email", out email); d.TryGetValue("proprio", out proprio);
             }
             catch { }
         }
 
         void Guardar()
         {
-            var d = new Dictionary<string, string> { ["cliente"] = clienteId, ["segredo"] = clienteSegredo, ["refresh"] = refreshToken, ["email"] = email };
+            var d = new Dictionary<string, string> { ["cliente"] = clienteId, ["segredo"] = clienteSegredo, ["refresh"] = refreshToken, ["email"] = email, ["proprio"] = proprio };
             Directory.CreateDirectory(Path.GetDirectoryName(arquivo));
             File.WriteAllBytes(arquivo, ProtectedData.Protect(Encoding.UTF8.GetBytes(json.Serialize(d)), null, DataProtectionScope.CurrentUser));
         }
@@ -61,9 +65,30 @@ namespace MiguelAngelus
         // o mesmo ID do cliente da nuvem; se a nuvem trocou de cliente, o acesso antigo não vale mais
         public void UsarCliente(string id, string segredo)
         {
-            if (string.IsNullOrEmpty(id) || id == clienteId) return;
+            if (Proprio || string.IsNullOrEmpty(id) || id == clienteId) return;      // conta à parte: a nuvem não manda aqui
             if (clienteId != null) { refreshToken = null; accessToken = null; email = null; }
             clienteId = id; clienteSegredo = segredo;
+        }
+
+        // (1.7.1) conta à parte: o arquivo JSON do ID do cliente (Google Cloud → Clientes → App para computador)
+        public void DefinirCliente(string textoJson)
+        {
+            var raiz = json.Deserialize<Dictionary<string, object>>(textoJson);
+            var inst = (raiz.TryGetValue("installed", out var i) ? i : raiz.TryGetValue("web", out var w) ? w : raiz) as Dictionary<string, object>;
+            var id = inst != null && inst.TryGetValue("client_id", out var ci) ? ci as string : null;
+            var seg = inst != null && inst.TryGetValue("client_secret", out var s) ? s as string : null;
+            if (string.IsNullOrEmpty(id) || !id.EndsWith(".apps.googleusercontent.com")) throw new InvalidOperationException("este arquivo não é um ID do cliente OAuth do Google");
+            if (id != clienteId) { refreshToken = null; accessToken = null; email = null; }
+            clienteId = id; clienteSegredo = seg; proprio = "1";
+            Guardar();
+        }
+
+        // (1.7.1) volta a usar o arquivo da ☁ nuvem (sai da conta à parte)
+        public void UsarDaNuvem(string id, string segredo)
+        {
+            proprio = null; refreshToken = null; accessToken = null; email = null;
+            clienteId = string.IsNullOrEmpty(id) ? null : id; clienteSegredo = segredo;
+            Guardar();
         }
 
         public void Desconectar() { refreshToken = null; accessToken = null; email = null; Guardar(); }
