@@ -23,11 +23,14 @@
  *                   (0.2.0) agenda pastoral: todos que entram veem tudo; cada um põe e muda os eventos das pastorais dele
  *                   (u.pastorais); quem a secretaria marcou como "admin" muda qualquer evento. "paroquia" = eventos da secretaria.
  *                   origem 'sec' (ref = id na Secretaria): os 🎉 eventos com cartaz da Secretaria, que só ela muda (agendaSecretaria).
+ *                   (0.3.0) aprovação: situacao 'provisorio' (posto por coordenador, só quem entra vê) | 'recusado' (só a pastoral vê)
+ *                   | sem situacao = aprovado. Num aprovado, mudar dia/hora/local vira pedido: { ini, fim, hora, local, cancelar?, por, porNome, em }
+ *                   (o aprovado continua valendo até a secretaria decidir); recusa: { motivo, em } = a última que a secretaria não aprovou.
  *  relatorios.json  { 'pastoral|AAAA-MM': { texto, participantes, por, porNome, em } }   (0.2.0) resumo das atividades do mês
  * LGPD: só nome e e-mail de quem acessa; nas escalas, só nomes. Funções de menores (coroinhas) vão com o 1º nome e a inicial.
  */
 
-const VERSAO_PORTAL = '0.2.0';
+const VERSAO_PORTAL = '0.3.0';
 const PASTA_PORTAL = 'MiguelAngelus Portal';
 const SESSAO_SEG = 6 * 3600;           // a sessão dura 6 horas (limite do CacheService)
 const ITERACOES = 1000;                // PBKDF2-HMAC-SHA256
@@ -233,11 +236,19 @@ const podePastoral_ = (u, pid) => !!u.admin || (pid !== PAROQUIA_.id && (u.pasto
 // os eventos com cartaz que vieram da Secretaria só mudam lá
 const podeEvento_ = (u, e) => e.origem !== 'sec' && podePastoral_(u, e.pastoral);
 // relatório do mês: só das pastorais da própria pessoa (a "paróquia" não tem relatório)
-const relPastorais_ = u => listaPastorais_().filter(p => p.id !== PAROQUIA_.id && (u.admin || (u.pastorais || []).indexOf(p.id) >= 0));
+// (0.3.0) só as marcadas para a pessoa, mesmo com "muda tudo" (a secretaria lê todos no card dela)
+const relPastorais_ = u => listaPastorais_().filter(p => p.id !== PAROQUIA_.id && (u.pastorais || []).indexOf(p.id) >= 0);
 const mesOk_ = m => /^\d{4}-(0[1-9]|1[0-2])$/.test(String(m || ''));
 const dataOk_ = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !isNaN(new Date(s + 'T12:00:00').getTime());
 const eventos_ = () => ler_('agenda.json', { eventos: [] }).eventos || [];
 const doAno_ = (e, ano) => e.ini.slice(0, 4) <= ano && (e.fim || e.ini).slice(0, 4) >= ano;
+// (0.3.0) aprovação da secretaria: o que as coordenações põem fica ⏳ provisório (só quem entra vê) até ela aprovar;
+// num evento aprovado, dia, hora e local viram pedido (vale o aprovado até ela decidir); nome e detalhes mudam na hora.
+const QUANDO_ = ['ini', 'fim', 'hora', 'local'];
+const aprovado_ = e => !e.situacao;
+const mudouQuando_ = (a, b) => QUANDO_.some(k => String(a[k] || '') !== String(b[k] || ''));
+// o pedido no ano também conta (mudar para outro ano)
+const doAnoOuPedido_ = (e, ano) => doAno_(e, ano) || (e.pedido && !e.pedido.cancelar && doAno_(e.pedido, ano));
 function limparEvento_(e, pastorais) {
   const titulo = texto_(e.titulo, 120);
   if (titulo.length < 2) throw falha_('Escreva o nome do evento.');
@@ -308,7 +319,7 @@ const PORTAL_ = {
       paroquia: props_().getProperty('paroquia') || '',
       eu: { nome: u.nome, email: u.email, trocarSenha: !!u.trocarSenha, admin: !!u.admin,
         funcoes: (u.funcoes || []).map(id => ({ id, nome: (fs.find(f => f.id === id) || {}).nome || id })),
-        pastorais: listaPastorais_().filter(p => podePastoral_(u, p.id)) },
+        pastorais: listaPastorais_().filter(p => podePastoral_(u, p.id)), relatorio: relPastorais_(u) },
       meses,
     };
   },
@@ -319,13 +330,16 @@ const PORTAL_ = {
     // sem entrar: só ver (se a secretaria deixou aberta), sem os nomes de quem pôs ou mudou
     if (!d.token) {
       if (!agendaAberta_()) throw falha_('A agenda só abre para quem entra no portal.');
+      // (0.3.0) só os aprovados, como foram aprovados (sem os pedidos de mudança)
       return { ano, pastorais: listaPastorais_(), admin: false, publico: true,
-        eventos: eventos_().filter(e => doAno_(e, ano)).map(e => ({ id: e.id, titulo: e.titulo, ini: e.ini, fim: e.fim || '', hora: e.hora || '',
+        eventos: eventos_().filter(e => aprovado_(e) && doAno_(e, ano)).map(e => ({ id: e.id, titulo: e.titulo, ini: e.ini, fim: e.fim || '', hora: e.hora || '',
           local: e.local || '', pastoral: e.pastoral, desc: e.desc || '', origem: e.origem || '', meu: false })) };
     }
     const u = sessao_(d);
+    // quem entra (coordenadores) vê também os ⏳ provisórios e os pedidos; os recusados, só a própria pastoral
     return { ano, pastorais: listaPastorais_(), admin: !!u.admin,
-      eventos: eventos_().filter(e => doAno_(e, ano)).map(e => Object.assign({}, e, { meu: podeEvento_(u, e) })) };
+      eventos: eventos_().filter(e => doAnoOuPedido_(e, ano) && (e.situacao !== 'recusado' || podeEvento_(u, e)))
+        .map(e => Object.assign({}, e, { meu: podeEvento_(u, e) })) };
   },
 
   // (0.2.0) 📝 relatório das atividades do mês, por pastoral (para a secretaria juntar os relatórios)
@@ -360,10 +374,32 @@ const PORTAL_ = {
       if (id && !e) throw falha_('Este evento não existe mais (alguém apagou). Atualize a agenda.');
       if (e && e.origem === 'sec') throw falha_('Este evento foi marcado na Secretaria: só ela muda.');
       if (e && !podePastoral_(u, e.pastoral)) throw falha_('Só a própria pastoral (ou a secretaria) muda este evento.');
-      if (!e) { e = { id: novoId_(), criado: agora_(), autor: u.id, autorNome: u.nome }; evs.push(e); }
-      Object.assign(e, novo, { por: u.id, porNome: u.nome, em: agora_() });
+      const quem = { por: u.id, porNome: u.nome, em: agora_() };
+      let msg = 'Evento salvo.';
+      if (e) delete e.ajuste;          // o aviso "aprovado com ajuste" já foi visto
+      if (!e) {
+        e = Object.assign({ id: novoId_(), criado: agora_(), autor: u.id, autorNome: u.nome }, novo, quem);
+        // quem a secretaria marcou para mudar tudo não precisa de aprovação
+        if (!u.admin) { e.situacao = 'provisorio'; msg = 'Evento salvo como ⏳ provisório: só os coordenadores veem até a secretaria aprovar.'; }
+        evs.push(e);
+      } else if (u.admin) {
+        Object.assign(e, novo, quem); delete e.situacao; delete e.pedido; delete e.recusa;
+      } else if (!aprovado_(e)) {
+        // provisório (ou recusado, que volta a esperar): muda tudo, continua esperando
+        Object.assign(e, novo, quem, { situacao: 'provisorio' }); delete e.recusa;
+        msg = 'Evento salvo. Continua ⏳ provisório até a secretaria aprovar.';
+      } else {
+        // aprovado: nome, pastoral e detalhes mudam na hora; dia, hora e local viram pedido
+        const quando = {}, det = Object.assign({}, novo);
+        QUANDO_.forEach(k => { quando[k] = novo[k]; delete det[k]; });
+        Object.assign(e, det, quem);
+        if (mudouQuando_(quando, e)) {
+          e.pedido = Object.assign(quando, { por: u.id, porNome: u.nome, em: agora_() }); delete e.recusa;
+          msg = 'Detalhes salvos. A mudança de dia, hora ou local foi para a aprovação da secretaria: até lá, vale o que já estava aprovado.';
+        } else if (e.pedido && !e.pedido.cancelar) delete e.pedido;     // voltou ao que estava aprovado
+      }
       gravar_('agenda.json', ag);
-      return { id: e.id, msg: 'Evento salvo.' };
+      return { id: e.id, msg };
     });
   },
 
@@ -374,6 +410,12 @@ const PORTAL_ = {
       if (!e) return { msg: 'Este evento já tinha sido apagado.' };
       if (e.origem === 'sec') throw falha_('Este evento foi marcado na Secretaria: só ela apaga.');
       if (!podePastoral_(u, e.pastoral)) throw falha_('Só a própria pastoral (ou a secretaria) apaga este evento.');
+      // (0.3.0) o que já foi aprovado (todos veem) só sai com a aprovação da secretaria
+      if (aprovado_(e) && !u.admin) {
+        e.pedido = { cancelar: true, por: u.id, porNome: u.nome, em: agora_() }; delete e.recusa;
+        gravar_('agenda.json', ag);
+        return { msg: 'O pedido para tirar o evento foi para a secretaria. Até ela aprovar, o evento continua no calendário.' };
+      }
       ag.eventos = evs.filter(x => x.id !== id);
       gravar_('agenda.json', ag);
       return { msg: 'Evento apagado.' };
@@ -541,8 +583,44 @@ const SEC_ = {
       if (e && e.origem === 'sec') throw falha_('Este evento vem dos 🎉 Eventos da Secretaria: mude por lá.');
       if (!e) { e = { id: novoId_(), criado: agora_(), autor: 'secretaria', autorNome: 'Secretaria' }; evs.push(e); }
       Object.assign(e, novo, { por: 'secretaria', porNome: 'Secretaria', em: agora_() });
+      // (0.3.0) o que a secretaria salva já está aprovado; um pedido que ficou igual ao que ela pôs some
+      if (e.situacao) { delete e.situacao; delete e.recusa; e.aprovado = agora_(); }
+      if (e.pedido && !e.pedido.cancelar && !mudouQuando_(e.pedido, e)) delete e.pedido;
       gravar_('agenda.json', ag);
       return { id: e.id };
+    });
+  },
+  // (0.3.0) ✅ aprovar ou não, um a um (na reunião das pastorais): um evento ⏳ provisório, ou o pedido de mudar
+  // dia/hora/local (ou de tirar) um evento aprovado. "em" = a versão que a secretaria viu (se a pastoral mudou depois, avisa).
+  agendaDecidir(d) {
+    return comTrava_(() => {
+      const ag = ler_('agenda.json', { eventos: [] }), evs = ag.eventos = ag.eventos || [];
+      const e = evs.find(x => x.id === String(d.id || ''));
+      if (!e) throw falha_('Este evento não existe mais (a pastoral apagou).');
+      const qual = e.pedido ? 'pedido' : e.situacao === 'provisorio' ? 'novo' : '';
+      if (!qual) throw falha_('Este evento não espera mais aprovação.');
+      if (d.em && d.em !== (qual === 'pedido' ? e.pedido.em : e.em)) throw falha_('A pastoral mudou este evento agora há pouco. Veja de novo antes de decidir.');
+      const motivo = texto_(d.motivo, 300), agora = agora_();
+      // ✏ aprovar com ajuste (ex.: a secretaria acerta a data na hora, sem recusar)
+      const aj = d.aprovar && d.ajuste && !(e.pedido && e.pedido.cancelar)
+        ? limparEvento_(Object.assign({}, e, qual === 'pedido' ? e.pedido : {}, d.ajuste, { titulo: d.ajuste.titulo || e.titulo, pastoral: e.pastoral }), listaPastorais_()) : null;
+      if (aj) e.ajuste = { em: agora, de: qual === 'pedido' ? { ini: e.pedido.ini, fim: e.pedido.fim || '', hora: e.pedido.hora || '', local: e.pedido.local || '' }
+        : { ini: e.ini, fim: e.fim || '', hora: e.hora || '', local: e.local || '' } };
+      else delete e.ajuste;
+      let msg;
+      if (qual === 'novo') {
+        if (d.aprovar) { if (aj) Object.assign(e, aj); delete e.situacao; delete e.recusa; e.aprovado = agora; msg = aj ? 'Aprovado com o ajuste: agora todos veem.' : 'Aprovado: agora todos veem.'; }
+        else { e.situacao = 'recusado'; e.recusa = { motivo, em: agora }; msg = 'Não aprovado: só a pastoral vê, com o motivo.'; }
+      } else if (e.pedido.cancelar) {
+        if (d.aprovar) { ag.eventos = evs.filter(x => x !== e); msg = 'Evento tirado do calendário.'; }
+        else { delete e.pedido; e.recusa = { motivo, em: agora, cancelar: true }; msg = 'O evento continua no calendário.'; }
+      } else {
+        if (d.aprovar) { const v = aj || e.pedido; QUANDO_.forEach(k => { e[k] = v[k] || ''; }); if (aj) e.titulo = aj.titulo; delete e.recusa; e.aprovado = agora; msg = aj ? 'Mudança aprovada com o ajuste.' : 'Mudança aprovada.'; }
+        else { e.recusa = { motivo, em: agora, ini: e.pedido.ini, fim: e.pedido.fim || '', hora: e.pedido.hora || '', local: e.pedido.local || '' }; msg = 'Mudança não aprovada: continua como estava.'; }
+        delete e.pedido;
+      }
+      gravar_('agenda.json', ag);
+      return { msg };
     });
   },
   // os 🎉 eventos com cartaz da Secretaria: a lista inteira (os que saíram de lá saem daqui)

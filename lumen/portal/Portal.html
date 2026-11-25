@@ -83,6 +83,9 @@
   .ag-dia.hoje .ag-num { color: var(--cor); font-weight: 700; }
   .ag-ev { display: block; width: 100%; text-align: left; font-size: .7rem; line-height: 1.25; padding: 2px 4px; border: 0; border-left: 3px solid var(--c);
     background: color-mix(in srgb, var(--c) 24%, transparent); color: var(--texto); border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ag-ev.prov, .ag-lev.prov { border-left-style: dashed; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 18%, transparent) 0 6px, transparent 6px 10px); }
+  .ag-ev.recus, .ag-lev.recus { opacity: .55; text-decoration: line-through; }
+  .ag-situ { border: 1px dashed var(--linha); border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; font-size: .9rem; }
   .ag-mais { font-size: .72rem; padding: 0 4px; border: 0; background: none; color: var(--cor); text-align: left; }
   .ag-conf { font-size: .78rem; cursor: help; }
   .ag-legenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--sutil); margin-top: 8px; }
@@ -429,7 +432,11 @@ const isoDe = (a, m, d) => `${a}-${String(m).padStart(2, '0')}-${String(d).padSt
 const somaDia = (iso, n) => { const [a, m, d] = iso.split('-').map(Number), dt = new Date(a, m - 1, d + n); return isoDe(dt.getFullYear(), dt.getMonth() + 1, dt.getDate()); };
 const hojeIso = () => { const d = new Date(); return isoDe(d.getFullYear(), d.getMonth() + 1, d.getDate()); };
 const podePor = () => ((S.eu && S.eu.pastorais) || []).length > 0;
-const titEv = e => (e.origem === 'sec' ? '🎉 ' : '') + e.titulo;
+// (0.3.0) ⏳ provisório (espera a secretaria; só quem entra vê) · 🔁 pediu para mudar dia/hora/local ou tirar · ✖ não aprovado
+const marcaEv = e => e.situacao === 'provisorio' ? '⏳ ' : e.situacao === 'recusado' ? '✖ ' : e.pedido ? '🔁 ' : '';
+const classeEv = e => e.situacao === 'provisorio' ? ' prov' : e.situacao === 'recusado' ? ' recus' : '';
+const titEv = e => marcaEv(e) + (e.origem === 'sec' ? '🎉 ' : '') + e.titulo;
+const esperando = e => e.situacao === 'provisorio' || !!e.pedido;
 const periodo = e => e.fim ? `${dataCurta(e.ini)} a ${dataCurta(e.fim)}` : dataCurta(e.ini);
 
 async function carregarAgenda(ano) {
@@ -439,7 +446,7 @@ async function carregarAgenda(ano) {
 }
 function eventosDoDia(iso, todos) {
   return ((S.ag && S.ag.eventos) || []).filter(e => e.ini <= iso && (e.fim || e.ini) >= iso
-      && (todos || !S.agFiltro || (S.agFiltro === '_meus' ? e.meu : e.pastoral === S.agFiltro)))
+      && (todos ? e.situacao !== 'recusado' : !S.agFiltro || (S.agFiltro === '_meus' ? e.meu : S.agFiltro === '_espera' ? esperando(e) : e.pastoral === S.agFiltro)))
     .sort((a, b) => (a.hora || '99').localeCompare(b.hora || '99') || a.titulo.localeCompare(b.titulo, 'pt-BR'));
 }
 const conflito = iso => new Set(eventosDoDia(iso, true).map(e => e.pastoral)).size > 1;
@@ -452,6 +459,7 @@ function htmlAgenda(aviso, ok) {
   const [a, m] = S.agMes.split('-').map(Number);
   const filtro = `<select id="agFiltro" class="campo" aria-label="Mostrar"><option value="">Todas as pastorais</option>`
     + (podePor() ? `<option value="_meus"${S.agFiltro === '_meus' ? ' selected' : ''}>Só o que eu posso mudar</option>` : '')
+    + (S.publico ? '' : `<option value="_espera"${S.agFiltro === '_espera' ? ' selected' : ''}>⏳ Esperando a secretaria</option>`)
     + ag.pastorais.map(p => `<option value="${esc(p.id)}"${p.id === S.agFiltro ? ' selected' : ''}>${esc(p.nome)}</option>`).join('') + '</select>';
   const usadas = new Set((ag.eventos || []).map(e => e.pastoral));
   return `<div class="cartao">${msg(aviso, ok)}
@@ -461,7 +469,8 @@ function htmlAgenda(aviso, ok) {
     <div class="linha">${filtro}<span class="espaco"></span>${podePor() ? '<button type="button" class="primario" id="agNovo">＋ Novo evento</button>' : ''}</div>
     ${S.agVista === 'cal' ? htmlCalendario(a, m) : htmlListaMes(a, m)}
     <p class="pequeno sutil">${podePor() ? `Toque num dia para pôr um evento. Você muda os eventos de: <b>${S.eu.pastorais.map(p => esc(p.nome)).join(', ')}</b>.`
-      : S.publico ? 'Coordena uma pastoral? Clique em <b>Entrar</b> para pôr os eventos dela.' : 'Para pôr eventos, peça à secretaria para ligar a sua pastoral.'} ⚠ = mais de uma pastoral no mesmo dia (pode, mas vale combinar).</p>
+      : S.publico ? 'Coordena uma pastoral? Clique em <b>Entrar</b> para pôr os eventos dela.' : 'Para pôr eventos, peça à secretaria para ligar a sua pastoral.'} ⚠ = mais de uma pastoral no mesmo dia (pode, mas vale combinar).
+      ${S.publico ? '' : '<br>⏳ = provisório: espera a aprovação da secretaria e só os coordenadores veem. 🔁 = pediram para mudar o dia, a hora ou o local (ou tirar); até a secretaria aprovar, vale o que está aqui.'}</p>
     <div class="ag-legenda">${ag.pastorais.filter(p => usadas.has(p.id)).map(p => `<span><i style="background:${corPastoral(p.id)}"></i>${esc(p.nome)}</span>`).join('')}</div>
     <p class="pequeno sutil" style="margin:12px 0 0">📱 Para abrir mais rápido: no celular, no menu do navegador (⋮ ou ⬆ Compartilhar), toque em <b>Adicionar à tela inicial</b>.</p></div>`;
 }
@@ -475,7 +484,7 @@ function htmlCalendario(a, m) {
     const evs = fora ? [] : eventosDoDia(iso);
     h += `<div class="ag-dia${fora ? ' fora' : podePor() ? ' pode' : ''}${iso === hoje ? ' hoje' : ''}"${fora ? '' : ` data-dia="${iso}"`}>
       <div class="ag-num">${+iso.slice(8)}${fora ? '' : marcaConflito(iso)}</div>
-      ${evs.slice(0, 4).map(e => `<button type="button" class="ag-ev" data-ev="${esc(e.id)}" style="--c:${corPastoral(e.pastoral)}" title="${esc(nomePastoral(e.pastoral))}: ${esc(e.titulo)}">${e.hora ? esc(e.hora) + ' ' : ''}${esc(titEv(e))}</button>`).join('')}
+      ${evs.slice(0, 4).map(e => `<button type="button" class="ag-ev${classeEv(e)}" data-ev="${esc(e.id)}" style="--c:${corPastoral(e.pastoral)}" title="${esc(nomePastoral(e.pastoral))}: ${esc(e.titulo)}">${e.hora ? esc(e.hora) + ' ' : ''}${esc(titEv(e))}</button>`).join('')}
       ${evs.length > 4 ? `<button type="button" class="ag-mais" data-lista="1">+${evs.length - 4}</button>` : ''}</div>`;
   }
   return h + '</div>';
@@ -489,7 +498,7 @@ function htmlListaMes(a, m) {
     if (!evs.length) continue;
     h += `<div class="ag-ldia${iso === hojeIso() ? ' hoje' : ''}"><div class="ag-ldata">${dataCurta(iso)}${marcaConflito(iso)}
         ${podePor() ? ` <button type="button" class="link pequeno" data-novo-dia="${iso}" title="Pôr um evento neste dia">＋</button>` : ''}</div>
-      ${evs.map(e => `<button type="button" class="ag-lev" data-ev="${esc(e.id)}" style="--c:${corPastoral(e.pastoral)}"><b>${e.hora ? esc(e.hora) + ' · ' : ''}${esc(titEv(e))}</b>
+      ${evs.map(e => `<button type="button" class="ag-lev${classeEv(e)}" data-ev="${esc(e.id)}" style="--c:${corPastoral(e.pastoral)}"><b>${e.hora ? esc(e.hora) + ' · ' : ''}${esc(titEv(e))}</b>
         <span class="sutil pequeno">${esc(nomePastoral(e.pastoral))}${e.fim ? ' · ' + periodo(e) : ''}${e.local ? ' · ' + esc(e.local) : ''}</span></button>`).join('')}</div>`;
   }
   return h || `<p class="sutil">Nada marcado neste mês${S.agFiltro ? ' com este filtro' : ''}.</p>`;
@@ -531,7 +540,7 @@ function avisoDoDia(ini, fim, pastoral, id) {
 }
 
 // ------------------------------------------------------------ 📝 relatório das atividades do mês (por pastoral)
-const relPast = () => ((S.eu && S.eu.pastorais) || []).filter(p => p.id !== 'paroquia');
+const relPast = () => (S.eu && S.eu.relatorio) || [];      // (0.3.0) só as pastorais marcadas para a pessoa
 function mesPadraoRel() {   // até o dia 15, o relatório é do mês que passou
   const d = new Date(); if (d.getDate() <= 15) d.setMonth(d.getMonth() - 1);
   return isoDe(d.getFullYear(), d.getMonth() + 1, 1).slice(0, 7);
@@ -621,6 +630,22 @@ function linkGoogleAgenda(ev) {
     + '&details=' + encodeURIComponent(descDoEvento(ev)) + (ev.local ? '&location=' + encodeURIComponent(ev.local) : '');
 }
 
+// (0.3.0) o que espera a secretaria (ou o que ela não aprovou), para quem entra
+function htmlSituacao(ev) {
+  if (S.publico) return '';
+  const mot = r => r && r.motivo ? `: “${esc(r.motivo)}”` : '';
+  const p = ev.pedido, r = ev.recusa;
+  let h = '';
+  if (ev.situacao === 'provisorio') h = '⏳ <b>Provisório</b>: espera a aprovação da secretaria. Por enquanto só os coordenadores veem.';
+  else if (ev.situacao === 'recusado') h = `✖ <b>A secretaria não aprovou este evento</b>${mot(r)}. Só a sua pastoral vê. Mude e salve para pedir de novo, ou apague.`;
+  else if (p && p.cancelar) h = `🔁 <b>${esc(p.porNome || 'A pastoral')} pediu para tirar este evento.</b> Até a secretaria aprovar, ele continua no calendário.`;
+  else if (p) h = `🔁 <b>Mudança pedida</b> por ${esc(p.porNome || '—')}: 📅 ${periodo(p)}${p.hora ? ' · 🕒 ' + esc(p.hora) : ''}${p.local ? ' · 📍 ' + esc(p.local) : ''}.<br>Até a secretaria aprovar, vale o que está acima.`;
+  else if (ev.ajuste && ev.meu) { const a = ev.ajuste.de || {};
+    h = `✅ <b>A secretaria aprovou com um ajuste.</b> Pedido: ${periodo(a)}${a.hora ? ' às ' + esc(a.hora) : ''}${a.local ? ', ' + esc(a.local) : ''}. Ficou como está acima.`; }
+  else if (r && ev.meu) h =`A secretaria não aprovou ${r.cancelar ? 'o pedido para tirar o evento' : `a mudança para ${periodo(r)}${r.hora ? ' às ' + esc(r.hora) : ''}${r.local ? ', ' + esc(r.local) : ''}`}${mot(r)}.`;
+  return h ? `<p class="ag-situ">${h}</p>` : '';
+}
+
 // detalhes do evento: todos veem; quem pode mudar vê o ✏
 function telaDetalhe(ev) {
   if (!ev) return telaPrincipal();
@@ -630,7 +655,8 @@ function telaDetalhe(ev) {
   $('#raiz').innerHTML = `<div class="cartao ag-det"><h2>${esc(ev.titulo)}</h2>
     <p><span class="ag-legenda"><span><i style="background:${corPastoral(ev.pastoral)}"></i>${esc(nomePastoral(ev.pastoral))}${ev.origem === 'sec' ? ' · 🎉 evento da paróquia' : ''}</span></span></p>
     <p>📅 ${periodo(ev)}${ev.hora ? ' · 🕒 ' + esc(ev.hora) : ''}${ev.local ? '<br>📍 ' + esc(ev.local) : ''}</p>
-    ${ev.desc ? `<p style="white-space:pre-wrap">${esc(ev.desc)}</p>` : ''}
+    ${htmlSituacao(ev)}
+    ${ev.desc ?`<p style="white-space:pre-wrap">${esc(ev.desc)}</p>` : ''}
     <div class="linha" style="margin:12px 0">
       <button type="button" id="agIcs" class="primario" title="Baixa o evento: no celular, abra o arquivo e ele vai para a agenda">📲 Pôr na agenda do celular</button>
       <a class="botao" id="agGoogle" href="${esc(linkGoogleAgenda(ev))}" target="_blank" rel="noopener">Google Agenda ↗</a>
@@ -648,8 +674,15 @@ function telaEvento(ev, dia, aviso) {
   const novo = !ev;
   $('#raiz').onclick = null;
   if (!novo && !ev.meu) return telaDetalhe(ev);
-  const e = ev || { titulo: '', ini: dia, fim: '', hora: '', local: '', pastoral: (S.eu.pastorais.find(p => p.id === S.agFiltro) || S.eu.pastorais.find(p => p.id !== 'paroquia') || S.eu.pastorais[0]).id, desc: '' };
+  const e0 = ev || { titulo: '', ini: dia, fim: '', hora: '', local: '', pastoral: (S.eu.pastorais.find(p => p.id === S.agFiltro) || S.eu.pastorais.find(p => p.id !== 'paroquia') || S.eu.pastorais[0]).id, desc: '' };
+  // (0.3.0) num aprovado com mudança pedida, o formulário mostra o que foi pedido (para ajustar o pedido)
+  const e = e0.pedido && !e0.pedido.cancelar ? Object.assign({}, e0, { ini: e0.pedido.ini, fim: e0.pedido.fim || '', hora: e0.pedido.hora || '', local: e0.pedido.local || '' }) : e0;
+  const admin = !!(S.eu && S.eu.admin), aprovadoJa = !novo && !ev.situacao;
+  const regra = admin ? '' : novo ? 'O evento fica ⏳ provisório (só os coordenadores veem) até a secretaria aprovar.'
+    : aprovadoJa ? 'Nome, pastoral e detalhes mudam na hora. <b>Dia, hora e local</b> vão para a aprovação da secretaria; até lá, vale o que está aprovado.'
+    : 'Continua ⏳ provisório até a secretaria aprovar.';
   $('#raiz').innerHTML = `<div class="cartao"><h2>${novo ? '＋ Novo evento' : '✏ Mudar evento'}</h2>${msg(aviso)}
+    ${novo ? '' : htmlSituacao(ev)}${regra ? `<p class="pequeno sutil">${regra}</p>` : ''}
     <form id="fEv">
       <label>Nome do evento <input name="titulo" required maxlength="120" value="${esc(e.titulo)}" placeholder="Ex.: Retiro dos crismandos"></label>
       <label>Pastoral <select name="pastoral">${S.eu.pastorais.map(p => `<option value="${esc(p.id)}"${p.id === e.pastoral ? ' selected' : ''}>${esc(p.nome)}</option>`).join('')}</select></label>
@@ -663,7 +696,7 @@ function telaEvento(ev, dia, aviso) {
       <p class="ag-aviso" id="agAviso"></p>
       ${novo ? '' : `<p class="pequeno sutil">Posto por ${esc(ev.autorNome || '—')}${ev.porNome && ev.em ? ` · última mudança: ${esc(ev.porNome)}, ${esc(quando(ev.em))}` : ''}.</p>`}
       <div class="linha"><button class="primario">Salvar</button><button type="button" id="agCancelar">Cancelar</button><span class="espaco"></span>
-        ${novo ? '' : '<button type="button" id="agApagar">🗑 Apagar</button>'}</div>
+        ${novo ? '' : `<button type="button" id="agApagar">${aprovadoJa && !admin ? '🗑 Pedir para tirar' : '🗑 Apagar'}</button>`}</div>
     </form></div>`;
   const f = $('#fEv');
   const conferir = () => { $('#agAviso').innerHTML = avisoDoDia(f.ini.value, f.fim.value, f.pastoral.value, e.id); };
@@ -675,7 +708,7 @@ function telaEvento(ev, dia, aviso) {
     await carregarAgenda(); telaPrincipal(r.msg, true);
   };
   if ($('#agApagar')) $('#agApagar').onclick = async () => {
-    if (!confirm(`Apagar "${e.titulo}"?`)) return;
+    if (!confirm(aprovadoJa && !admin ? `Pedir à secretaria para tirar "${e.titulo}" do calendário?` : `Apagar "${e.titulo}"?`)) return;
     ocupado(true);
     try { await depois(await chamar('agendaExcluir', { token: S.token, id: e.id })); }
     catch (x) { if (x && x.sair) return telaEntrar(erroDe(x)); telaEvento(ev, dia, erroDe(x)); }
@@ -686,7 +719,7 @@ function telaEvento(ev, dia, aviso) {
     const dados = { id: e.id || '', titulo: f.titulo.value, pastoral: f.pastoral.value, ini: f.ini.value, fim: f.fim.value, hora: f.hora.value, local: f.local.value, desc: f.desc.value };
     ocupado(true);
     try { await depois(await chamar('agendaSalvar', { token: S.token, evento: dados })); }
-    catch (x) { if (x && x.sair) return telaEntrar(erroDe(x)); telaEvento(ev ? Object.assign({}, ev, dados) : null, dados.ini, erroDe(x)); if (!ev) { const g = $('#fEv'); Object.keys(dados).forEach(k => { if (g[k]) g[k].value = dados[k]; }); } }
+    catch (x) { if (x && x.sair) return telaEntrar(erroDe(x)); telaEvento(ev ? Object.assign({}, ev, dados, { pedido: null }) : null, dados.ini, erroDe(x)); if (!ev) { const g = $('#fEv'); Object.keys(dados).forEach(k => { if (g[k]) g[k].value = dados[k]; }); } }
     finally { ocupado(false); }
   };
 }

@@ -1547,6 +1547,25 @@ html[data-tema-app="claro"] .slide .corpo.tl .quem, html[data-tema-app="claro"] 
 .cp-cor { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
 .cp-lista { max-height: 55vh; overflow: auto; }
 .cp-rel { border-left: 4px solid var(--cor, #d4a93a); padding: 6px 10px; margin: 6px 0 10px; }
+/* (1.7.2) ✅ aprovar, um a um (na reunião das pastorais: letra grande) */
+.cp-badge { display: inline-block; min-width: 1.4em; padding: 0 5px; border-radius: 10px; background: #e0473a; color: #fff; font-size: .8em; font-weight: 700; text-align: center; }
+.cp-prov td { background: repeating-linear-gradient(135deg, rgba(212,169,58,.08) 0 6px, transparent 6px 12px); }
+.cp-recus td { opacity: .5; }
+.cp-espera { color: #d4a93a; }
+.cp-apr { border: 1px solid var(--borda, #3a3f48); border-left: 8px solid var(--c); border-radius: 10px; padding: 14px 18px; margin: 10px 0; display: flex; flex-direction: column; gap: 10px; font-size: 1.1rem; }
+.cp-apr-tipo { font-size: .9rem; font-weight: 600; color: #d4a93a; }
+.cp-apr-tit { font-size: 1.7rem; font-weight: 700; line-height: 1.2; }
+.cp-apr-quando { font-size: 1.35rem; }
+.cp-apr-desc { white-space: pre-wrap; opacity: .85; }
+.cp-apr-tab { font-size: 1.1rem; }
+.cp-apr-tab .cp-apr-dif { font-weight: 700; color: #d4a93a; }
+.cp-apr-conf { background: rgba(224,71,58,.12); border-radius: 6px; padding: 8px 10px; font-size: 1rem; }
+.cp-apr .linha button { font-size: 1rem; padding: 10px 16px; }
+.cp-apr-aj { border: 1px dashed #d4a93a; border-radius: 8px; padding: 8px 10px; }
+.cp-apr-aj input { font-size: 1.05rem; }
+.cp-apr-vazio { font-size: 1.2rem; padding: 24px 0; text-align: center; }
+.cp-apr-todos { margin-top: 6px; }
+.cp-apr-todos summary { cursor: pointer; }
 .cp-logo2 { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--borda, #3a3f48); }
 .cp-logo2-previa img { height: 48px; background: #1b1e24; border-radius: 8px; padding: 4px 8px; vertical-align: middle; }
 .esc-pt-avancado { margin-top: 18px; }

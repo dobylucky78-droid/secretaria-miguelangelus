@@ -11,6 +11,14 @@
 // VERSAO_SECRETARIA fica no <head> do index.html (o splash usa antes deste arquivo carregar)
 
 const NOVIDADES_SECRETARIA = [
+  { versao: '1.7.2', data: '2026-11-25', itens: [
+    '✅ Aprovar o calendário pastoral (portal 0.3.0): o que as coordenações põem no portal fica ⏳ provisório. Só quem entra no portal vê, e o calendário aberto não mostra. Na aba ✅ Aprovar do 📆 Calendário pastoral você decide um a um, em letra grande, para fazer na reunião das pastorais. Para cada pedido aparece o que mais está marcado nesses dias, e há um motivo opcional para quando não aprovar (a pastoral vê o motivo).',
+    '🔁 Num evento já aprovado, mudar o dia, a hora ou o local (ou tirar o evento) também vai para a aprovação; até lá, vale o que estava aprovado. Nome, pastoral e detalhes a coordenação muda sozinha, a qualquer hora.',
+    '📥 O que a Secretaria põe (a programação trazida, o ＋ Novo evento do card e os 🎉 eventos com cartaz) já entra aprovado. Quem tem “muda tudo” no portal também não precisa de aprovação.',
+    '✏ Ajustar e aprovar: na reunião, dá para acertar ali mesmo o dia, a hora, o local ou o nome e aprovar assim, sem recusar. O aviso de outras pastorais muda junto com a data. No portal, a pastoral vê o que ela pediu e como ficou.',
+    '📝 Relatório do mês: cada pessoa escreve só o relatório das pastorais marcadas para ela, mesmo quem tem “muda tudo” (antes, o “muda tudo” abria o relatório de todas). A secretaria continua vendo todos no card.',
+    'Para usar: abra ⚙ Ajustes › 🌐 Portal e clique em ⬆ Atualizar o portal.',
+  ] },
   { versao: '1.7.1', data: '2026-11-25', itens: [
     '📆 Calendário pastoral (card novo na tela inicial; portal 0.2.0): no portal, cada coordenação põe os eventos da sua pastoral em qualquer dia, e todos veem tudo, num calendário do mês ou numa lista. Cada um muda e apaga só os eventos da própria pastoral; quem tem "muda tudo" muda qualquer evento, inclusive os da paróquia. Quando duas pastorais marcam o mesmo dia aparece um ⚠, mas pode.',
     '🎉 Os eventos com cartaz (Eventos com QR code) entram sozinhos no calendário pastoral, como da paróquia. Mudou ou apagou na Secretaria, muda ou some lá também; no portal ninguém mexe neles.',
